@@ -84,6 +84,8 @@ public final class App extends Application {
         if (isDebugProcess()) return;
 
         Notifications.createChannels(this);
+        // A native crash or freeze last time is shown now (the Java handler cannot catch those).
+        DebugActivity.reportLastExit(this);
         AppGraph g = AppGraph.init(this);
         g.io.execute(() -> {
             try {

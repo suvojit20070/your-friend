@@ -58,6 +58,91 @@ public final class DebugActivity extends Activity {
         }
     }
 
+    /**
+     * Native crashes (C/C++, the GPU render thread) and freezes (ANR) never reach the Java crash
+     * handler. Android 11+ records why the process died last time; on the next start this turns
+     * such an exit into a report and opens this screen. Each exit is reported once.
+     */
+    static void reportLastExit(Context ctx) {
+        if (Build.VERSION.SDK_INT < 30) return;
+        try {
+            android.app.ActivityManager am = ctx.getSystemService(android.app.ActivityManager.class);
+            if (am == null) return;
+            java.util.List<android.app.ApplicationExitInfo> exits = am.getHistoricalProcessExitReasons(ctx.getPackageName(), 0, 5);
+            android.content.SharedPreferences prefs = ctx.getSharedPreferences("debug", Context.MODE_PRIVATE);
+            long seen = prefs.getLong("last_exit_seen", 0);
+            android.app.ApplicationExitInfo hit = null;
+            for (android.app.ApplicationExitInfo e : exits) {
+                if (e.getTimestamp() <= seen) continue;
+                if (e.getProcessName() != null && e.getProcessName().endsWith(":debug")) continue;
+                int r = e.getReason();
+                if (r == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE || r == android.app.ApplicationExitInfo.REASON_ANR) {
+                    hit = e;
+                    break;
+                }
+            }
+            if (!exits.isEmpty()) prefs.edit().putLong("last_exit_seen", exits.get(0).getTimestamp()).apply();
+            if (hit == null) return;
+            StringBuilder sb = new StringBuilder(header(ctx));
+            sb.append("Previous run ended with: ")
+                    .append(hit.getReason() == android.app.ApplicationExitInfo.REASON_ANR ? "ANR (app froze)" : "NATIVE CRASH")
+                    .append("\nWhen: ").append(new java.util.Date(hit.getTimestamp()))
+                    .append("\nProcess: ").append(hit.getProcessName())
+                    .append("\nDescription: ").append(hit.getDescription())
+                    .append("\nSignal/status: ").append(hit.getStatus())
+                    .append("\n\n");
+            String trace = readTrace(hit);
+            if (!trace.isEmpty()) sb.append(trace);
+            else sb.append("(Android kept no trace for this exit.)");
+            String report = sb.toString();
+            save(ctx, report);
+            Intent intent = new Intent(ctx, DebugActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            intent.putExtra(EXTRA_ERROR, report);
+            ctx.startActivity(intent);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * ANR traces are text. Native tombstones are a binary (protobuf) record; the readable parts —
+     * signal, abort message, library and function names of the backtrace — are pulled out as text.
+     */
+    private static String readTrace(android.app.ApplicationExitInfo e) {
+        if (Build.VERSION.SDK_INT < 30) return "";
+        try (InputStream in = e.getTraceInputStream()) {
+            if (in == null) return "";
+            java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[16384];
+            int n;
+            while ((n = in.read(buf)) > 0 && bo.size() < 4 * 1024 * 1024) bo.write(buf, 0, n);
+            byte[] data = bo.toByteArray();
+            if (e.getReason() == android.app.ApplicationExitInfo.REASON_ANR) {
+                String t = new String(data, StandardCharsets.UTF_8);
+                return t.length() > 150_000 ? t.substring(0, 150_000) + "\n…" : t;
+            }
+            StringBuilder out = new StringBuilder("Readable parts of the native crash record:\n");
+            StringBuilder cur = new StringBuilder();
+            int lines = 0;
+            for (byte b : data) {
+                int c = b & 0xff;
+                if (c >= 0x20 && c < 0x7f) {
+                    cur.append((char) c);
+                } else {
+                    if (cur.length() >= 6 && lines < 1500) {
+                        out.append(cur).append('\n');
+                        lines++;
+                    }
+                    cur.setLength(0);
+                }
+            }
+            if (cur.length() >= 6) out.append(cur).append('\n');
+            return out.toString();
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
     private static String header(Context ctx) {
         String version = "?";
         try {

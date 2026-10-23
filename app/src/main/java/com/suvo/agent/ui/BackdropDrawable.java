@@ -21,12 +21,15 @@ import com.suvo.agent.R;
  * the glass tint and specular rim on top. Content is recorded at a reduced scale, so the blur is
  * cheap. On older Android it is plain {@link GlassDrawable} glass (slightly more opaque).
  *
- * While the content is being recorded every backdrop draws nothing, so glass never blurs itself.
+ * Safety: the recorded RenderNode references the source views' display lists live (not a copy).
+ * If the source contained the glass view itself, the glass would draw a node that draws the glass
+ * again — an endless loop on the render thread (a native crash). So the source must never be the
+ * glass view or one of its ancestors; in that case the glass is drawn without the live blur.
  */
 public final class BackdropDrawable extends GlassDrawable implements ViewTreeObserver.OnPreDrawListener,
         View.OnAttachStateChangeListener {
 
-    private static int capturing;
+    private boolean capturing;
     private static final float SCALE = 0.25f;
 
     private final View host;
@@ -41,12 +44,20 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
     /** @param source the view whose content shows through (usually the activity's content root). */
     public static void apply(View host, View source, float radiusPx) {
         Context c = host.getContext();
-        if (Build.VERSION.SDK_INT >= 31 && source != null) {
+        if (Build.VERSION.SDK_INT >= 31 && source != null && !isSelfOrAncestor(source, host)) {
             host.setBackground(new BackdropDrawable(c, host, source, radiusPx));
         } else {
             host.setBackground(new GlassDrawable(c, radiusPx, c.getColor(R.color.glass_fill_strong)));
         }
         host.setClipToOutline(true);
+    }
+
+    /** True if {@code v} is {@code host} or contains it. */
+    static boolean isSelfOrAncestor(View v, View host) {
+        for (Object p = host; p instanceof View; p = ((View) p).getParent()) {
+            if (p == v) return true;
+        }
+        return false;
     }
 
     private BackdropDrawable(Context ctx, View host, View source, float radiusPx) {
@@ -73,7 +84,8 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
 
     @Override
     public boolean onPreDraw() {
-        if (Build.VERSION.SDK_INT < 31 || !host.isShown() || host.getWidth() == 0 || capturing > 0) return true;
+        if (Build.VERSION.SDK_INT < 31 || !host.isShown() || host.getWidth() == 0 || capturing) return true;
+        if (isSelfOrAncestor(source, host)) return true; // re-parented since: never record ourselves
         int w = Math.max(1, Math.round(host.getWidth() * SCALE));
         int h = Math.max(1, Math.round(host.getHeight() * SCALE));
         RenderNode n = (RenderNode) node;
@@ -85,7 +97,7 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
         source.getLocationInWindow(srcLoc);
         n.setPosition(0, 0, w, h);
         RecordingCanvas rc = n.beginRecording(w, h);
-        capturing++;
+        capturing = true;
         try {
             rc.drawColor(bgColor);
             rc.scale(SCALE, SCALE);
@@ -94,7 +106,7 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
         } catch (RuntimeException ignored) {
             // A view that cannot be recorded this frame: keep the previous blur.
         } finally {
-            capturing--;
+            capturing = false;
             n.endRecording();
         }
         n.setRenderEffect(RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP));
@@ -105,7 +117,7 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
 
     @Override
     public void draw(Canvas c) {
-        if (capturing > 0) return; // never part of its own backdrop
+        if (capturing) return; // never part of its own backdrop
         if (Build.VERSION.SDK_INT >= 31 && ready && node != null && c.isHardwareAccelerated()) {
             c.save();
             c.clipPath(path());
