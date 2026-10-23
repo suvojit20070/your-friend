@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hinglish (English+India) -->
+<resources>
+    <string name="app_name">Your Friend</string>
+    <string name="hint_input">Aura se baat karo…</string>
+    <string name="send">Bhejo</string>
+    <string name="mic">Bolo</string>
+    <string name="accessibility_desc">Aura ko screen padhne aur tap karne deta hai taaki wo screen ke kaam me help kar sake. Aap ise kabhi bhi off kar sakte ho.</string>
+</resources>
