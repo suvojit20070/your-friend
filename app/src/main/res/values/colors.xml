@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light theme -->
+    <color name="bg_top">#FFF2F0FF</color>
+    <color name="bg_bottom">#FFE6F3FA</color>
+    <color name="blob_1">#55B4A7FF</color>
+    <color name="blob_2">#4D7FE3D6</color>
+    <color name="blob_3">#40FFB3C7</color>
+    <color name="glass_fill">#B3FFFFFF</color>
+    <color name="glass_fill_strong">#E6FFFFFF</color>
+    <color name="glass_stroke">#66FFFFFF</color>
+    <color name="glass_stroke_dark">#1F1B1640</color>
+    <color name="text_primary">#FF1D1B29</color>
+    <color name="text_secondary">#FF5D5A70</color>
+    <color name="text_on_accent">#FFFFFFFF</color>
+    <color name="accent">#FF7C6CFF</color>
+    <color name="accent_soft">#337C6CFF</color>
+    <color name="accent_2">#FF2FB9A8</color>
+    <color name="danger">#FFE5484D</color>
+    <color name="warning">#FFE29A1F</color>
+    <color name="success">#FF2F9E62</color>
+    <color name="bubble_user">#FF7C6CFF</color>
+    <color name="bubble_assistant">#D9FFFFFF</color>
+    <color name="bubble_tool">#99F4F2FF</color>
+    <color name="divider">#1A1D1B29</color>
+    <color name="nav_pill">#E6FFFFFF</color>
+    <color name="code_bg">#FF1E1E2A</color>
+    <color name="code_text">#FFE8E6F3</color>
+</resources>

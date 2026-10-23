@@ -1,0 +1,36 @@
+Third-party software
+====================
+
+Bundled in the app
+------------------
+Shizuku API (dev.rikka.shizuku:api, provider) 13.1.5
+  https://github.com/RikkaApps/Shizuku-API — Apache License 2.0
+  Copyright (c) RikkaW and contributors
+
+JSch (com.github.mwiede:jsch) 2.28.8
+  https://github.com/mwiede/jsch — BSD-style license (JSch License)
+  Copyright (c) 2002-2018 ymnk, JCraft, Inc.; 2018+ Matthias Wiedemann and contributors
+
+AndroidX Annotation (transitive, via Shizuku) — Apache License 2.0
+  Copyright The Android Open Source Project
+
+Not bundled — loaded only if you import them
+--------------------------------------------
+audio.cpp (libaudiocpp.so and its libraries)
+  https://github.com/0xShug0/audio.cpp — Apache License 2.0
+  Copyright 2026 ShugoAI LLC. You build and import it yourself.
+
+OmniVoice (k2-fsa) model weights, including GGUF conversions
+  https://github.com/k2-fsa/OmniVoice — the published model weights are
+  licensed CC BY-NC 4.0 (non-commercial). They are never shipped with this
+  app; check the current model card before downloading.
+
+omnivoice-server (optional, runs on your own machine)
+  https://github.com/maemreyo/omnivoice-server — MIT License
+  Copyright (c) 2026 zamery (maemreyo)
+
+Services you choose
+-------------------
+AI providers (OpenAI-compatible APIs), search engines (DuckDuckGo,
+SearXNG, Brave Search), Termux and Shizuku are separate products with
+their own terms. Your Friend only talks to the ones you configure.

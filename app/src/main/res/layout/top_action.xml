@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImageButton xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="@dimen/icon_button"
+    android:layout_height="@dimen/icon_button"
+    android:layout_marginStart="6dp"
+    android:background="@drawable/circle_glass" />

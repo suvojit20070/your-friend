@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain http:// is needed for servers on your own network (Ollama, LM Studio, llama.cpp,
+  omnivoice-server, SearXNG). Web tools still refuse private/loopback addresses unless
+  "LAN access" is enabled (see UrlSafety), and API keys should only be sent over https
+  to public providers.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

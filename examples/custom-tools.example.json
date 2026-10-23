@@ -1,0 +1,24 @@
+{
+  "_comment": "Example custom tools (Tools > New custom tool). Secrets are entered in the app and are never exported.",
+  "tools": [
+    {
+      "name": "word_count",
+      "description": "Count words, lines and characters in a text.",
+      "kind": "python",
+      "risk": "LOW",
+      "timeoutS": 30,
+      "schema": { "type": "object", "properties": { "text": { "type": "string" } }, "required": ["text"] },
+      "code": "import json, sys\nargs = json.load(sys.stdin)\nt = args['text']\nprint(json.dumps({'status': 'ok', 'message': f\"{len(t.split())} words\", 'data': {'words': len(t.split()), 'lines': t.count('\\n') + 1, 'chars': len(t)}}))\n"
+    },
+    {
+      "name": "weather_now",
+      "description": "Current weather for a latitude/longitude from open-meteo.com.",
+      "kind": "http",
+      "risk": "LOW",
+      "method": "GET",
+      "url": "https://api.open-meteo.com/v1/forecast?latitude={{lat}}&longitude={{lon}}&current_weather=true",
+      "timeoutS": 20,
+      "schema": { "type": "object", "properties": { "lat": { "type": "number" }, "lon": { "type": "number" } }, "required": ["lat", "lon"] }
+    }
+  ]
+}

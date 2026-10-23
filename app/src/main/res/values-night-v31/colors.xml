@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">@android:color/system_accent1_300</color>
+    <color name="accent_2">@android:color/system_accent3_300</color>
+    <color name="bubble_user">@android:color/system_accent1_600</color>
+    <color name="blob_1">#55594AD9</color>
+</resources>

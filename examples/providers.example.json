@@ -1,0 +1,11 @@
+{
+  "_comment": "Example provider entries. Add them in Settings > Providers; API keys are typed in the app and stored encrypted, never in files like this one.",
+  "providers": [
+    { "name": "OpenRouter", "baseUrl": "https://openrouter.ai/api/v1", "model": "openai/gpt-4o-mini",
+      "supportsTools": true, "supportsVision": true, "contextWindowTokens": 128000, "apiKey": "<enter in the app>" },
+    { "name": "Groq", "baseUrl": "https://api.groq.com/openai/v1", "model": "llama-3.3-70b-versatile",
+      "supportsTools": true, "supportsVision": false, "contextWindowTokens": 128000, "apiKey": "<enter in the app>" },
+    { "name": "Ollama on my PC", "baseUrl": "http://192.168.1.10:11434/v1", "model": "qwen2.5:7b",
+      "supportsTools": true, "supportsVision": false, "contextWindowTokens": 32768, "apiKey": "" }
+  ]
+}

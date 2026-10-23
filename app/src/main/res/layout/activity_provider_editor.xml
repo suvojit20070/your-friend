@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <include layout="@layout/top_bar" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/screen_padding"
+            android:paddingEnd="@dimen/screen_padding"
+            android:paddingBottom="32dp">
+
+            <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_preset" />
+            <Spinner
+                android:id="@+id/pe_preset"
+                style="@style/YF.Input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_name" />
+            <EditText android:id="@+id/pe_name" style="@style/YF.Input" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="text" />
+
+            <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_base_url" />
+            <EditText android:id="@+id/pe_url" style="@style/YF.Input" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="https://api.example.com/v1" android:inputType="textUri" />
+
+            <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_api_key" />
+            <EditText android:id="@+id/pe_key" style="@style/YF.Input" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="@string/provider_api_key_hint" android:inputType="textPassword" />
+
+            <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_model" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+                <EditText android:id="@+id/pe_model" style="@style/YF.Input" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:inputType="text" />
+                <Button android:id="@+id/pe_fetch_models" style="@style/YF.Button.Ghost" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="@string/provider_fetch_models" />
+            </LinearLayout>
+
+            <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_headers" />
+            <EditText android:id="@+id/pe_headers" style="@style/YF.Input" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="X-Header: value" android:inputType="textMultiLine" android:minLines="2" />
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_timeout" />
+                    <EditText android:id="@+id/pe_timeout" style="@style/YF.Input" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:orientation="vertical">
+                    <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_max_tokens" />
+                    <EditText android:id="@+id/pe_max_tokens" style="@style/YF.Input" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                    <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_temperature" />
+                    <EditText android:id="@+id/pe_temperature" style="@style/YF.Input" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="numberDecimal" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_weight="1" android:orientation="vertical">
+                    <TextView style="@style/YF.Label" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_context_window" />
+                    <EditText android:id="@+id/pe_context" style="@style/YF.Input" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView style="@style/YF.Section" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_capabilities" />
+            <TextView style="@style/YF.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/provider_capabilities_note" />
+            <Switch android:id="@+id/pe_stream" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_streaming" />
+            <Switch android:id="@+id/pe_tools" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_supports_tools" />
+            <Switch android:id="@+id/pe_parallel" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_parallel_tools" />
+            <Switch android:id="@+id/pe_vision" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_vision" />
+            <Switch android:id="@+id/pe_system" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_system_role" />
+            <Switch android:id="@+id/pe_send_temp" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_send_temperature" />
+            <Switch android:id="@+id/pe_usage" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_stream_usage" />
+            <Switch android:id="@+id/pe_enabled" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_enabled" />
+            <Switch android:id="@+id/pe_default" style="@style/YF.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/provider_default" />
+
+            <TextView android:id="@+id/pe_test_result" style="@style/YF.Caption" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+
+            <Button android:id="@+id/pe_test" style="@style/YF.Button.Ghost" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/provider_test" />
+            <Button android:id="@+id/pe_save" style="@style/YF.Button" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:tag="accent" android:text="@string/save" />
+            <Button android:id="@+id/pe_delete" style="@style/YF.Button.Danger" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/delete" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

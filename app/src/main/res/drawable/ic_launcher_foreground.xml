@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- hair back -->
+    <path android:fillColor="#FF3B2A4D" android:pathData="M30,52 C28,30 40,22 54,22 C68,22 80,30 78,52 C80,66 78,78 74,84 L34,84 C30,78 28,66 30,52 Z"/>
+    <!-- face -->
+    <path android:fillColor="#FFFFE7D9" android:pathData="M36,50 C36,38 44,32 54,32 C64,32 72,38 72,50 C72,62 64,74 54,76 C44,74 36,62 36,50 Z"/>
+    <!-- fringe -->
+    <path android:fillColor="#FF4B3760" android:pathData="M34,48 C33,34 43,27 54,27 C65,27 75,34 74,48 L68,43 L64,50 L59,42 L54,49 L49,42 L44,50 L40,43 Z"/>
+    <!-- eyes -->
+    <path android:fillColor="#FF2A1F2D" android:pathData="M44,52 A3.4,4.6 0 1 0 44.01,52 Z M64,52 A3.4,4.6 0 1 0 64.01,52 Z"/>
+    <path android:fillColor="#FFFFFFFF" android:pathData="M43,50.5 A1.2,1.2 0 1 0 43.01,50.5 Z M63,50.5 A1.2,1.2 0 1 0 63.01,50.5 Z"/>
+    <!-- smile and blush -->
+    <path android:strokeColor="#FF7A3340" android:strokeWidth="1.8" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M50,64 Q54,67.5 58,64"/>
+    <path android:fillColor="#55FF6F91" android:pathData="M40,60 A4,2 0 1 0 40.01,60 Z M68,60 A4,2 0 1 0 68.01,60 Z"/>
+    <!-- ribbon -->
+    <path android:fillColor="#FFE5486B" android:pathData="M66,30 L74,25 L75,34 Z M66,30 L60,23 L58,32 Z"/>
+</vector>

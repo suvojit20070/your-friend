@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="screen_padding">16dp</dimen>
+    <dimen name="corner">24dp</dimen>
+    <dimen name="corner_small">14dp</dimen>
+    <dimen name="top_bar_height">56dp</dimen>
+    <dimen name="nav_height">64dp</dimen>
+    <dimen name="icon_button">44dp</dimen>
+    <dimen name="editor_preview_height">260dp</dimen>
+</resources>

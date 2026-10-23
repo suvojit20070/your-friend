@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_top">#FF14132A</color>
+    <color name="bg_bottom">#FF0E1B24</color>
+    <color name="blob_1">#55594AD9</color>
+    <color name="blob_2">#402FB9A8</color>
+    <color name="blob_3">#33E04A7B</color>
+    <color name="glass_fill">#33FFFFFF</color>
+    <color name="glass_fill_strong">#E61E1D30</color>
+    <color name="glass_stroke">#33FFFFFF</color>
+    <color name="glass_stroke_dark">#14FFFFFF</color>
+    <color name="text_primary">#FFF1EFFA</color>
+    <color name="text_secondary">#FFB3B0C7</color>
+    <color name="accent">#FF9D90FF</color>
+    <color name="accent_soft">#339D90FF</color>
+    <color name="bubble_user">#FF6556E8</color>
+    <color name="bubble_assistant">#33FFFFFF</color>
+    <color name="bubble_tool">#1FFFFFFF</color>
+    <color name="divider">#1AFFFFFF</color>
+    <color name="nav_pill">#CC1E1D30</color>
+</resources>

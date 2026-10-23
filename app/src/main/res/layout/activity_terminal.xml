@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Private terminal: backend selector, scrolling output, command input. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <include layout="@layout/top_bar" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingEnd="@dimen/screen_padding"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/term_backends"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingBottom="8dp" />
+    </HorizontalScrollView>
+
+    <TextView
+        android:id="@+id/term_status"
+        style="@style/YF.Caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingEnd="@dimen/screen_padding" />
+
+    <ScrollView
+        android:id="@+id/term_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_margin="@dimen/screen_padding"
+        android:layout_weight="1"
+        android:background="@drawable/code_bg"
+        android:fillViewport="true">
+
+        <TextView
+            android:id="@+id/term_output"
+            style="@style/YF.Mono"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:textIsSelectable="true" />
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingEnd="@dimen/screen_padding"
+        android:paddingBottom="12dp">
+
+        <ImageButton
+            android:id="@+id/term_history"
+            android:layout_width="@dimen/icon_button"
+            android:layout_height="@dimen/icon_button"
+            android:background="@drawable/circle_glass"
+            android:contentDescription="@string/terminal_history"
+            android:src="@drawable/ic_history" />
+
+        <EditText
+            android:id="@+id/term_input"
+            style="@style/YF.Input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:fontFamily="monospace"
+            android:hint="@string/terminal_hint"
+            android:imeOptions="actionSend"
+            android:inputType="text|textNoSuggestions"
+            android:maxLines="4" />
+
+        <ImageButton
+            android:id="@+id/term_run"
+            android:layout_width="@dimen/icon_button"
+            android:layout_height="@dimen/icon_button"
+            android:background="@drawable/circle_accent"
+            android:contentDescription="@string/terminal_run"
+            android:src="@drawable/ic_send"
+            android:tag="accent" />
+    </LinearLayout>
+</LinearLayout>
