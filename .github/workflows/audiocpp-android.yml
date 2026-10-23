@@ -32,12 +32,18 @@ jobs:
           submodules: recursive
           path: audiocpp
 
-      - uses: android-actions/setup-android@v3
-
       - name: Install NDK (must match the app's ndkVersion)
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "ndk;27.2.12479018"
+          # Use the SDK preinstalled on GitHub's Ubuntu runners (the setup-android action fails on
+          # the removed legacy "tools" package). Pick the newest cmdline-tools sdkmanager.
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          SDKM="$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          echo "Using $SDKM"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "ndk;27.2.12479018"
+
+      - name: Install Ninja
+        run: sudo apt-get update -y && sudo apt-get install -y ninja-build
 
       - name: Configure
         run: |
@@ -59,12 +65,20 @@ jobs:
       - name: Build libaudiocpp.so
         run: cmake --build build --target audiocpp -j 4
 
-      - name: Collect library
+      - name: Collect library and its companions
         run: |
           mkdir -p out
-          find build -name 'libaudiocpp.so*' -exec cp -L {} out/ \;
+          # libaudiocpp.so plus any other shared libraries the build produced (e.g. ggml backends)
+          find build -name '*.so*' -type f -exec cp -L {} out/ \;
+          # The C++ runtime it was linked against (c++_shared) must be imported too.
+          case "${{ inputs.abi }}" in
+            arm64-v8a) TRIPLE=aarch64-linux-android ;;
+            x86_64) TRIPLE=x86_64-linux-android ;;
+          esac
+          NDK="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          cp "$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$TRIPLE/libc++_shared.so" out/
           ls -la out
-          "$ANDROID_SDK_ROOT/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -d out/libaudiocpp.so | grep NEEDED || true
+          for f in out/*.so*; do echo "== $f"; "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -d "$f" | grep NEEDED || true; done
 
       - uses: actions/upload-artifact@v4
         with:
