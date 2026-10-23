@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Your Friend</string>
+    <string name="hint_input">Aura se baat karo…</string>
+    <string name="send">Send</string>
+    <string name="mic">Talk</string>
+    <string name="accessibility_desc">Lets Aura read the screen and perform taps so it can help you with on-screen tasks. You can turn this off anytime.</string>
+</resources>
