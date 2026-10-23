@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.YourFriend" parent="android:Theme.Material.Light.NoActionBar">
+    <style
+        name="Theme.YourFriend"
+        parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@drawable/bg_app</item>
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:colorPrimary">@color/accent</item>
@@ -18,9 +20,14 @@
         <item name="android:textCursorDrawable">@null</item>
         <item name="android:colorBackground">@color/bg_top</item>
         <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:textSelectHandle">@drawable/text_select_handle</item>
+        <item name="android:textSelectHandleLeft">@drawable/editor_handle_left</item>
+        <item name="android:textSelectHandleRight">@drawable/editor_handle_right</item>
     </style>
 
-    <style name="Theme.YourFriend.Dialog" parent="android:Theme.Material.Light.Dialog.Alert">
+    <style
+        name="Theme.YourFriend.Dialog"
+        parent="android:Theme.Material.Light.Dialog.Alert">
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:colorControlActivated">@color/accent</item>
         <item name="android:colorControlNormal">@color/text_secondary</item>
@@ -32,11 +39,19 @@
         <item name="android:windowTitleStyle">@style/YF.DialogTitle</item>
         <item name="android:buttonBarButtonStyle">@style/YF.DialogButton</item>
         <item name="android:backgroundDimAmount">0.55</item>
+        <item name="android:textSelectHandle">@drawable/text_select_handle</item>
+        <item name="android:textSelectHandleLeft">@drawable/editor_handle_left</item>
+        <item name="android:textSelectHandleRight">@drawable/editor_handle_right</item>
     </style>
 
-    <style name="Theme.YourFriend.Transparent" parent="android:Theme.Translucent.NoTitleBar">
+    <style
+        name="Theme.YourFriend.Transparent"
+        parent="android:Theme.Translucent.NoTitleBar">
         <item name="android:windowNoDisplay">false</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:textSelectHandle">@drawable/text_select_handle</item>
+        <item name="android:textSelectHandleLeft">@drawable/editor_handle_left</item>
+        <item name="android:textSelectHandleRight">@drawable/editor_handle_right</item>
     </style>
 </resources>
