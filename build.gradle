@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 // Your Friend — Original project by Suvo.
 // Top-level build file. Module configuration lives in app/build.gradle.
 plugins {
     id 'com.android.application' version '8.7.3' apply false
+=======
+// Top-level build file
+plugins {
+    id 'com.android.application' version '8.6.0' apply false
+>>>>>>> 2fdbf158535950372900ccd3a8ad3b5b0f730b15
 }

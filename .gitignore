@@ -3,6 +3,7 @@
 /local.properties
 /.idea/
 .DS_Store
+<<<<<<< HEAD
 /build/
 /app/build/
 /app/.cxx/
@@ -12,3 +13,12 @@
 *.keystore
 *.jks
 secrets.properties
+=======
+/build
+/captures
+.externalNativeBuild
+.cxx
+app/build/
+*.apk
+*.keystore
+>>>>>>> 2fdbf158535950372900ccd3a8ad3b5b0f730b15

@@ -2,6 +2,7 @@ package com.suvo.agent.core.tools;
 
 import org.json.JSONObject;
 
+<<<<<<< HEAD
 /** A capability the agent can call. Implementations must report real outcomes only. */
 public interface Tool {
 
@@ -26,4 +27,27 @@ public interface Tool {
     }
 
     ToolResult execute(ToolInvocation invocation) throws Exception;
+=======
+/**
+ * A capability the agent can call. Built-in tools (screenshot, tap, file, shell,
+ * camera...) and user skills both implement this.
+ */
+public interface Tool {
+
+    /** Stable unique name the model calls, e.g. "take_screenshot". */
+    String name();
+
+    /** Schema advertised to the LLM. */
+    ToolSchema schema();
+
+    /** Whether this tool is currently usable (permission granted, enabled). */
+    boolean isAvailable();
+
+    /**
+     * Run the tool. Called on a background thread. Return a short result string
+     * for the model (what happened / what was found). Never throw for normal
+     * failures — return an "Error: ..." string instead.
+     */
+    String run(JSONObject args) throws Exception;
+>>>>>>> 2fdbf158535950372900ccd3a8ad3b5b0f730b15
 }
