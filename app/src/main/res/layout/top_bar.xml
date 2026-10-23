@@ -1,35 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Shared top bar: round back button, centred title, round actions on the right. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/top_bar"
     android:layout_width="match_parent"
     android:layout_height="@dimen/top_bar_height"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingStart="4dp"
-    android:paddingEnd="8dp">
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp">
 
     <ImageButton
         android:id="@+id/top_back"
         android:layout_width="@dimen/icon_button"
         android:layout_height="@dimen/icon_button"
+        android:layout_gravity="center_vertical|start"
         android:background="@drawable/circle_glass"
         android:contentDescription="@string/back"
-        android:src="@drawable/ic_back" />
+        android:padding="12dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_back"
+        android:tint="@color/text_primary" />
 
     <TextView
         android:id="@+id/top_title"
         style="@style/YF.Title"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_weight="1"
+        android:layout_gravity="center"
+        android:layout_marginStart="64dp"
+        android:layout_marginEnd="64dp"
         android:ellipsize="end"
-        android:maxLines="1" />
+        android:gravity="center"
+        android:maxLines="1"
+        android:textSize="21sp" />
 
     <LinearLayout
         android:id="@+id/top_actions"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
+        android:layout_gravity="end|center_vertical"
         android:gravity="center_vertical"
         android:orientation="horizontal" />
-</LinearLayout>
+</FrameLayout>

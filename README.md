@@ -48,7 +48,7 @@ What each column means:
 - **Implemented** — the code exists and is wired into the app.
 - **Compiles** — compiled with `javac` against the Android 35 platform jar (all 325 app classes,
   zero errors). The Gradle/AGP build itself has not run yet.
-- **Unit-tested** — covered by JVM unit tests in `app/src/test` (75 tests, all passing).
+- **Unit-tested** — covered by JVM unit tests in `app/src/test` (82 tests, all passing).
 - **On device** — verified on a real phone. **Nothing is in this column yet.**
 
 | Area | Implemented | Compiles | Unit-tested | On device |
@@ -58,7 +58,7 @@ What each column means:
 | Tool lifecycle, schema validation, approval policy, audit log | ✅ | ✅ | ✅ | ⏳ |
 | Persistent memory (SQLite + FTS), ranking, secret filter, extraction | ✅ | ✅ | ✅ (core logic) | ⏳ |
 | Context compaction and history repair | ✅ | ✅ | ✅ | ⏳ |
-| 30 built-in tools | ✅ | ✅ | partly (web parsing, URL safety) | ⏳ |
+| 35 built-in tools | ✅ | ✅ | partly (web parsing, URL safety) | ⏳ |
 | Accessibility screen reading / control | ✅ | ✅ | — | ⏳ |
 | Screenshots (accessibility API 30+, MediaProjection fallback) | ✅ | ✅ | — | ⏳ |
 | Shizuku shell control | ✅ | ✅ | — | ⏳ |
@@ -70,7 +70,12 @@ What each column means:
 | OmniVoice via omnivoice-server, Android system TTS | ✅ | ✅ | — | ⏳ |
 | Lip sync (Java + native; matched on desktop) | ✅ | ✅ | ✅ (Java) | ⏳ |
 | Animated characters Aiko & Haru, custom characters, floating companion | ✅ | ✅ | ✅ (animator) | ⏳ |
-| Glass UI, 13 sections, onboarding, permissions dashboard | ✅ | ✅ | resource check | ⏳ |
+| Team: user-created employees (own provider each), `delegate_task`, live team tree | ✅ | ✅ | prompt layering | ⏳ |
+| Self-active: `schedule_task`, self check-in, `record_mistake` lessons, `install_skill` | ✅ | ✅ | prompt layering | ⏳ |
+| Hugging Face Space voice engine (e.g. Suvo75/tanu-voice) with fallback | ✅ | ✅ | — | ⏳ |
+| Optional 3D VRM character (OpenGL ES 3) | ✅ | ✅ | loader (generated VRM 0.x / 1.0 files) | ⏳ |
+| Live terminal view of the agent's commands | ✅ | ✅ | — | ⏳ |
+| Dark Material-style UI, 15 sections, onboarding, permissions dashboard | ✅ | ✅ | resource check | ⏳ |
 | 5 languages (English, Hinglish, Bengali, Hindi, Japanese) | ✅ | ✅ | resource check | ⏳ |
 | GitHub Actions build, tests, lint, signed release | ✅ | — | — | ⏳ first run pending |
 
@@ -201,15 +206,22 @@ The app never works around Android's own consent screens. Step-by-step instructi
 
 ## Voice (OmniVoice) setup
 
-Your Friend speaks through one of three engines (**Settings → Voice**):
+Your Friend speaks through one of four engines (**Settings → Voice**):
 
-1. **OmniVoice on device (audio.cpp)** — the app loads a `libaudiocpp.so` (and the libraries
+1. **Hugging Face Space (online)** — your own Gradio Space, for example `Suvo75/tanu-voice`
+   (OmniVoice with your reference voice on ZeroGPU). Enter the Space, optionally a Hugging Face
+   token (needed for private Spaces; usage then counts against *your* ZeroGPU quota, which is larger
+   when logged in and larger again with PRO — it is **not** unlimited) and the Space's `API_KEY` if you
+   set one. A sleeping Space takes 1–2 minutes to wake; the app retries. With "Use the phone's voice
+   if this fails" on, replies are still spoken when you are offline or out of quota.
+
+2. **OmniVoice on device (audio.cpp)** — the app loads a `libaudiocpp.so` (and the libraries
    it depends on) that *you* import, plus an OmniVoice GGUF model, through a small JNI bridge
    (`dlopen`). Nothing is bundled.
-2. **OmniVoice server** — point the app at an
+3. **OmniVoice server** — point the app at an
    [omnivoice-server](https://github.com/maemreyo/omnivoice-server) running on your PC or LAN.
    Voice cloning uses `/v1/audio/speech/clone`; plain speech uses `/v1/audio/speech`.
-3. **Android system TTS** — always available, no cloning.
+4. **Android system TTS** — always available, no cloning.
 
 **Voice cloning:** set a reference clip `ref.wav` (3–10 s of clean speech; record it in the app
 or import it) and its exact transcript `ref.txt` (type it or import it) in **Settings → Voice →
@@ -255,7 +267,13 @@ it. You can also export them. A character is a JSON file (`yourfriend-character/
 }
 ```
 
-See `app/src/main/assets/characters/aiko.json` and `haru.json` for complete examples. The
+See `app/src/main/assets/characters/aiko.json` and `haru.json` for complete examples.
+
+**3D (optional):** Settings → Appearance → Character style → *3D model (VRM)*, then pick a `.vrm`
+file (VRoid Studio / VRoid Hub / Booth exports, VRM 0.x or 1.0). The app copies it into its private
+storage and draws it with OpenGL ES 3: skinning, face morphs, blink, lip sync, look toward taps,
+breathing and expressions, with a full-body or upper-body camera. 2D stays the default; if a model
+cannot be shown the app falls back to 2D and Settings shows why. Hair/cloth physics are not simulated. The
 floating companion (Settings → Floating companion) sits on top of other apps, can be dragged
 and snaps to edges.
 
@@ -285,14 +303,26 @@ Additional permissions).
 
 ## Tools, custom tools and skills
 
-### Built-in tools (30)
+### Built-in tools (35)
 
 | Risk | Tools |
 |---|---|
 | Read-only | `list_tools`, `device_status`, `find_installed_apps`, `file_list`, `file_read`, `file_search`, `file_info`, `screenshot`, `view_image`, `load_skill`, `py_web_search`, `py_web_read` |
-| Low | `launch_app`, `open_uri`, `notify`, `file_write`, `file_edit`, `memory`, `py_download_file` |
-| Medium | `shell`, `execute_python`, `execute_cpp`, `execute_java`, `file_manage`, `screen_operation_accessibility`, `screen_operation_shell`, `camera_capture` |
-| High | `ssh`, `py_meta_tools`, `py_install_apk` |
+| Low | `launch_app`, `open_uri`, `notify`, `file_write`, `file_edit`, `memory`, `py_download_file`, `record_mistake`, `delegate_task` |
+| Medium | `shell`, `execute_python`, `execute_cpp`, `execute_java`, `file_manage`, `screen_operation_accessibility`, `screen_operation_shell`, `camera_capture`, `schedule_task`, `install_skill` |
+| High | `ssh`, `py_meta_tools`, `py_install_apk`, `device_admin` (most actions) |
+
+**Team (More → Team):** create employees — name, role, instructions, their own AI provider, allowed
+tools and a step limit. For each task the boss agent checks the team: it hands matching work to an
+employee with `delegate_task` and reviews the report, or does it itself when nobody fits (with no
+employees the tool is not even offered). An employee only gets the tools you allowed (enforced by its
+own tool registry, not by the prompt) and the same approvals as the boss; it cannot hire others or
+schedule tasks. The Agent screen shows a live tree of who is doing what.
+
+**Self-active (More → Self-active):** `schedule_task` lets the agent start itself later (reminders,
+follow-ups, daily checks; you approve each one), and an optional self check-in every few hours
+(never 22:00–08:00). `record_mistake` keeps short lessons that are shown in every later task; you can
+review or delete them there. Allow *exact alarms* for on-time starts with the screen off.
 
 Risk can change per call. For example, `file_manage` delete in an external folder, a `shell`
 command like `rm -rf`, or anything through Shizuku counts as high, while `screen_operation_accessibility`

@@ -63,5 +63,9 @@ public final class BuiltinTools {
         add(g, () -> new MemorySkillTools.Memory(g));
         add(g, () -> new MemorySkillTools.LoadSkill(g));
         add(g, () -> new MemorySkillTools.MetaTools(g));
+        add(g, () -> new TeamTools.DelegateTask(g));
+        add(g, () -> new TeamTools.RecordMistake(g));
+        add(g, () -> new TeamTools.ScheduleTask(g));
+        add(g, () -> new TeamTools.InstallSkill(g));
     }
 }

@@ -51,6 +51,7 @@ public final class CharacterEditorActivity extends BaseActivity {
         topAction(R.drawable.ic_check, R.string.save, v -> save());
 
         preview = findViewById(R.id.ce_preview);
+        preview.setAllow3d(false);
         preview.setQuality(g.settings.str(Settings.ANIMATION_QUALITY, "high"), g.settings.bool(Settings.REDUCED_MOTION, false));
         preview.setDraggable(false);
         preview.setListener(new CharacterView.Listener() {
@@ -124,7 +125,7 @@ public final class CharacterEditorActivity extends BaseActivity {
         slider(box, R.string.character_idle_intensity, spec.idleIntensity, 0.2f, 1.5f, v -> spec.idleIntensity = v);
         slider(box, R.string.character_blink_rate, spec.blinkRate, 0.3f, 2.0f, v -> spec.blinkRate = v);
         slider(box, R.string.character_expressiveness, spec.expressiveness, 0.3f, 1.5f, v -> spec.expressiveness = v);
-        Switch wander = new Switch(this);
+        Switch wander = Widgets.styleSwitch(new Switch(this));
         wander.setTextColor(getColor(R.color.text_primary));
         wander.setTextSize(15f);
         wander.setText(R.string.character_wander);
@@ -273,7 +274,7 @@ public final class CharacterEditorActivity extends BaseActivity {
         TextView label = new TextView(this, null, 0, R.style.YF_Label);
         label.setText(getString(labelRes) + "  " + String.format(Locale.ROOT, "%.2f", value));
         box.addView(label);
-        SeekBar sb = new SeekBar(this);
+        SeekBar sb = Widgets.styleSeekBar(new SeekBar(this));
         sb.setMax(100);
         sb.setProgress(Math.round((value - min) / (max - min) * 100f));
         sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {

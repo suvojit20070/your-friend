@@ -237,7 +237,9 @@ public final class ShizukuTools {
                 default:
                     return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, "Unknown action");
             }
+            com.suvo.agent.terminal.TerminalFeed.Run feed = com.suvo.agent.terminal.TerminalFeed.start("device_admin", "shizuku", cmd);
             ExecResult r = g.shizuku.run(cmd, null, 60_000, inv.cancel);
+            com.suvo.agent.terminal.TerminalFeed.finish(feed, r);
             if (!r.ran()) return ToolResult.of(ToolResult.Status.UNAVAILABLE, r.error);
             String out = TextUtil.truncate((r.stdout + (r.stderr.isEmpty() ? "" : "\n" + r.stderr)).trim(), 12_000);
             JSONObject data = J.obj("command", cmd, "exit_code", r.exitCode, "output", out);

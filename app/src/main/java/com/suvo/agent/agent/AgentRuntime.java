@@ -60,6 +60,7 @@ public final class AgentRuntime {
     private volatile CancellationToken token;
     private volatile AndroidAgentHost host;
     private volatile long activeConversation = -1;
+    private volatile AgentTree.Node treeRoot;
 
     public AgentRuntime(AppGraph g) {
         this.g = g;
@@ -131,6 +132,42 @@ public final class AgentRuntime {
         });
     }
 
+    /** Lines from employees (child agents) running inside delegate_task. */
+    public void externalLog(String kind, String text, String detail) {
+        addLog(kind, text, detail);
+        dispatch(l -> {
+            TaskState t = current;
+            if (t != null) l.onToolProgress(t, CHILD_CALL, text);
+        });
+    }
+
+    private static final ToolCall CHILD_CALL = new ToolCall("child", "delegate_task", "{}");
+
+    /**
+     * Starts a task the app itself triggered (schedule_task or the self check-in). Check-ins run
+     * in their own conversation so they do not fill the main chat.
+     */
+    public String submitScheduled(String text, boolean checkin) {
+        long conv;
+        if (checkin) {
+            long id = g.settings.raw().getLong("checkin_conversation", -1);
+            if (id < 0 || g.conversations.get(id) == null) {
+                id = g.conversations.create(g.ctx.getString(R.string.checkin_conversation), g.characters.active().id);
+                g.settings.raw().edit().putLong("checkin_conversation", id).apply();
+            }
+            conv = id;
+        } else {
+            conv = activeConversation();
+        }
+        quietResult = checkin;
+        String why = submit(conv, text, null);
+        if (why != null) quietResult = false;
+        return why;
+    }
+
+    /** Set for a self check-in: a reply of exactly NOTHING is not spoken or notified. */
+    private volatile boolean quietResult;
+
     private void addLog(String kind, String text, String detail) {
         log.add(new LogLine(kind, text, detail));
         while (log.size() > 300) log.remove(0);
@@ -170,6 +207,7 @@ public final class AgentRuntime {
         loop = lp;
         ChatMessage user = images == null || images.isEmpty() ? ChatMessage.user(text) : ChatMessage.user(text, images);
         AgentForegroundService.start(g.ctx, text);
+        treeRoot = AgentTree.startRoot(g.characters.active().name, text);
         Thread t = new Thread(() -> {
             lp.run(task, user);
             afterTask(task, llm, conversationId);
@@ -201,7 +239,9 @@ public final class AgentRuntime {
 
     private void afterTask(TaskState task, LlmClient llm, long conversationId) {
         AgentForegroundService.stop(g.ctx);
-        if (task.status == TaskState.Status.COMPLETED && !task.finalText.isEmpty()) {
+        boolean quiet = quietResult && com.suvo.agent.agent.Scheduler.NOTHING.equals(task.finalText.trim());
+        quietResult = false;
+        if (task.status == TaskState.Status.COMPLETED && !task.finalText.isEmpty() && !quiet) {
             if (g.settings.bool(Settings.VOICE_OUTPUT, false)) g.speech.speak(task.finalText);
             if (!App.isInForeground()) notifyDone(task);
         }
@@ -245,6 +285,8 @@ public final class AgentRuntime {
         @Override
         public void onStatusChanged(TaskState task) {
             addLog("status", task.status.name(), task.error);
+            if (task.status == TaskState.Status.WAITING_APPROVAL) AgentTree.state(treeRoot, AgentTree.State.WAITING);
+            else if (task.status == TaskState.Status.RUNNING) AgentTree.state(treeRoot, AgentTree.State.RUNNING);
             dispatch(l -> l.onStatusChanged(task));
         }
 
@@ -255,6 +297,7 @@ public final class AgentRuntime {
 
         @Override
         public void onToolCallPreparing(TaskState task, String toolName) {
+            AgentTree.action(treeRoot, toolName + "…");
             dispatch(l -> l.onToolCallPreparing(task, toolName));
         }
 
@@ -266,6 +309,7 @@ public final class AgentRuntime {
         @Override
         public void onToolExecuting(TaskState task, ToolCall call) {
             addLog("tool", call.name, com.suvo.agent.core.tools.ToolExecutor.redact(call.argumentsJson));
+            AgentTree.toolCall(treeRoot, "delegate_task".equals(call.name) ? "delegating" : call.name);
             AgentForegroundService.update(g.ctx, g.ctx.getString(R.string.agent_running_tool, call.name));
             dispatch(l -> l.onToolExecuting(task, call));
         }
@@ -291,6 +335,10 @@ public final class AgentRuntime {
         @Override
         public void onFinished(TaskState task) {
             addLog(task.status == TaskState.Status.COMPLETED ? "status" : "error", task.status.name(), task.error);
+            AgentTree.State end = task.status == TaskState.Status.COMPLETED ? AgentTree.State.DONE
+                    : task.status == TaskState.Status.CANCELLED ? AgentTree.State.STOPPED : AgentTree.State.FAILED;
+            String res = task.status == TaskState.Status.COMPLETED ? task.finalText : task.error;
+            AgentTree.finish(treeRoot, end, res.length() > 300 ? res.substring(0, 300) + "…" : res);
             dispatch(l -> l.onFinished(task));
         }
     }

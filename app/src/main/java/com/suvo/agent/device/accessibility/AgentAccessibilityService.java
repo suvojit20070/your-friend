@@ -85,6 +85,14 @@ public final class AgentAccessibilityService extends AccessibilityService {
             lastContentChange = System.currentTimeMillis();
         } else if (type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             lastContentChange = System.currentTimeMillis();
+        } else if (type == AccessibilityEvent.TYPE_VIEW_CLICKED || type == AccessibilityEvent.TYPE_VIEW_LONG_CLICKED) {
+            // The floating character glances at whatever the user taps (only the position is used).
+            android.view.accessibility.AccessibilityNodeInfo src = event.getSource();
+            if (src != null && !getPackageName().contentEquals(String.valueOf(event.getPackageName()))) {
+                android.graphics.Rect r = new android.graphics.Rect();
+                src.getBoundsInScreen(r);
+                if (!r.isEmpty()) com.suvo.agent.character.FloatingCompanionService.lookAtScreen(r.centerX(), r.centerY());
+            }
         }
     }
 

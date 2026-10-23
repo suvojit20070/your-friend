@@ -12,7 +12,9 @@ public enum MemoryCategory {
     CHARACTER,
     TASK_SUMMARY,
     CONVERSATION_SUMMARY,
-    WORKFLOW;
+    WORKFLOW,
+    /** A lesson the agent recorded from its own mistake. */
+    LESSON;
 
     public static MemoryCategory parse(String s, MemoryCategory fallback) {
         if (s == null) return fallback;
@@ -35,6 +37,8 @@ public enum MemoryCategory {
                     return FACT;
                 case "RULE":
                     return INSTRUCTION;
+                case "MISTAKE":
+                    return LESSON;
                 default:
                     return fallback;
             }

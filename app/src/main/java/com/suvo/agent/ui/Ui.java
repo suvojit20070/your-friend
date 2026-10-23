@@ -24,7 +24,6 @@ import android.widget.SeekBar;
 import android.widget.Toast;
 
 import com.suvo.agent.R;
-import com.suvo.agent.core.character.Appearance;
 import com.suvo.agent.data.Settings;
 
 /** Small UI helpers shared by all screens. */
@@ -66,25 +65,19 @@ public final class Ui {
     }
 
     private static void applyTint(View v, int c) {
-        Object tag = v.getTag();
-        if ("accent".equals(tag)) {
+        if (v instanceof android.widget.Switch) {
+            Widgets.styleSwitch((android.widget.Switch) v);
+        } else if (v instanceof SeekBar) {
+            Widgets.styleSeekBar((SeekBar) v);
+        } else if ("accent".equals(v.getTag())) {
             if (v instanceof CompoundButton) {
                 ((CompoundButton) v).setButtonTintList(ColorStateList.valueOf(c));
             } else if (v instanceof ProgressBar) {
                 ((ProgressBar) v).setIndeterminateTintList(ColorStateList.valueOf(c));
                 ((ProgressBar) v).setProgressTintList(ColorStateList.valueOf(c));
-            } else if (v instanceof SeekBar) {
-                ((SeekBar) v).setProgressTintList(ColorStateList.valueOf(c));
-                ((SeekBar) v).setThumbTintList(ColorStateList.valueOf(c));
             } else {
                 v.setBackgroundTintList(ColorStateList.valueOf(c));
             }
-        }
-        if (v instanceof android.widget.Switch) {
-            android.widget.Switch s = (android.widget.Switch) v;
-            s.setThumbTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{c, 0xFFB8B8C8}));
-            s.setTrackTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}},
-                    new int[]{Appearance.alpha(c, 0.5f), 0x55888899}));
         }
         if (v instanceof ViewGroup) {
             ViewGroup g = (ViewGroup) v;
@@ -117,8 +110,14 @@ public final class Ui {
         }
         d.show();
         tintAccent(d.getContext(), w == null ? null : w.getDecorView());
-        Button pos = d.getButton(AlertDialog.BUTTON_POSITIVE);
-        if (pos != null) pos.setTextColor(accent(d.getContext()));
+        int c = accent(d.getContext());
+        for (int which : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL}) {
+            Button btn = d.getButton(which);
+            if (btn != null) {
+                btn.setTextColor(which == AlertDialog.BUTTON_POSITIVE ? c : d.getContext().getColor(R.color.text_secondary));
+                btn.setAllCaps(false);
+            }
+        }
         return d;
     }
 
@@ -127,7 +126,7 @@ public final class Ui {
     }
 
     public static void prompt(Activity a, int titleRes, String initial, boolean multiline, TextCallback cb) {
-        EditText e = new EditText(a);
+        EditText e = new EditText(a, null, 0, R.style.YF_Input);
         e.setText(initial == null ? "" : initial);
         e.setSelection(e.getText().length());
         if (multiline) {

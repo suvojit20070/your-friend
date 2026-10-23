@@ -195,7 +195,7 @@ public final class MemoryActivity extends BaseActivity {
         TextView catLabel = new TextView(this, null, 0, R.style.YF_Label);
         catLabel.setText(R.string.memory_category);
         form.addView(catLabel);
-        Spinner cat = new Spinner(this);
+        Spinner cat = Widgets.styleSpinner(new Spinner(this));
         String[] labels = new String[MemoryCategory.values().length];
         for (int i = 0; i < labels.length; i++) labels[i] = categoryLabel(MemoryCategory.values()[i]);
         cat.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, labels));
@@ -205,7 +205,7 @@ public final class MemoryActivity extends BaseActivity {
         TextView impLabel = new TextView(this, null, 0, R.style.YF_Label);
         impLabel.setText(getString(R.string.memory_importance, e.importance));
         form.addView(impLabel);
-        SeekBar imp = new SeekBar(this);
+        SeekBar imp = Widgets.styleSeekBar(new SeekBar(this));
         imp.setMax(4);
         imp.setProgress(e.importance - 1);
         imp.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -233,6 +233,8 @@ public final class MemoryActivity extends BaseActivity {
         form.addView(tags);
 
         CheckBox pinned = new CheckBox(this);
+        pinned.setButtonTintList(android.content.res.ColorStateList.valueOf(Ui.accent(this)));
+        pinned.setTextColor(getColor(R.color.text_primary));
         pinned.setText(R.string.memory_pin);
         pinned.setChecked(e.pinned || existing == null);
         form.addView(pinned);

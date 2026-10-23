@@ -69,6 +69,8 @@ public final class AppGraph {
     public final RuntimeManager runtimes;
     public final SpeechController speech;
     public final AgentRuntime agent;
+    public final com.suvo.agent.data.EmployeeRepo employees;
+    public final com.suvo.agent.agent.Scheduler scheduler;
     public final ExecutorService io = Executors.newFixedThreadPool(3, r -> {
         Thread t = new Thread(r, "yf-io");
         t.setDaemon(true);
@@ -112,6 +114,8 @@ public final class AppGraph {
         characters = new CharacterRepo(ctx);
         runtimes = new RuntimeManager(this);
         speech = new SpeechController(ctx, settings);
+        employees = new com.suvo.agent.data.EmployeeRepo(ctx);
+        scheduler = new com.suvo.agent.agent.Scheduler(ctx);
         agent = new AgentRuntime(this);
         BuiltinTools.registerAll(this);
         customTools.registerEnabled(this);

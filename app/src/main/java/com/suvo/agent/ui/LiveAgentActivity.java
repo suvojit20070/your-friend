@@ -34,6 +34,7 @@ public final class LiveAgentActivity extends BaseActivity {
         @Override
         public void run() {
             renderTask();
+            renderTree();
             main.postDelayed(this, 1000);
         }
     };
@@ -69,6 +70,8 @@ public final class LiveAgentActivity extends BaseActivity {
             refresh();
         }
     };
+
+    private final com.suvo.agent.agent.AgentTree.Listener treeListener = () -> main.post(this::renderTree);
 
     private final ApprovalCenter.Listener approvals = pending -> main.post(() -> renderApprovals(pending));
 
@@ -135,6 +138,7 @@ public final class LiveAgentActivity extends BaseActivity {
         super.onStart();
         g.agent.addListener(listener);
         g.approvals.addListener(approvals);
+        com.suvo.agent.agent.AgentTree.addListener(treeListener);
         refresh();
         main.post(ticker);
     }
@@ -143,6 +147,7 @@ public final class LiveAgentActivity extends BaseActivity {
     protected void onStop() {
         g.agent.removeListener(listener);
         g.approvals.removeListener(approvals);
+        com.suvo.agent.agent.AgentTree.removeListener(treeListener);
         main.removeCallbacks(ticker);
         super.onStop();
     }
@@ -153,6 +158,118 @@ public final class LiveAgentActivity extends BaseActivity {
         adapter.notifyDataSetChanged();
         findViewById(R.id.agent_empty).setVisibility(lines.isEmpty() ? View.VISIBLE : View.GONE);
         renderTask();
+        renderTree();
+    }
+
+    // ------------------------------------------------------------------ live tree (boss → employees)
+
+    private static final int MAX_TREE_ROWS = 9;
+
+    private void renderTree() {
+        LinearLayout box = findViewById(R.id.agent_tree);
+        View title = findViewById(R.id.agent_tree_title);
+        com.suvo.agent.agent.AgentTree.Node root = com.suvo.agent.agent.AgentTree.root();
+        boolean show = root != null && (!g.employees.list().isEmpty() || !com.suvo.agent.agent.AgentTree.childrenOf(root.id).isEmpty());
+        box.setVisibility(show ? View.VISIBLE : View.GONE);
+        title.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (!show) return;
+        box.removeAllViews();
+        List<Object[]> rows = new ArrayList<>();
+        collect(root, 0, rows);
+        int n = 0;
+        for (Object[] row : rows) {
+            if (n++ >= MAX_TREE_ROWS) {
+                TextView more = new TextView(this, null, 0, R.style.YF_Caption);
+                more.setText(getString(R.string.tree_more, rows.size() - MAX_TREE_ROWS));
+                box.addView(more);
+                break;
+            }
+            box.addView(treeRow((com.suvo.agent.agent.AgentTree.Node) row[0], (Integer) row[1]));
+        }
+    }
+
+    private void collect(com.suvo.agent.agent.AgentTree.Node node, int depth, List<Object[]> out) {
+        out.add(new Object[]{node, depth});
+        for (com.suvo.agent.agent.AgentTree.Node c : com.suvo.agent.agent.AgentTree.childrenOf(node.id)) collect(c, depth + 1, out);
+    }
+
+    private View treeRow(com.suvo.agent.agent.AgentTree.Node node, int depth) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(Ui.dp(this, 22 * depth), Ui.dp(this, 6), 0, Ui.dp(this, 6));
+        if (depth > 0) {
+            TextView branch = new TextView(this, null, 0, R.style.YF_Caption);
+            branch.setText("└ ");
+            row.addView(branch);
+        }
+        View dot = new View(this);
+        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+        d.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        d.setColor(stateColor(node.state));
+        dot.setBackground(d);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Ui.dp(this, 10), Ui.dp(this, 10));
+        dlp.topMargin = Ui.dp(this, 6);
+        dlp.setMarginEnd(Ui.dp(this, 10));
+        row.addView(dot, dlp);
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        TextView name = new TextView(this, null, 0, R.style.YF_Body);
+        name.setText(node.agent + " · " + (depth == 0 ? getString(R.string.tree_boss) : node.role));
+        name.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        texts.addView(name);
+        TextView what = new TextView(this, null, 0, R.style.YF_Caption);
+        String line;
+        if (node.state == com.suvo.agent.agent.AgentTree.State.RUNNING || node.state == com.suvo.agent.agent.AgentTree.State.WAITING) {
+            String act = node.action.isEmpty() ? getString(R.string.tree_thinking) : node.action;
+            line = (node.state == com.suvo.agent.agent.AgentTree.State.WAITING ? getString(R.string.tree_waiting) + " · " : "") + act;
+        } else {
+            line = treeStateLabel(node.state) + (node.result.isEmpty() ? "" : " — " + node.result);
+        }
+        long end = node.finishedAt > 0 ? node.finishedAt : System.currentTimeMillis();
+        long secs = (end - node.startedAt) / 1000;
+        what.setText(Com.clip(node.task, 90) + "\n" + line + "  ·  " + getString(R.string.tree_stats, node.toolCalls, secs / 60, secs % 60));
+        what.setMaxLines(4);
+        what.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        texts.addView(what);
+        row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        return row;
+    }
+
+    private static final class Com {
+        static String clip(String s, int n) {
+            String t = s == null ? "" : s.replace('\n', ' ').trim();
+            return t.length() > n ? t.substring(0, n) + "…" : t;
+        }
+    }
+
+    private int stateColor(com.suvo.agent.agent.AgentTree.State s) {
+        switch (s) {
+            case RUNNING:
+                return Ui.accent(this);
+            case WAITING:
+                return getColor(R.color.warning);
+            case DONE:
+                return getColor(R.color.success);
+            case FAILED:
+                return getColor(R.color.danger);
+            default:
+                return getColor(R.color.text_secondary);
+        }
+    }
+
+    private String treeStateLabel(com.suvo.agent.agent.AgentTree.State s) {
+        switch (s) {
+            case DONE:
+                return getString(R.string.tree_done);
+            case FAILED:
+                return getString(R.string.tree_failed);
+            case STOPPED:
+                return getString(R.string.tree_stopped);
+            case WAITING:
+                return getString(R.string.tree_waiting);
+            default:
+                return getString(R.string.tree_thinking);
+        }
     }
 
     private void renderTask() {

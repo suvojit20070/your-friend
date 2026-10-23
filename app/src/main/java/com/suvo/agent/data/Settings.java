@@ -34,6 +34,9 @@ public final class Settings {
     public static final String CHARACTER_POS_X = "character_pos_x";   // 0..1
     public static final String CHARACTER_POS_Y = "character_pos_y";
     public static final String ONBOARDED = "onboarded";
+    public static final String CHARACTER_MODE = "character_mode";     // 2d (default) | 3d
+    public static final String VRM_PATH = "vrm_path";                 // imported .vrm in app storage
+    public static final String VRM_FRAMING = "vrm_framing";           // full | upper
 
     // Personality / agent
     public static final String ACTIVE_CHARACTER = "active_character";

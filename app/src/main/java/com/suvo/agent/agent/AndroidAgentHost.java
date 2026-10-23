@@ -9,6 +9,7 @@ import com.suvo.agent.core.agent.TaskState;
 import com.suvo.agent.core.llm.ChatMessage;
 import com.suvo.agent.core.llm.LlmClient;
 import com.suvo.agent.core.memory.ContextCompactor;
+import com.suvo.agent.core.memory.MemoryCategory;
 import com.suvo.agent.core.memory.MemoryEntry;
 import com.suvo.agent.core.memory.MemoryExtractor;
 import com.suvo.agent.core.memory.MemoryRanker;
@@ -16,6 +17,7 @@ import com.suvo.agent.core.memory.TokenEstimator;
 import com.suvo.agent.core.tools.ApprovalPolicy;
 import com.suvo.agent.core.util.CancellationToken;
 import com.suvo.agent.data.ConversationRepo;
+import com.suvo.agent.data.EmployeeRepo;
 import com.suvo.agent.data.Settings;
 
 import org.json.JSONArray;
@@ -108,7 +110,9 @@ public final class AndroidAgentHost implements AgentHost {
                     break;
                 }
             }
-            List<MemoryEntry> cands = g.memory.searchCandidates(query, null, 80);
+            List<MemoryEntry> cands = new ArrayList<>(g.memory.searchCandidates(query, null, 80));
+            // Lessons have their own section below, so they are not counted against the memory budget.
+            for (int i = cands.size() - 1; i >= 0; i--) if (cands.get(i).category == MemoryCategory.LESSON) cands.remove(i);
             List<MemoryRanker.Scored> ranked = new MemoryRanker().rank(query, cands, g.settings.integer(Settings.MEMORY_MAX_INJECTED, 8), System.currentTimeMillis());
             pa.memories = ranked;
             lastRetrieved = ranked;
@@ -116,7 +120,38 @@ public final class AndroidAgentHost implements AgentHost {
             for (MemoryRanker.Scored s : ranked) ids.add(s.entry.id);
             if (!ids.isEmpty()) g.memory.markUsed(ids, System.currentTimeMillis());
         }
+        pa.lessons = lessons(g, 12);
+        pa.teamRoster = teamRoster(g);
         return pa.build();
+    }
+
+    /** Most recent lessons from record_mistake, newest first. */
+    static List<String> lessons(AppGraph g, int max) {
+        List<String> out = new ArrayList<>();
+        try {
+            for (MemoryEntry e : g.memory.all(MemoryCategory.LESSON, max)) out.add(e.content);
+        } catch (RuntimeException ignored) {
+        }
+        return out;
+    }
+
+    /** One line per enabled employee: name, role, model and what they are told to do. */
+    static String teamRoster(AppGraph g) {
+        List<EmployeeRepo.Employee> team = g.employees.enabled();
+        if (team.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (EmployeeRepo.Employee e : team) {
+            com.suvo.agent.core.llm.ProviderConfig p = ChildAgent.providerFor(g, e);
+            sb.append("- ").append(e.name);
+            if (!e.role.isEmpty()) sb.append(" (").append(e.role).append(')');
+            if (p != null) sb.append(" · model ").append(p.model.isEmpty() ? p.name : p.model);
+            String ins = e.instructions.replace('\n', ' ').trim();
+            if (!ins.isEmpty()) sb.append(" · ").append(ins.length() > 160 ? ins.substring(0, 160) + "…" : ins);
+            if (!e.tools.isEmpty()) sb.append(" · tools: ").append(String.join(", ", e.tools));
+            sb.append('\n');
+        }
+        sb.append("Delegate when a member's role fits; otherwise do it yourself. You stay responsible for the final answer.");
+        return sb.toString();
     }
 
     static String autonomyText(ApprovalPolicy.AutonomyMode m) {
@@ -159,7 +194,17 @@ public final class AndroidAgentHost implements AgentHost {
     @Override
     public JSONArray toolDefinitions() {
         if (!g.settings.bool(Settings.TOOL_CALLING, true)) return new JSONArray();
-        return g.tools.openAiTools(g.capabilities);
+        JSONArray all = g.tools.openAiTools(g.capabilities);
+        if (!g.employees.enabled().isEmpty()) return all;
+        // No employees: do not offer delegation at all.
+        JSONArray out = new JSONArray();
+        for (int i = 0; i < all.length(); i++) {
+            org.json.JSONObject t = all.optJSONObject(i);
+            org.json.JSONObject fn = t == null ? null : t.optJSONObject("function");
+            if (fn != null && "delegate_task".equals(fn.optString("name"))) continue;
+            out.put(t);
+        }
+        return out;
     }
 
     @Override

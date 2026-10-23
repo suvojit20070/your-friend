@@ -5,19 +5,10 @@
             <gradient android:angle="270" android:startColor="@color/bg_top" android:endColor="@color/bg_bottom"/>
         </shape>
     </item>
-    <item android:width="420dp" android:height="420dp" android:gravity="top|start" android:left="-140dp" android:top="-80dp">
+    <!-- One soft glow at the top; the rest stays calm and flat. -->
+    <item android:width="520dp" android:height="420dp" android:gravity="top|center_horizontal" android:top="-220dp">
         <shape android:shape="oval">
-            <gradient android:type="radial" android:gradientRadius="210dp" android:startColor="@color/blob_1" android:endColor="#00000000"/>
-        </shape>
-    </item>
-    <item android:width="380dp" android:height="380dp" android:gravity="center_vertical|end" android:right="-150dp">
-        <shape android:shape="oval">
-            <gradient android:type="radial" android:gradientRadius="190dp" android:startColor="@color/blob_2" android:endColor="#00000000"/>
-        </shape>
-    </item>
-    <item android:width="360dp" android:height="360dp" android:gravity="bottom|start" android:bottom="-120dp" android:left="-60dp">
-        <shape android:shape="oval">
-            <gradient android:type="radial" android:gradientRadius="180dp" android:startColor="@color/blob_3" android:endColor="#00000000"/>
+            <gradient android:type="radial" android:gradientRadius="260dp" android:startColor="@color/bg_glow" android:endColor="#00000000"/>
         </shape>
     </item>
 </layer-list>

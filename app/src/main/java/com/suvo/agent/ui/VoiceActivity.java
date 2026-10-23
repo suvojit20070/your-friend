@@ -72,15 +72,18 @@ public final class VoiceActivity extends BaseActivity {
         r.section(R.string.voice_output);
         r.switchRow(R.drawable.ic_voice, R.string.voice_speak_replies, R.string.voice_speak_replies_desc, Settings.VOICE_OUTPUT, false, null);
         r.choiceRow(R.drawable.ic_voice, R.string.voice_engine, Settings.VOICE_ENGINE, "omnivoice_native",
-                new String[]{getString(R.string.voice_engine_native), getString(R.string.voice_engine_server), getString(R.string.voice_engine_system)},
-                new String[]{"omnivoice_native", "omnivoice_server", "system"}, v -> build());
+                new String[]{getString(R.string.voice_engine_space), getString(R.string.voice_engine_native), getString(R.string.voice_engine_server), getString(R.string.voice_engine_system)},
+                new String[]{"hf_space", "omnivoice_native", "omnivoice_server", "system"}, v -> build());
         String why = g.speech.engine().notReadyReason();
         r.note(why == null ? getString(R.string.voice_engine_ready) : getString(R.string.voice_engine_not_ready, why));
         r.button(R.string.voice_test, true, v -> test());
+        r.switchRow(R.drawable.ic_refresh, R.string.voice_fallback, R.string.voice_fallback_desc,
+                com.suvo.agent.voice.SpeechController.FALLBACK_KEY, true, null);
 
         String engine = g.settings.str(Settings.VOICE_ENGINE, "omnivoice_native");
         if ("omnivoice_native".equals(engine)) nativeSection(r);
         else if ("omnivoice_server".equals(engine)) serverSection(r);
+        else if ("hf_space".equals(engine)) spaceSection(r);
         else r.note(getString(R.string.voice_system_note));
 
         r.section(R.string.voice_reference);
@@ -192,6 +195,30 @@ public final class VoiceActivity extends BaseActivity {
         });
         if (g.speech.serverEngine().isLocal()) r.note(getString(R.string.voice_server_local));
         else r.note(getString(R.string.voice_server_remote_privacy));
+    }
+
+    /** The user's own Hugging Face Space (Gradio), e.g. Suvo75/tanu-voice. */
+    private void spaceSection(Rows r) {
+        r.section(R.string.voice_space);
+        r.note(getString(R.string.voice_space_intro));
+        r.textRow(R.drawable.ic_provider, R.string.voice_space_url, com.suvo.agent.voice.HfSpaceEngine.URL_KEY, "", false, R.string.not_set, v -> build());
+        secretRow(r, R.string.voice_space_token, com.suvo.agent.voice.HfSpaceEngine.TOKEN_KEY);
+        secretRow(r, R.string.voice_space_api_key, com.suvo.agent.voice.HfSpaceEngine.API_KEY_KEY);
+        r.textRow(R.drawable.ic_tools, R.string.voice_space_api, com.suvo.agent.voice.HfSpaceEngine.API_NAME_KEY, "tts", false, R.string.not_set, null);
+        String base = com.suvo.agent.voice.HfSpaceEngine.baseUrl(g.settings.str(com.suvo.agent.voice.HfSpaceEngine.URL_KEY, ""));
+        if (!base.isEmpty()) r.note(base);
+        r.note(getString(R.string.voice_space_quota));
+    }
+
+    /** A secret stored encrypted (shown only as "stored"). */
+    private void secretRow(Rows r, int titleRes, String key) {
+        boolean has = !g.settings.str(key, "").isEmpty();
+        r.row(R.drawable.ic_lock, getString(titleRes), getString(has ? R.string.secret_stored : R.string.not_set), null,
+                v -> Ui.prompt(this, titleRes, "", false, text -> {
+                    String t = text.trim();
+                    g.settings.put(key, t.isEmpty() ? "" : g.secrets.encrypt(t));
+                    build();
+                }));
     }
 
     private void test() {

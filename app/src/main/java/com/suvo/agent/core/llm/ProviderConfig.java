@@ -36,6 +36,12 @@ public final class ProviderConfig {
     public boolean supportsSystemRole = true;
     public boolean supportsStreamUsage = false;
     public int contextWindowTokens = 32_000;
+    /**
+     * Thinking level sent as "reasoning_effort": "" = provider default (nothing sent), or
+     * none / low / medium / high. Supported by OpenAI reasoning models, Gemini's OpenAI endpoint,
+     * OpenRouter and others; providers that reject it can be set back to "".
+     */
+    public String reasoningEffort = "";
 
     public String chatCompletionsUrl() {
         String b = baseUrl.trim();
@@ -78,7 +84,8 @@ public final class ProviderConfig {
                     .put("supportsTools", supportsTools).put("supportsParallelToolCalls", supportsParallelToolCalls)
                     .put("supportsVision", supportsVision).put("supportsSystemRole", supportsSystemRole)
                     .put("supportsStreamUsage", supportsStreamUsage)
-                    .put("contextWindowTokens", contextWindowTokens);
+                    .put("contextWindowTokens", contextWindowTokens)
+                    .put("reasoningEffort", reasoningEffort);
             JSONObject h = new JSONObject();
             for (Map.Entry<String, String> e : headers.entrySet()) {
                 // Header values may contain credentials; exported only with secrets.
@@ -113,6 +120,7 @@ public final class ProviderConfig {
         p.supportsSystemRole = o.optBoolean("supportsSystemRole", true);
         p.supportsStreamUsage = o.optBoolean("supportsStreamUsage", false);
         p.contextWindowTokens = o.optInt("contextWindowTokens", 32_000);
+        p.reasoningEffort = o.optString("reasoningEffort", "");
         JSONObject h = o.optJSONObject("headers");
         if (h != null) {
             Iterator<String> it = h.keys();

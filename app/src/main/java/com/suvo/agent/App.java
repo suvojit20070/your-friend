@@ -90,6 +90,7 @@ public final class App extends Application {
                 int n = g.tasks.markInterrupted();
                 if (n > 0) Log.i("YF.App", n + " task(s) were interrupted by a previous process stop");
                 g.memory.pruneExpired();
+                g.scheduler.armAll();
             } catch (RuntimeException e) {
                 Log.w("YF.App", "Startup maintenance failed", e);
             }

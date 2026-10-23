@@ -10,9 +10,9 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="12dp">
+        android:paddingStart="20dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="16dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -22,10 +22,9 @@
 
             <TextView
                 android:id="@+id/home_name"
-                style="@style/YF.Title"
+                style="@style/YF.Headline"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="24sp" />
+                android:layout_height="wrap_content" />
 
             <TextView
                 android:id="@+id/home_status"
@@ -41,7 +40,10 @@
             android:layout_height="@dimen/icon_button"
             android:background="@drawable/circle_glass"
             android:contentDescription="@string/section_settings"
-            android:src="@drawable/ic_settings" />
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_settings"
+            android:tint="@color/text_primary" />
     </LinearLayout>
 
     <HorizontalScrollView
@@ -55,6 +57,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:paddingStart="16dp"
+            android:paddingTop="6dp"
             android:paddingEnd="16dp" />
     </HorizontalScrollView>
 
@@ -68,8 +71,9 @@
 
         <com.suvo.agent.character.CharacterView
             android:id="@+id/character"
-            android:layout_width="300dp"
-            android:layout_height="360dp"
+            android:layout_width="320dp"
+            android:layout_height="match_parent"
+            android:layout_marginTop="8dp"
             android:layout_gravity="bottom|center_horizontal" />
 
         <TextView
@@ -126,15 +130,16 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- Input bar -->
+    <!-- Composer -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
+        android:layout_marginStart="16dp"
         android:layout_marginTop="8dp"
-        android:layout_marginEnd="12dp"
-        android:background="@drawable/glass_pill"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/input_pill"
         android:gravity="center_vertical"
+        android:minHeight="60dp"
         android:orientation="horizontal"
         android:padding="6dp">
 
@@ -142,11 +147,12 @@
             android:id="@+id/home_mic"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="@drawable/circle_accent"
+            android:background="@drawable/circle_tonal"
             android:contentDescription="@string/mic"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
             android:src="@drawable/ic_mic"
-            android:tag="accent"
-            android:tint="@color/text_on_accent" />
+            android:tint="@color/text_primary" />
 
         <EditText
             android:id="@+id/home_input"
@@ -158,27 +164,35 @@
             android:imeOptions="actionSend"
             android:inputType="textCapSentences|textMultiLine"
             android:maxLines="4"
-            android:paddingStart="12dp"
+            android:paddingStart="14dp"
             android:paddingEnd="8dp"
             android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_secondary" />
+            android:textColorHint="@color/text_secondary"
+            android:textSize="16sp" />
 
         <ImageButton
             android:id="@+id/home_send"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="@drawable/circle_glass"
+            android:background="@drawable/circle_accent"
             android:contentDescription="@string/send"
-            android:src="@drawable/ic_send" />
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_send"
+            android:tag="accent"
+            android:tint="@color/text_on_accent" />
     </LinearLayout>
 
     <!-- Floating pill navigation -->
     <LinearLayout
         android:id="@+id/nav"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/nav_height"
-        android:layout_margin="12dp"
-        android:background="@drawable/glass_pill"
+        android:layout_height="72dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/nav_bar"
         android:gravity="center"
         android:orientation="horizontal"
         android:paddingStart="8dp"

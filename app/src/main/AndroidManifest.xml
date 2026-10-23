@@ -28,6 +28,11 @@
     <!-- Run commands in Termux (the user must also enable allow-external-apps in Termux) -->
     <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Agent tasks keep the CPU awake with the screen off (released when the task ends). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Scheduled tasks and self check-ins (schedule_task); exact alarms only if the user allows them. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -143,6 +148,8 @@
         <activity android:name=".ui.PermissionsActivity" android:exported="false" />
         <activity android:name=".ui.SettingsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.AboutActivity" android:exported="false" />
+        <activity android:name=".ui.TeamActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.ScheduleActivity" android:exported="false" />
 
         <activity
             android:name=".device.capture.ProjectionRequestActivity"
@@ -164,7 +171,7 @@
         <service
             android:name=".character.FloatingCompanionService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|microphone">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Shows the user-enabled floating assistant character overlay; it can be dismissed from its notification." />
@@ -194,6 +201,13 @@
         </service>
 
         <receiver android:name=".agent.ApprovalReceiver" android:exported="false" />
+        <receiver android:name=".agent.ScheduleReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
         <receiver android:name=".terminal.TermuxResultReceiver" android:exported="false" />
         <receiver android:name=".tools.InstallResultReceiver" android:exported="false" />
 

@@ -3,6 +3,8 @@ package com.suvo.agent.character;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.util.AttributeSet;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.view.Choreographer;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -13,13 +15,38 @@ import android.view.ViewParent;
 import com.suvo.agent.core.character.Appearance;
 import com.suvo.agent.core.character.CharacterAnimator;
 import com.suvo.agent.core.character.PuppetRenderer;
+import com.suvo.agent.character.vrm.VrmModel;
+import com.suvo.agent.character.vrm.VrmView;
+import com.suvo.agent.data.Settings;
+
+import java.io.File;
 
 /**
- * The animated companion. Renders the procedural rig every frame while visible, reacts to touch
- * (tap: reaction by region; long-press then drag: move inside the parent, snapping to an edge), and
- * exposes activity/expression/lip-sync inputs. Respects reduced motion and the quality setting.
+ * The animated companion. Renders the procedural 2D rig every frame while visible — or, when the user
+ * chose the 3D style in Settings and imported a VRM model, the 3D character (the same animator
+ * drives both, so blinking, lip sync, looking toward taps and expressions work in either). Reacts
+ * to touch (tap: reaction by region; long-press then drag: move inside the parent, snapping to an
+ * edge). If the 3D model cannot be shown, it falls back to 2D and {@link #lastVrmError()} says why.
  */
-public class CharacterView extends View implements Choreographer.FrameCallback {
+public class CharacterView extends FrameLayout implements Choreographer.FrameCallback {
+
+    private static volatile String lastVrmError = "";
+
+    /** Why the 3D character could not be shown last time ("" when it worked). */
+    public static String lastVrmError() {
+        return lastVrmError;
+    }
+
+    private VrmView vrm;
+    private boolean vrmReady;
+    private String vrmKey = "";
+    private boolean allow3d = true;
+
+    /** The 2D editor preview always shows the 2D rig it edits. */
+    public void setAllow3d(boolean allow) {
+        allow3d = allow;
+        refreshStyle();
+    }
 
     public interface Listener {
         /** Tapped a region of the character (head/face/body). */
@@ -67,6 +94,8 @@ public class CharacterView extends View implements Choreographer.FrameCallback {
 
     public CharacterView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        setWillNotDraw(false);
+        setClipChildren(false);
         setClickable(true);
         setContentDescription(context.getString(com.suvo.agent.R.string.character_content_description));
     }
@@ -109,7 +138,58 @@ public class CharacterView extends View implements Choreographer.FrameCallback {
         animator.blinkRate = s.blinkRate;
         animator.expressiveness = s.expressiveness;
         animator.setExpression(CharacterAnimator.parseExpression(s.defaultExpression));
+        refreshStyle();
         invalidate();
+    }
+
+    /** Applies the 2D/3D choice from Settings (call again after the user changes it). */
+    public void refreshStyle() {
+        Settings st = Settings.get(getContext());
+        boolean want3d = allow3d && "3d".equals(st.str(Settings.CHARACTER_MODE, "2d"));
+        String path = st.str(Settings.VRM_PATH, "");
+        String framing = st.str(Settings.VRM_FRAMING, "full");
+        File f = path.isEmpty() ? null : new File(path);
+        String key = want3d && f != null && f.isFile() ? f.getAbsolutePath() + ":" + f.lastModified() + ":" + framing : "";
+        if (key.equals(vrmKey)) return;
+        vrmKey = key;
+        if (vrm != null) {
+            vrm.setActive(false);
+            removeView(vrm);
+            vrm = null;
+        }
+        vrmReady = false;
+        if (key.isEmpty()) {
+            invalidate();
+            return;
+        }
+        vrm = new VrmView(getContext());
+        vrm.setFps(frameSkip == 0 ? 60 : 30);
+        addView(vrm, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        vrm.setModel(f, framing, new VrmView.Callback() {
+            @Override
+            public void onLoaded(VrmModel model) {
+                vrmReady = true;
+                lastVrmError = "";
+                invalidate();
+            }
+
+            @Override
+            public void onError(String message) {
+                lastVrmError = message;
+                vrmReady = false;
+                if (vrm != null) {
+                    vrm.setActive(false);
+                    removeView(vrm);
+                    vrm = null;
+                }
+                invalidate();
+            }
+        });
+        vrm.setActive(running);
+    }
+
+    public boolean isShowing3d() {
+        return vrm != null && vrmReady;
     }
 
     /** quality: "low" (30 fps, flat fills), "medium" (30 fps), "high" (60 fps). */
@@ -117,6 +197,7 @@ public class CharacterView extends View implements Choreographer.FrameCallback {
         gfx.low = "low".equals(quality);
         frameSkip = "high".equals(quality) ? 0 : 1;
         animator.reducedMotion = reducedMotion;
+        if (vrm != null) vrm.setFps(frameSkip == 0 ? 60 : 30);
     }
 
     public void setActivity(CharacterAnimator.Activity a) {
@@ -138,16 +219,30 @@ public class CharacterView extends View implements Choreographer.FrameCallback {
         animator.lookAt(nx, ny, 1.5f);
     }
 
+    private final Settings.Listener styleListener = key -> {
+        if (Settings.CHARACTER_MODE.equals(key) || Settings.VRM_PATH.equals(key) || Settings.VRM_FRAMING.equals(key)) {
+            post(this::refreshStyle);
+        }
+    };
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        Settings.get(getContext()).addListener(styleListener);
         start();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         stop();
+        Settings.get(getContext()).removeListener(styleListener);
         super.onDetachedFromWindow();
+    }
+
+    /** Touches always go to the character itself, never to the 3D surface inside it. */
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        return true;
     }
 
     @Override
@@ -168,11 +263,13 @@ public class CharacterView extends View implements Choreographer.FrameCallback {
         running = true;
         lastFrameNanos = 0;
         Choreographer.getInstance().postFrameCallback(this);
+        if (vrm != null) vrm.setActive(true);
     }
 
     private void stop() {
         running = false;
         Choreographer.getInstance().removeFrameCallback(this);
+        if (vrm != null) vrm.setActive(false);
     }
 
     @Override
@@ -183,14 +280,17 @@ public class CharacterView extends View implements Choreographer.FrameCallback {
             animator.update(dt);
         }
         lastFrameNanos = frameTimeNanos;
-        if (frameSkip == 0 || (frameCounter++ % (frameSkip + 1)) == 0) invalidate();
+        if (vrm != null) {
+            vrm.setParams(animator.params());
+            if (!vrmReady && (frameSkip == 0 || (frameCounter++ % (frameSkip + 1)) == 0)) invalidate();
+        } else if (frameSkip == 0 || (frameCounter++ % (frameSkip + 1)) == 0) invalidate();
         Choreographer.getInstance().postFrameCallback(this);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        if (renderer == null) return;
+        if (renderer == null || (vrm != null && vrmReady)) return;
         float w = getWidth() - getPaddingLeft() - getPaddingRight();
         float h = getHeight() - getPaddingTop() - getPaddingBottom();
         float scale = Math.min(w / PuppetRenderer.WIDTH, h / PuppetRenderer.HEIGHT);
@@ -255,8 +355,14 @@ public class CharacterView extends View implements Choreographer.FrameCallback {
                     }
                     if (listener != null) listener.onCharacterMoved(getTranslationX(), getTranslationY());
                 } else if (!longPressFired) {
-                    float[] m = toModel(e.getX(), e.getY());
-                    CharacterAnimator.TouchRegion region = PuppetRenderer.regionAt(m[0], m[1]);
+                    CharacterAnimator.TouchRegion region;
+                    String r3 = vrm != null && vrmReady ? vrm.regionAt(e.getX(), e.getY()) : null;
+                    if (r3 != null) {
+                        region = CharacterAnimator.TouchRegion.valueOf(r3);
+                    } else {
+                        float[] m = toModel(e.getX(), e.getY());
+                        region = PuppetRenderer.regionAt(m[0], m[1]);
+                    }
                     animator.touch(region);
                     performClick();
                     if (listener != null) listener.onCharacterTapped(region);

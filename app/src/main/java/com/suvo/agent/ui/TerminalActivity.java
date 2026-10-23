@@ -1,5 +1,7 @@
 package com.suvo.agent.ui;
 
+import com.suvo.agent.terminal.TerminalFeed;
+
 import android.os.Bundle;
 import android.text.InputType;
 import android.text.SpannableStringBuilder;
@@ -79,9 +81,101 @@ public final class TerminalActivity extends BaseActivity {
             }
             return false;
         });
-        findViewById(R.id.term_history).setOnClickListener(v -> showHistory());
-        append(getString(R.string.terminal_welcome) + "\n", 0xFF9AA3B5);
+        append(getString(R.string.terminal_welcome) + "\n", getColor(R.color.term_dim));
         buildBackends();
+        buildKeys();
+        replayAgentRuns();
+    }
+
+    // ---- Live view of the agent's commands ------------------------------------------------------
+
+    private final TerminalFeed.Listener feedListener = new TerminalFeed.Listener() {
+        @Override
+        public void onStarted(TerminalFeed.Run run) {
+            runOnUiThread(() -> {
+                appendAgentHeader(run);
+                findViewById(R.id.term_busy).setVisibility(View.VISIBLE);
+            });
+        }
+
+        @Override
+        public void onFinished(TerminalFeed.Run run) {
+            runOnUiThread(() -> {
+                appendAgentResult(run);
+                if (running == null) findViewById(R.id.term_busy).setVisibility(View.GONE);
+            });
+        }
+    };
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        TerminalFeed.addListener(feedListener);
+    }
+
+    @Override
+    protected void onStop() {
+        TerminalFeed.removeListener(feedListener);
+        super.onStop();
+    }
+
+    /** Shows what the agent ran before this screen was opened. */
+    private void replayAgentRuns() {
+        List<TerminalFeed.Run> runs = TerminalFeed.recent();
+        if (runs.isEmpty()) return;
+        append("── " + getString(R.string.terminal_agent_activity) + " ──\n", getColor(R.color.term_dim));
+        for (TerminalFeed.Run r : runs) {
+            appendAgentHeader(r);
+            if (r.finished) appendAgentResult(r);
+        }
+        append("──\n", getColor(R.color.term_dim));
+    }
+
+    private void appendAgentHeader(TerminalFeed.Run r) {
+        String time = android.text.format.DateFormat.getTimeFormat(this).format(new java.util.Date(r.startedAt));
+        append("🤖 " + getString(R.string.terminal_agent) + " · " + r.source + "@" + r.backend + "  " + time + "\n", getColor(R.color.term_agent));
+        append("$ " + r.command + "\n", getColor(R.color.term_blue));
+    }
+
+    private void appendAgentResult(TerminalFeed.Run r) {
+        String out = r.output;
+        if (!out.isEmpty()) append(out.endsWith("\n") ? out : out + "\n", getColor(R.color.term_text));
+        boolean ok = r.error.isEmpty() && r.exitCode == 0;
+        String tail = !r.error.isEmpty() ? "[" + r.error + "]" : "[exit " + r.exitCode + "]";
+        append(tail + "\n", getColor(ok ? R.color.term_green : R.color.term_red));
+    }
+
+    // ---- Quick keys -----------------------------------------------------------------------------
+
+    private void buildKeys() {
+        LinearLayout row = findViewById(R.id.term_keys);
+        row.removeAllViews();
+        addKey(row, "↑ " + getString(R.string.terminal_history), v -> showHistory());
+        addKey(row, "Ctrl+C", v -> {
+            CancellationToken t = running;
+            if (t != null) t.cancel("stopped by user");
+        });
+        addKey(row, "clear", v -> {
+            buffer.clear();
+            output.setText("");
+        });
+        for (String cmd : new String[]{"ls -la", "pwd", "cd ..", "pkg list-installed", "df -h"}) {
+            addKey(row, cmd, v -> {
+                input.setText(cmd);
+                input.setSelection(cmd.length());
+                submit();
+            });
+        }
+    }
+
+    private void addKey(LinearLayout row, String label, View.OnClickListener l) {
+        TextView k = new TextView(this, null, 0, R.style.YF_Chip);
+        k.setText(label);
+        k.setTypeface(android.graphics.Typeface.MONOSPACE);
+        k.setOnClickListener(l);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMarginEnd(Ui.dp(this, 8));
+        row.addView(k, lp);
     }
 
     @Override
@@ -106,7 +200,9 @@ public final class TerminalActivity extends BaseActivity {
     private void addBackendChip(LinearLayout row, String id, String label) {
         TextView chip = new TextView(this, null, 0, R.style.YF_Chip);
         chip.setText(label);
-        chip.setAlpha(id.equals(backend) ? 1f : 0.55f);
+        boolean sel = id.equals(backend);
+        chip.setBackgroundResource(sel ? R.drawable.chip_selected : R.drawable.chip);
+        chip.setTextColor(sel ? Ui.accent(this) : getColor(R.color.text_secondary));
         chip.setOnClickListener(v -> {
             backend = id;
             if (!id.startsWith("ssh:")) g.settings.put(Settings.SHELL_BACKEND, id);
@@ -143,7 +239,8 @@ public final class TerminalActivity extends BaseActivity {
             if ("termux".equals(backend)) PermissionFlows.fix(this, Capability.TERMUX);
             else if ("shizuku".equals(backend)) PermissionFlows.fix(this, Capability.SHIZUKU);
         });
-        status.setTextColor(getColor(reason == null ? R.color.text_secondary : R.color.warning));
+        status.setTextColor(getColor(reason == null ? R.color.term_dim : R.color.term_yellow));
+        ((TextView) findViewById(R.id.term_prompt)).setText((backend.startsWith("ssh:") ? backend.substring(4) : shortCwd()) + " $");
     }
 
     // ---- Running --------------------------------------------------------------------------------
@@ -161,10 +258,11 @@ public final class TerminalActivity extends BaseActivity {
             output.setText("");
             return;
         }
-        append((backend.startsWith("ssh:") ? backend.substring(4) : shortCwd()) + " $ " + cmd + "\n", Ui.accent(this));
+        append((backend.startsWith("ssh:") ? backend.substring(4) : shortCwd()) + " $ " + cmd + "\n", getColor(R.color.term_green));
         CancellationToken token = new CancellationToken();
         running = token;
         run.setImageResource(R.drawable.ic_stop);
+        findViewById(R.id.term_busy).setVisibility(View.VISIBLE);
         String be = backend;
         String dir = cwd;
         g.io.execute(() -> {
@@ -176,7 +274,7 @@ public final class TerminalActivity extends BaseActivity {
                     JSONObject args = new JSONObject().put("host", be.substring(4)).put("command", cmd).put("timeout_s", 600);
                     ToolResult r = new CodeTools.Ssh(g).execute(new ToolInvocation("term", "terminal", args, token, null));
                     out = r.toModelContent(MAX_OUTPUT_CHARS);
-                    if (!r.succeeded()) color = 0xFFE5486B;
+                    if (!r.succeeded()) color = getColor(R.color.term_red);
                 } else {
                     ShellBackend sh = shellFor(be);
                     String wrapped = "cd " + ShizukuManager.shellQuote(dir) + " 2>/dev/null\n" + cmd
@@ -199,20 +297,21 @@ public final class TerminalActivity extends BaseActivity {
                     if (r.cancelled) sb.append("\n[stopped]");
                     if (r.ran() && r.exitCode != 0) sb.append("\n[exit ").append(r.exitCode).append("]");
                     out = sb.toString();
-                    if (!r.ok()) color = 0xFFE29A1F;
+                    if (!r.ok()) color = getColor(R.color.term_yellow);
                 }
             } catch (Exception e) {
                 out = "[" + e.getClass().getSimpleName() + ": " + e.getMessage() + "]";
-                color = 0xFFE5486B;
+                color = getColor(R.color.term_red);
             }
             String text = out;
-            int c = color;
+            int c = color == 0 ? getColor(R.color.term_text) : color;
             String nc = newCwd;
             runOnUiThread(() -> {
                 if (nc != null && !nc.isEmpty()) cwd = nc;
                 if (!text.isEmpty()) append(text.endsWith("\n") ? text : text + "\n", c);
                 running = null;
                 run.setImageResource(R.drawable.ic_send);
+                findViewById(R.id.term_busy).setVisibility(View.GONE);
                 updateStatus();
             });
         });
@@ -317,7 +416,7 @@ public final class TerminalActivity extends BaseActivity {
                 String text = (r.stdout == null ? "" : r.stdout) + (r.stderr == null ? "" : r.stderr)
                         + (r.error == null || r.error.isEmpty() ? "" : "\n[" + r.error + "]")
                         + "\n" + (r.ok() ? getString(R.string.terminal_install_ok) : getString(R.string.terminal_install_failed));
-                runOnUiThread(() -> append(text + "\n", r.ok() ? 0 : 0xFFE5486B));
+                runOnUiThread(() -> append(text + "\n", getColor(r.ok() ? R.color.term_text : R.color.term_red)));
             });
         });
     }
@@ -346,7 +445,7 @@ public final class TerminalActivity extends BaseActivity {
         TextView authLabel = new TextView(this, null, 0, R.style.YF_Label);
         authLabel.setText(R.string.ssh_auth);
         form.addView(authLabel);
-        Spinner auth = new Spinner(this);
+        Spinner auth = Widgets.styleSpinner(new Spinner(this));
         auth.setAdapter(new android.widget.ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
                 new String[]{getString(R.string.ssh_auth_password), getString(R.string.ssh_auth_key)}));
         auth.setSelection("key".equals(h.auth) ? 1 : 0);

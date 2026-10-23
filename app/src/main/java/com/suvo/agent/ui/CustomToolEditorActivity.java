@@ -117,7 +117,7 @@ public final class CustomToolEditorActivity extends BaseActivity {
         timeout = field(box, R.string.custom_tool_timeout, String.valueOf(def.timeoutS), false);
         timeout.setInputType(InputType.TYPE_CLASS_NUMBER);
 
-        enabled = new Switch(this);
+        enabled = Widgets.styleSwitch(new Switch(this));
         enabled.setTextColor(getColor(R.color.text_primary));
         enabled.setTextSize(15f);
         enabled.setText(R.string.custom_tool_enabled);
@@ -204,7 +204,7 @@ public final class CustomToolEditorActivity extends BaseActivity {
     }
 
     private Spinner spinner(LinearLayout box, String[] values, String current) {
-        Spinner s = new Spinner(this);
+        Spinner s = Widgets.styleSpinner(new Spinner(this));
         s.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, values));
         for (int i = 0; i < values.length; i++) if (values[i].equalsIgnoreCase(current)) s.setSelection(i);
         box.addView(s);

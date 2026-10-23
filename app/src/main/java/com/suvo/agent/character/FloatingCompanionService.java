@@ -43,8 +43,9 @@ import java.util.Deque;
  * Floating companion drawn over other apps (needs "Display over other apps"). It appears when you
  * leave Your Friend and hides while the app is open (the app shows the character itself). It can be
  * dragged anywhere and snaps to the nearest screen edge. Tap: reaction. Double-tap: point mode —
- * the next tap anywhere is identified via Accessibility and sent to chat as context. Long-press:
- * open the app.
+ * the next tap anywhere is identified via Accessibility and sent to chat as context. Press and hold:
+ * talk (release to send what you said to the agent). Tapping the notification opens the app.
+ * The character turns to look wherever the agent or the user taps on screen.
  *
  * The service is started while the app is in the foreground (Android 15 does not allow starting it
  * from the background) and then stays running; only the overlay's visibility follows the app.
@@ -61,6 +62,9 @@ public final class FloatingCompanionService extends Service {
     private CharacterView character;
     private WindowManager.LayoutParams lp;
     private View pointOverlay;
+    private TextView talkBubble;
+    private com.suvo.agent.voice.PushToTalk ptt;
+    private boolean talking;
     private final Handler main = new Handler(Looper.getMainLooper());
     private AgentListener agentListener;
     private SpeechController.Listener speechListener;
@@ -133,16 +137,28 @@ public final class FloatingCompanionService extends Service {
         }
         PendingIntent stop = PendingIntent.getService(this, 40, new Intent(this, FloatingCompanionService.class).setAction(ACTION_STOP),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent open = PendingIntent.getActivity(this, 41, new Intent(this, MainActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         Notification n = Notifications.builder(this, Notifications.CHANNEL_COMPANION)
                 .setSmallIcon(R.drawable.ic_stat_companion)
                 .setContentTitle(getString(R.string.companion_notification_title))
                 .setContentText(getString(R.string.companion_notification_text))
+                .setContentIntent(open)
                 .setOngoing(true)
                 .addAction(new Notification.Action.Builder(null, getString(R.string.action_hide), stop).build())
                 .build();
         try {
-            if (Build.VERSION.SDK_INT >= 34) startForeground(Notifications.ID_COMPANION, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-            else startForeground(Notifications.ID_COMPANION, n);
+            if (Build.VERSION.SDK_INT >= 34) {
+                // Hold-to-talk records from the floating character, which needs the microphone type.
+                int types = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE;
+                if (hasMic()) types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+                startForeground(Notifications.ID_COMPANION, n, types);
+            } else if (Build.VERSION.SDK_INT >= 30 && hasMic()) {
+                startForeground(Notifications.ID_COMPANION, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
+            } else {
+                startForeground(Notifications.ID_COMPANION, n);
+            }
         } catch (RuntimeException e) {
             stopSelf();
             return START_NOT_STICKY;
@@ -161,16 +177,35 @@ public final class FloatingCompanionService extends Service {
         int size = g.settings.integer(com.suvo.agent.data.Settings.CHARACTER_SIZE, 100);
         int w = (int) (110 * density * size / 100f);
         int h = (int) (132 * density * size / 100f);
-        container = new FrameLayout(this);
+        // Intercept every touch at the window level; otherwise the character view consumes them
+        // and the window can never be dragged.
+        container = new FrameLayout(this) {
+            @Override
+            public boolean onInterceptTouchEvent(MotionEvent ev) {
+                return true;
+            }
+        };
+        container.setClipChildren(false);
         character = new CharacterView(this);
         character.setDraggable(false);
         character.setCharacter(g.characters.active());
         character.setQuality(g.settings.str(com.suvo.agent.data.Settings.ANIMATION_QUALITY, "medium"),
                 g.settings.bool(com.suvo.agent.data.Settings.REDUCED_MOTION, false));
         container.addView(character, new FrameLayout.LayoutParams(w, h));
+        talkBubble = new TextView(this);
+        talkBubble.setTextColor(getColor(R.color.text_primary));
+        talkBubble.setTextSize(12f);
+        talkBubble.setMaxLines(3);
+        talkBubble.setBackgroundResource(R.drawable.speech_bubble);
+        talkBubble.setPadding((int) (10 * density), (int) (6 * density), (int) (10 * density), (int) (6 * density));
+        talkBubble.setVisibility(View.GONE);
+        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        container.addView(talkBubble, bp);
         lp = new WindowManager.LayoutParams(w, h,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                        | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.TOP | Gravity.START;
         DisplayMetrics dm = getResources().getDisplayMetrics();
@@ -212,14 +247,14 @@ public final class FloatingCompanionService extends Service {
         g.speech.addListener(speechListener);
     }
 
-    /** Drag the window; tap/double-tap/long-press dispatch. */
+    /** Drag the window; tap = reaction, double-tap = point mode, press and hold = talk. */
     private final class DragTouch implements View.OnTouchListener {
         float downRawX, downRawY;
         int startX, startY;
         boolean moved;
         long lastTap;
-        final Runnable longPress = () -> {
-            if (!moved) openApp();
+        final Runnable holdToTalk = () -> {
+            if (!moved) startTalking();
         };
 
         @SuppressLint("ClickableViewAccessibility")
@@ -233,25 +268,31 @@ public final class FloatingCompanionService extends Service {
                     startX = lp.x;
                     startY = lp.y;
                     moved = false;
-                    main.postDelayed(longPress, ViewConfiguration.getLongPressTimeout() + 200);
+                    main.postDelayed(holdToTalk, 380);
                     return true;
                 case MotionEvent.ACTION_MOVE: {
+                    if (talking) return true;
                     float dx = e.getRawX() - downRawX;
                     float dy = e.getRawY() - downRawY;
                     if (!moved && Math.hypot(dx, dy) > slop) {
                         moved = true;
-                        main.removeCallbacks(longPress);
+                        main.removeCallbacks(holdToTalk);
                     }
                     if (moved) {
                         lp.x = startX + (int) dx;
                         lp.y = startY + (int) dy;
-                        wm.updateViewLayout(container, lp);
+                        try {
+                            wm.updateViewLayout(container, lp);
+                        } catch (IllegalArgumentException ignored) {
+                        }
                     }
                     return true;
                 }
                 case MotionEvent.ACTION_UP:
-                    main.removeCallbacks(longPress);
-                    if (moved) {
+                    main.removeCallbacks(holdToTalk);
+                    if (talking) {
+                        stopTalking();
+                    } else if (moved) {
                         snapToEdge();
                     } else {
                         long now = System.currentTimeMillis();
@@ -265,12 +306,118 @@ public final class FloatingCompanionService extends Service {
                     }
                     return true;
                 case MotionEvent.ACTION_CANCEL:
-                    main.removeCallbacks(longPress);
+                    main.removeCallbacks(holdToTalk);
+                    if (talking) stopTalking();
                     return true;
                 default:
                     return false;
             }
         }
+    }
+
+    private boolean hasMic() {
+        return checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void startTalking() {
+        if (!hasMic()) {
+            Toast.makeText(this, R.string.companion_mic_needed, Toast.LENGTH_LONG).show();
+            openApp();
+            return;
+        }
+        talking = true;
+        AppGraph g = AppGraph.get();
+        g.speech.stop();
+        if (ptt == null) ptt = new com.suvo.agent.voice.PushToTalk(this);
+        character.setActivity(CharacterAnimator.Activity.LISTENING);
+        showBubble(getString(R.string.companion_listening));
+        try {
+            container.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS);
+        } catch (RuntimeException ignored) {
+        }
+        ptt.begin(g.settings.str(com.suvo.agent.data.Settings.STT_LANGUAGE, ""), new com.suvo.agent.voice.PushToTalk.Callback() {
+            @Override
+            public void onPartial(String text) {
+                showBubble(text);
+            }
+
+            @Override
+            public void onText(String text) {
+                showBubble(text);
+                main.postDelayed(() -> hideBubble(), 2500);
+                String err = g.agent.submit(g.agent.activeConversation(), text, null);
+                if (err != null) Toast.makeText(FloatingCompanionService.this, err, Toast.LENGTH_LONG).show();
+                else if (character != null) character.setActivity(CharacterAnimator.Activity.THINKING);
+            }
+
+            @Override
+            public void onError(String message) {
+                hideBubble();
+                if (character != null && !g.agent.isRunning()) character.setActivity(CharacterAnimator.Activity.IDLE);
+                if (message != null && !message.isEmpty()) Toast.makeText(FloatingCompanionService.this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void stopTalking() {
+        talking = false;
+        if (ptt != null) ptt.end();
+        showBubble(getString(R.string.companion_understanding));
+    }
+
+    private void showBubble(String text) {
+        if (talkBubble == null) return;
+        talkBubble.setText(text);
+        talkBubble.setVisibility(View.VISIBLE);
+        // The window is only as big as the character; grow it upward while the bubble shows.
+        float density = getResources().getDisplayMetrics().density;
+        int extra = (int) (56 * density);
+        if (lp.height == character.getLayoutParams().height) {
+            lp.height += extra;
+            lp.y -= extra;
+            ((FrameLayout.LayoutParams) character.getLayoutParams()).topMargin = extra;
+            character.requestLayout();
+            lp.width = Math.max(lp.width, (int) (180 * density));
+            try {
+                wm.updateViewLayout(container, lp);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+    }
+
+    private void hideBubble() {
+        if (talkBubble == null) return;
+        talkBubble.setVisibility(View.GONE);
+        FrameLayout.LayoutParams cp = (FrameLayout.LayoutParams) character.getLayoutParams();
+        if (cp.topMargin > 0) {
+            lp.height -= cp.topMargin;
+            lp.y += cp.topMargin;
+            cp.topMargin = 0;
+            lp.width = cp.width;
+            character.requestLayout();
+            try {
+                wm.updateViewLayout(container, lp);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+    }
+
+    /**
+     * Turns the floating character toward a point on screen (where the agent or the user tapped).
+     * Safe to call from any thread.
+     */
+    public static void lookAtScreen(int x, int y) {
+        FloatingCompanionService svc = instance;
+        if (svc == null) return;
+        svc.main.post(() -> {
+            if (svc.character == null || svc.container == null || svc.container.getVisibility() != View.VISIBLE) return;
+            DisplayMetrics dm = svc.getResources().getDisplayMetrics();
+            float cx = svc.lp.x + svc.lp.width / 2f;
+            float cy = svc.lp.y + svc.lp.height * 0.35f;
+            float nx = (x - cx) / (dm.widthPixels * 0.5f);
+            float ny = (y - cy) / (dm.heightPixels * 0.5f);
+            svc.character.animator().lookAt(Math.max(-1f, Math.min(1f, nx)), Math.max(-1f, Math.min(1f, ny)), 1.8f);
+        });
     }
 
     private void snapToEdge() {
@@ -379,6 +526,7 @@ public final class FloatingCompanionService extends Service {
     public void onDestroy() {
         running = false;
         instance = null;
+        if (ptt != null) ptt.cancel();
         removePointOverlay();
         try {
             AppGraph g = AppGraph.get();

@@ -23,6 +23,8 @@ public final class SettingsActivity extends BaseActivity {
 
     private static final int REQ_EXPORT = 71;
     private static final int REQ_IMPORT = 72;
+    private static final int REQ_VRM = 73;
+    private String vrmInfo = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,7 +77,7 @@ public final class SettingsActivity extends BaseActivity {
         r.link(R.drawable.ic_shield, R.string.section_permissions, R.string.settings_permissions_desc, PermissionsActivity.class);
 
         r.section(R.string.settings_appearance);
-        r.choiceRow(R.drawable.ic_eye, R.string.settings_theme, Settings.THEME, "system",
+        r.choiceRow(R.drawable.ic_eye, R.string.settings_theme, Settings.THEME, "dark",
                 new String[]{getString(R.string.theme_system), getString(R.string.theme_dark), getString(R.string.theme_light)},
                 new String[]{"system", "dark", "light"}, v -> restartApp());
         r.choiceRow(R.drawable.ic_star, R.string.settings_accent, Settings.ACCENT, "dynamic",
@@ -89,6 +91,7 @@ public final class SettingsActivity extends BaseActivity {
                     restartApp();
                 });
         r.sliderRow(R.drawable.ic_character, R.string.settings_character_size, Settings.CHARACTER_SIZE, 100, 50, 150, "%", null);
+        characterStyle(r);
         r.choiceRow(R.drawable.ic_character, R.string.settings_animation_quality, Settings.ANIMATION_QUALITY, "high",
                 new String[]{getString(R.string.quality_low), getString(R.string.quality_medium), getString(R.string.quality_high)},
                 new String[]{"low", "medium", "high"}, null);
@@ -144,15 +147,126 @@ public final class SettingsActivity extends BaseActivity {
         Ui.tintAccent(this, box);
     }
 
+    /** Encrypted values (API keys, tokens) only work on this phone and must never leave it. */
+    private static void stripSecrets(JSONObject o) {
+        java.util.List<String> drop = new java.util.ArrayList<>();
+        java.util.Iterator<String> it = o.keys();
+        while (it.hasNext()) {
+            String k = it.next();
+            if (k.endsWith("_enc") || k.contains("token") || k.contains("secret")) drop.add(k);
+        }
+        for (String k : drop) o.remove(k);
+        o.remove(WebTools.BRAVE_KEY_ENC);
+        o.remove(Settings.VRM_PATH);
+    }
+
+    // ------------------------------------------------------------------ 2D / 3D character style
+
+    private java.io.File vrmFile() {
+        java.io.File dir = new java.io.File(getFilesDir(), "models");
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        return new java.io.File(dir, "avatar.vrm");
+    }
+
+    private void characterStyle(Rows r) {
+        String path = g.settings.str(Settings.VRM_PATH, "");
+        boolean hasModel = !path.isEmpty() && new java.io.File(path).isFile();
+        r.choiceRow(R.drawable.ic_character, R.string.settings_character_style, Settings.CHARACTER_MODE, "2d",
+                new String[]{getString(R.string.style_2d), getString(R.string.style_3d)}, new String[]{"2d", "3d"}, v -> {
+                    if ("3d".equals(v) && !hasModel) pickVrm();
+                    build();
+                });
+        String sub;
+        if (hasModel) {
+            java.io.File f = new java.io.File(path);
+            sub = (vrmInfo.isEmpty() ? f.getName() : vrmInfo) + " · " + Ui.size(f.length());
+        } else {
+            sub = getString(R.string.settings_vrm_none);
+        }
+        String err = com.suvo.agent.character.CharacterView.lastVrmError();
+        if (!err.isEmpty() && "3d".equals(g.settings.str(Settings.CHARACTER_MODE, "2d"))) sub += "\n" + getString(R.string.settings_vrm_error, err);
+        r.row(R.drawable.ic_download, getString(R.string.settings_vrm_model), sub, null, v -> pickVrm());
+        if (hasModel) {
+            r.choiceRow(R.drawable.ic_eye, R.string.settings_vrm_framing, Settings.VRM_FRAMING, "full",
+                    new String[]{getString(R.string.vrm_full_body), getString(R.string.vrm_upper_body)}, new String[]{"full", "upper"}, null);
+            r.row(R.drawable.ic_delete, getString(R.string.settings_vrm_remove), null, null, v ->
+                    Ui.confirm(this, R.string.settings_vrm_remove, getString(R.string.settings_vrm_remove_confirm), () -> {
+                        //noinspection ResultOfMethodCallIgnored
+                        new java.io.File(path).delete();
+                        g.settings.put(Settings.VRM_PATH, "");
+                        g.settings.put(Settings.CHARACTER_MODE, "2d");
+                        vrmInfo = "";
+                        build();
+                    }));
+        }
+        r.note(getString(R.string.settings_vrm_note));
+    }
+
+    private void pickVrm() {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                .putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"model/gltf-binary", "application/octet-stream", "*/*"});
+        startActivityForResult(i, REQ_VRM);
+    }
+
+    private void importVrm(Uri uri) {
+        Ui.toast(this, R.string.settings_vrm_importing);
+        g.io.execute(() -> {
+            java.io.File tmp = new java.io.File(getCacheDir(), "avatar_import.vrm");
+            String result;
+            boolean ok = false;
+            try {
+                try (InputStream in = getContentResolver().openInputStream(uri);
+                     OutputStream out = new java.io.FileOutputStream(tmp)) {
+                    if (in == null) throw new java.io.IOException("Cannot open the file");
+                    byte[] buf = new byte[1 << 16];
+                    long total = 0;
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        total += n;
+                        if (total > 200L * 1024 * 1024) throw new java.io.IOException("The model is larger than 200 MB");
+                        out.write(buf, 0, n);
+                    }
+                }
+                String info = com.suvo.agent.character.vrm.VrmModel.probe(tmp);
+                java.io.File dest = vrmFile();
+                //noinspection ResultOfMethodCallIgnored
+                dest.delete();
+                if (!tmp.renameTo(dest)) throw new java.io.IOException("Could not save the model");
+                vrmInfo = info;
+                g.settings.put(Settings.VRM_PATH, dest.getAbsolutePath());
+                g.settings.put(Settings.CHARACTER_MODE, "3d");
+                result = getString(R.string.settings_vrm_imported, info);
+                ok = true;
+            } catch (Exception | OutOfMemoryError e) {
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+                result = getString(R.string.settings_vrm_invalid, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            }
+            final String msg = result;
+            final boolean success = ok;
+            runOnUiThread(() -> {
+                if (isFinishing()) return;
+                Ui.show(Ui.dialog(this).setTitle(success ? R.string.settings_vrm_model : R.string.error_title).setMessage(msg)
+                        .setPositiveButton(android.R.string.ok, null));
+                build();
+            });
+        });
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
+        if (requestCode == REQ_VRM) {
+            importVrm(uri);
+            return;
+        }
         try {
             if (requestCode == REQ_EXPORT) {
                 JSONObject o = g.settings.export();
-                o.remove(WebTools.BRAVE_KEY_ENC); // never export secrets
+                stripSecrets(o); // never export secrets
                 try (OutputStream os = getContentResolver().openOutputStream(uri, "wt")) {
                     if (os != null) os.write(o.toString(2).getBytes(StandardCharsets.UTF_8));
                 }
@@ -161,7 +275,7 @@ public final class SettingsActivity extends BaseActivity {
                 try (InputStream in = getContentResolver().openInputStream(uri)) {
                     if (in == null) return;
                     JSONObject o = new JSONObject(new String(com.suvo.agent.device.ImageUtil.readAll(in, 1024 * 1024), StandardCharsets.UTF_8));
-                    o.remove(WebTools.BRAVE_KEY_ENC);
+                    stripSecrets(o);
                     g.settings.importFrom(o);
                 }
                 Ui.toast(this, R.string.settings_imported);

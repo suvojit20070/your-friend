@@ -68,6 +68,22 @@
             </LinearLayout>
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/agent_tree_title"
+            style="@style/YF.Section"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/tree_title"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/agent_tree"
+            style="@style/YF.Glass"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/agent_approvals"
             android:layout_width="match_parent"

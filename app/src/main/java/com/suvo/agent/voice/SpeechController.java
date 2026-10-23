@@ -48,6 +48,7 @@ public final class SpeechController {
     private final OmniVoiceNativeEngine omniNative;
     private final OmniVoiceServerEngine omniServer;
     private final SystemTtsEngine system;
+    private final HfSpaceEngine hfSpace;
     private volatile CancellationToken current;
     private volatile State state = State.IDLE;
     private volatile String lastError = "";
@@ -58,6 +59,7 @@ public final class SpeechController {
         this.settings = settings;
         omniNative = new OmniVoiceNativeEngine(ctx, settings);
         omniServer = new OmniVoiceServerEngine(settings);
+        hfSpace = new HfSpaceEngine(settings);
         system = new SystemTtsEngine(ctx, settings);
     }
 
@@ -81,6 +83,17 @@ public final class SpeechController {
         return omniNative;
     }
 
+    public HfSpaceEngine spaceEngine() {
+        return hfSpace;
+    }
+
+    /** "Use the phone's voice when the chosen engine fails" (offline, quota used up...). On by default. */
+    public static final String FALLBACK_KEY = "voice_fallback_system";
+
+    private boolean fallbackAllowed(TtsEngine e) {
+        return e != system && settings.bool(FALLBACK_KEY, true) && system.notReadyReason() == null;
+    }
+
     public OmniVoiceServerEngine serverEngine() {
         return omniServer;
     }
@@ -89,6 +102,8 @@ public final class SpeechController {
         switch (settings.str(Settings.VOICE_ENGINE, "omnivoice_native")) {
             case "omnivoice_server":
                 return omniServer;
+            case "hf_space":
+                return hfSpace;
             case "system":
                 return system;
             default:
@@ -126,12 +141,16 @@ public final class SpeechController {
         stop();
         String clean = forSpeech(text);
         if (clean.isEmpty()) return;
-        TtsEngine engine = engine();
-        String why = engine.notReadyReason();
+        TtsEngine chosen = engine();
+        String why = chosen.notReadyReason();
         if (why != null) {
-            setState(State.ERROR, why);
-            return;
+            if (!fallbackAllowed(chosen)) {
+                setState(State.ERROR, why);
+                return;
+            }
+            chosen = system;
         }
+        final TtsEngine[] engineRef = {chosen};
         CancellationToken token = new CancellationToken();
         current = token;
         List<String> chunks = chunk(clean, 220);
@@ -141,8 +160,21 @@ public final class SpeechController {
             try {
                 for (String c : chunks) {
                     if (token.isCancelled()) break;
+                    TtsEngine engine = engineRef[0];
                     if (state != State.SPEAKING) setState(State.SYNTHESIZING, engine.id());
-                    Pcm pcm = engine.synthesize(c, token).normalized();
+                    Pcm pcm;
+                    try {
+                        pcm = engine.synthesize(c, token).normalized();
+                    } catch (CancellationToken.CancelledException ce) {
+                        throw ce;
+                    } catch (Exception e) {
+                        if (token.isCancelled() || !fallbackAllowed(engine)) throw e;
+                        // Network down, quota used up...: finish this reply with the phone's voice.
+                        Log.w(TAG, engine.id() + " failed, using system TTS", e);
+                        lastError = engine.id() + ": " + e.getMessage();
+                        engineRef[0] = system;
+                        pcm = system.synthesize(c, token).normalized();
+                    }
                     while (!token.isCancelled() && !ready.offer(pcm, 200, TimeUnit.MILLISECONDS)) {
                         // wait for the player
                     }

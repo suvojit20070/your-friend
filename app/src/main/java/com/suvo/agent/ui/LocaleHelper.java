@@ -25,7 +25,7 @@ public final class LocaleHelper {
     public static Context wrap(Context base) {
         Settings s = Settings.get(base);
         String tag = s.str(Settings.UI_LANGUAGE, "");
-        String theme = s.str(Settings.THEME, "system");
+        String theme = s.str(Settings.THEME, "dark");
         Configuration cfg = new Configuration(base.getResources().getConfiguration());
         boolean changed = false;
         if (!tag.isEmpty()) {

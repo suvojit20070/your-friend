@@ -76,7 +76,9 @@ public final class CodeTools {
             String why = backend.unavailableReason();
             if (why != null) return ToolResult.of(ToolResult.Status.UNAVAILABLE, backend.id() + " backend unavailable: " + why);
             inv.progress.update("Running on " + backend.id());
+            com.suvo.agent.terminal.TerminalFeed.Run feed = com.suvo.agent.terminal.TerminalFeed.start("shell", backend.id(), inv.str("command"));
             ExecResult r = backend.run(inv.str("command"), inv.str("stdin"), inv.num("timeout_s", 60) * 1000L, inv.cancel);
+            com.suvo.agent.terminal.TerminalFeed.finish(feed, r);
             JSONObject data = r.toJson(16_000);
             if (!r.ran()) return ToolResult.fail(r.error, data);
             if (r.timedOut) return ToolResult.of(ToolResult.Status.TIMED_OUT, "Command timed out");
@@ -153,7 +155,11 @@ public final class CodeTools {
                 }
             }
             inv.progress.update("Running " + lang + " in Termux");
+            String firstLine = inv.str("code").split("\n", 2)[0];
+            com.suvo.agent.terminal.TerminalFeed.Run feed = com.suvo.agent.terminal.TerminalFeed.start("execute_" + lang, "termux",
+                    lang + " program (" + inv.str("code").split("\n").length + " lines): " + (firstLine.length() > 60 ? firstLine.substring(0, 60) + "…" : firstLine));
             ExecResult r = g.termux.run(cmd, inv.str("code"), inv.num("timeout_s", 120) * 1000L, inv.cancel);
+            com.suvo.agent.terminal.TerminalFeed.finish(feed, r);
             JSONObject data = r.toJson(16_000);
             J.put(data, "workdir", dir);
             if (!r.ran()) return ToolResult.of(ToolResult.Status.UNAVAILABLE, r.error);

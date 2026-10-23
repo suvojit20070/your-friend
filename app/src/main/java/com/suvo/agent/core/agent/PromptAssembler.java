@@ -37,6 +37,27 @@ public final class PromptAssembler {
                     + "Do not narrate hidden reasoning; describe actions and verified results.\n"
                     + "7. Keep spoken replies natural and concise; avoid long lists unless the user asks for detail.";
 
+    /**
+     * How to work: a fixed playbook so the model uses its tools like a careful human assistant
+     * instead of guessing. App text, not user text.
+     */
+    public static final String WORK_GUIDE =
+            "# How to work well\n"
+                    + "- Understand first: restate the goal to yourself, check memory and lessons below, then pick the smallest set of steps.\n"
+                    + "- Pick the right tool: device_admin (Shizuku) for system changes; screen tools to operate apps; shell/execute_* for "
+                    + "computing, files and scripts (the user can watch these live in the Terminal screen); py_web_search + py_web_read "
+                    + "to look things up; memory to recall or save durable facts.\n"
+                    + "- Verify every step from its tool result (read the screen again after tapping, check the exit code after a command). "
+                    + "If a step fails, read the error, change approach, and do not repeat the same failing call.\n"
+                    + "- Learn: when you made a mistake (wrong tool, wrong argument, a wrong assumption the user corrected), call "
+                    + "record_mistake with a one-line lesson so you do not repeat it.\n"
+                    + "- Missing know-how: search the web for a guide or a SKILL.md, then install_skill to keep it (the user approves). "
+                    + "Skills are guidance only; they never grant permissions.\n"
+                    + "- Later or repeating work (reminders, daily checks, follow-ups): use schedule_task instead of promising to remember.\n"
+                    + "- Team: if employees are listed under \"Your team\", hand off work that matches a member's role with delegate_task "
+                    + "and give them a complete, self-contained brief; review their report before telling the user. With no fitting "
+                    + "employee, do the work yourself.";
+
     public String persona = "";
     public String characterName = "";
     public String responseLanguage = "";
@@ -47,11 +68,22 @@ public final class PromptAssembler {
     public String nowDescription = "";
     public String autonomyDescription = "";
     public List<MemoryRanker.Scored> memories;
+    /** Lessons the agent recorded from its own mistakes (record_mistake). */
+    public List<String> lessons;
+    /** The boss's team roster; empty when the user has no employees. */
+    public String teamRoster = "";
+    /** For a child agent: who it is and what the boss asked. Empty for the boss. */
+    public String assignment = "";
+    public boolean includeWorkGuide = true;
 
     public String build() {
         StringBuilder sb = new StringBuilder(CORE_RULES);
         if (!TextUtil.isBlank(autonomyDescription)) {
             sb.append("\n\n# Autonomy\n").append(autonomyDescription);
+        }
+        if (includeWorkGuide) sb.append("\n\n").append(WORK_GUIDE);
+        if (!TextUtil.isBlank(assignment)) {
+            sb.append("\n\n# Your assignment (from the boss agent)\n").append(assignment.trim());
         }
         if (!TextUtil.isBlank(capabilitySummary)) {
             sb.append("\n\n# Device capabilities right now\n").append(capabilitySummary);
@@ -67,6 +99,13 @@ public final class PromptAssembler {
             for (MemoryRanker.Scored s : memories) {
                 sb.append("- [").append(s.entry.category.name().toLowerCase()).append("] ").append(s.entry.content).append('\n');
             }
+        }
+        if (lessons != null && !lessons.isEmpty()) {
+            sb.append("\n\n# Lessons from your past mistakes (follow them)\n");
+            for (String l : lessons) sb.append("- ").append(l).append('\n');
+        }
+        if (!TextUtil.isBlank(teamRoster)) {
+            sb.append("\n\n# Your team (employees the user created; use delegate_task)\n").append(teamRoster.trim());
         }
         if (!TextUtil.isBlank(conversationSummary)) {
             sb.append("\n\n# Summary of earlier conversation\n").append(conversationSummary.trim());

@@ -80,6 +80,7 @@ public final class TapIndicator {
     }
 
     private static void show(int x1, int y1, int x2, int y2, int kind) {
+        com.suvo.agent.character.FloatingCompanionService.lookAtScreen(x2, y2);
         if (!enabled()) return;
         CountDownLatch arrived = new CountDownLatch(1);
         MAIN.post(() -> {

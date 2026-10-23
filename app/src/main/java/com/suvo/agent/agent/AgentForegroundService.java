@@ -16,14 +16,17 @@ import com.suvo.agent.ui.LiveAgentActivity;
 import com.suvo.agent.ui.Notifications;
 
 /**
- * Keeps the process alive while an agent task runs (a visible, user-stoppable foreground service).
- * It stops itself when the task ends; Android may still stop it under memory pressure, in which case
- * the task is marked interrupted on next start.
+ * Keeps the process alive while an agent task runs (a visible, user-stoppable foreground service)
+ * and holds a partial wake lock so the CPU keeps working with the screen off. Every task — typed,
+ * spoken, from the floating character or started by a schedule — goes through here. It stops
+ * itself when the task ends; the wake lock also has a time limit (the task's maximum duration plus
+ * a margin), so it can never keep the phone awake forever.
  */
 public final class AgentForegroundService extends Service {
 
     public static final String ACTION_STOP_TASK = "com.suvo.agent.STOP_TASK";
     private static volatile String lastText = "";
+    private android.os.PowerManager.WakeLock wakeLock;
 
     public static void start(Context ctx, String text) {
         lastText = text;
@@ -68,6 +71,7 @@ public final class AgentForegroundService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        acquireWakeLock();
         Notification n = build(this, lastText);
         try {
             if (Build.VERSION.SDK_INT >= 34) {
@@ -79,6 +83,32 @@ public final class AgentForegroundService extends Service {
             stopSelf();
         }
         return START_NOT_STICKY;
+    }
+
+    private void acquireWakeLock() {
+        if (wakeLock != null && wakeLock.isHeld()) return;
+        android.os.PowerManager pm = getSystemService(android.os.PowerManager.class);
+        if (pm == null) return;
+        try {
+            wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "YourFriend:agent-task");
+            wakeLock.setReferenceCounted(false);
+            long limit = AppGraph.get().settings.agentConfig().maxDurationMs + 10 * 60_000L;
+            wakeLock.acquire(limit);
+        } catch (RuntimeException ignored) {
+            wakeLock = null;
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        if (wakeLock != null && wakeLock.isHeld()) {
+            try {
+                wakeLock.release();
+            } catch (RuntimeException ignored) {
+            }
+        }
+        wakeLock = null;
+        super.onDestroy();
     }
 
     @Override

@@ -146,19 +146,17 @@ public final class ChatActivity extends BaseActivity {
         conversationId = getIntent().getLongExtra(EXTRA_CONVERSATION, g.agent.activeConversation());
         g.agent.setActiveConversation(conversationId);
 
-        topAction(R.drawable.ic_history, R.string.chat_history, v -> showHistory());
-        topAction(R.drawable.ic_add, R.string.chat_new, v -> {
-            conversationId = g.agent.newConversation();
-            reload();
-        });
-        topAction(R.drawable.ic_character, R.string.chat_switch_character, v -> switchCharacter());
-        topAction(R.drawable.ic_camera, R.string.chat_attach_image, v -> {
+        findViewById(R.id.chat_history).setOnClickListener(v -> showHistory());
+        findViewById(R.id.chat_menu).setOnClickListener(v -> showMenu());
+        findViewById(R.id.chat_model).setOnClickListener(v -> pickProvider());
+        findViewById(R.id.chat_plus).setOnClickListener(v -> {
             if (pendingImages.size() >= MAX_IMAGES) {
                 Ui.toast(this, getString(R.string.chat_max_images, MAX_IMAGES));
                 return;
             }
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*"), REQ_IMAGE);
         });
+        updateModelTitle();
 
         send.setOnClickListener(v -> {
             if (g.agent.isRunning()) g.agent.cancel();
@@ -334,7 +332,8 @@ public final class ChatActivity extends BaseActivity {
             conversationId = g.agent.newConversation();
             conv = g.conversations.get(conversationId);
         }
-        setTopBar(conv == null || conv.title.isEmpty() ? getString(R.string.section_chat) : conv.title);
+        ((TextView) findViewById(R.id.chat_conv_title)).setText(conv == null || conv.title.isEmpty() ? getString(R.string.chat_untitled) : conv.title);
+        updateModelTitle();
         if (conv != null && !conv.summary.isEmpty()) {
             Item s = new Item();
             s.type = SUMMARY;
@@ -502,6 +501,92 @@ public final class ChatActivity extends BaseActivity {
         });
     }
 
+    /** Centre of the top bar: the active provider and model; tap to switch. */
+    private void updateModelTitle() {
+        com.suvo.agent.core.llm.ProviderConfig p = g.providers.active();
+        TextView t = findViewById(R.id.chat_model_title);
+        t.setText(p == null ? getString(R.string.chat_no_provider) + "  ▾" : p.name + "  ▾");
+    }
+
+    private void pickProvider() {
+        List<com.suvo.agent.core.llm.ProviderConfig> ps = g.providers.list();
+        com.suvo.agent.core.llm.ProviderConfig active = g.providers.active();
+        String[] labels = new String[ps.size() + 1];
+        int sel = -1;
+        for (int i = 0; i < ps.size(); i++) {
+            labels[i] = ps.get(i).name + " · " + ps.get(i).model;
+            if (active != null && ps.get(i).id == active.id) sel = i;
+        }
+        labels[ps.size()] = getString(R.string.chat_manage_providers);
+        Ui.show(Ui.dialog(this).setTitle(R.string.section_providers).setSingleChoiceItems(labels, sel, (d, which) -> {
+            d.dismiss();
+            if (which == ps.size()) {
+                open(ProvidersActivity.class);
+                return;
+            }
+            g.providers.setDefault(ps.get(which).id);
+            updateModelTitle();
+        }).setNegativeButton(android.R.string.cancel, null));
+    }
+
+    private void showMenu() {
+        com.suvo.agent.core.llm.ProviderConfig p = g.providers.active();
+        String[] items = {
+                getString(R.string.chat_new),
+                getString(R.string.chat_switch_character),
+                getString(R.string.chat_thinking) + (p == null ? "" : ": " + thinkingLabel(p.reasoningEffort)),
+                getString(R.string.section_agent),
+                getString(R.string.section_settings)};
+        Ui.show(Ui.dialog(this).setItems(items, (d, which) -> {
+            switch (which) {
+                case 0:
+                    conversationId = g.agent.newConversation();
+                    reload();
+                    break;
+                case 1:
+                    switchCharacter();
+                    break;
+                case 2:
+                    pickThinking();
+                    break;
+                case 3:
+                    open(LiveAgentActivity.class);
+                    break;
+                default:
+                    open(SettingsActivity.class);
+            }
+        }));
+    }
+
+    static final String[] THINKING_VALUES = {"", "none", "low", "medium", "high"};
+
+    private String thinkingLabel(String v) {
+        int[] res = {R.string.thinking_default, R.string.thinking_off, R.string.thinking_low, R.string.thinking_medium, R.string.thinking_high};
+        for (int i = 0; i < THINKING_VALUES.length; i++) if (THINKING_VALUES[i].equals(v)) return getString(res[i]);
+        return v;
+    }
+
+    /** Thinking on/off per provider (sent as reasoning_effort). */
+    private void pickThinking() {
+        com.suvo.agent.core.llm.ProviderConfig p = g.providers.active();
+        if (p == null) {
+            Ui.toast(this, R.string.chat_no_provider);
+            return;
+        }
+        String[] labels = new String[THINKING_VALUES.length];
+        int sel = 0;
+        for (int i = 0; i < THINKING_VALUES.length; i++) {
+            labels[i] = thinkingLabel(THINKING_VALUES[i]);
+            if (THINKING_VALUES[i].equals(p.reasoningEffort)) sel = i;
+        }
+        Ui.show(Ui.dialog(this).setTitle(R.string.chat_thinking).setSingleChoiceItems(labels, sel, (d, which) -> {
+            p.reasoningEffort = THINKING_VALUES[which];
+            g.providers.save(p);
+            d.dismiss();
+            Ui.toast(this, getString(R.string.chat_thinking) + ": " + labels[which]);
+        }).setNegativeButton(android.R.string.cancel, null));
+    }
+
     private void switchCharacter() {
         List<CharacterSpec> chars = g.characters.list();
         String[] names = new String[chars.size()];
@@ -589,27 +674,34 @@ public final class ChatActivity extends BaseActivity {
             TextView detail = v.findViewById(R.id.msg_detail);
             TextView time = v.findViewById(R.id.msg_time);
             LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) bubble.getLayoutParams();
-            int max = (int) (parent.getWidth() * 0.84f);
-            text.setMaxWidth(max > 0 ? max : Integer.MAX_VALUE);
+            int max = (int) (parent.getWidth() * 0.82f);
+            text.setMaxWidth(it.type == ASSISTANT || it.type == STREAM ? Integer.MAX_VALUE : (max > 0 ? max : Integer.MAX_VALUE));
             title.setVisibility(View.GONE);
             detail.setVisibility(View.GONE);
             text.setTextColor(getColor(R.color.text_primary));
+            text.setTextSize(16f);
             row.setGravity(Gravity.START);
+            int padH = Ui.dp(ChatActivity.this, 16), padV = Ui.dp(ChatActivity.this, 11);
+            bubble.setPadding(padH, padV, padH, padV);
             switch (it.type) {
                 case USER:
                     row.setGravity(Gravity.END);
                     bubble.setBackgroundResource(R.drawable.bubble_user);
-                    bubble.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Ui.accent(ChatActivity.this)));
-                    text.setTextColor(getColor(R.color.text_on_accent));
+                    bubble.setBackgroundTintList(null);
                     break;
                 case ASSISTANT:
                 case STREAM:
+                    // Answers read like a document: full width, no bubble.
                     bubble.setBackgroundResource(R.drawable.bubble_assistant);
                     bubble.setBackgroundTintList(null);
+                    bubble.setPadding(Ui.dp(ChatActivity.this, 2), Ui.dp(ChatActivity.this, 6), Ui.dp(ChatActivity.this, 2), Ui.dp(ChatActivity.this, 2));
                     break;
                 case TOOL:
                     bubble.setBackgroundResource(R.drawable.bubble_tool);
                     bubble.setBackgroundTintList(null);
+                    bubble.setPadding(Ui.dp(ChatActivity.this, 14), Ui.dp(ChatActivity.this, 8), Ui.dp(ChatActivity.this, 14), Ui.dp(ChatActivity.this, 8));
+                    text.setTextSize(13.5f);
+                    text.setTextColor(getColor(R.color.text_secondary));
                     title.setVisibility(View.VISIBLE);
                     title.setText(getString(R.string.chat_tool_title, it.title, statusLabel(it.status)));
                     title.setTextColor(statusColor(it.status));
@@ -659,7 +751,7 @@ public final class ChatActivity extends BaseActivity {
             }
             detail.setTextIsSelectable(detail.getVisibility() == View.VISIBLE);
             // An expanded tool detail would otherwise shrink to the title's width (one word per line).
-            lp.width = detail.getVisibility() == View.VISIBLE ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
+            lp.width = detail.getVisibility() == View.VISIBLE || prose ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
             bubble.setAlpha(it.dim ? 0.55f : 1f);
             bubble.setLayoutParams(lp);
             time.setText(it.time == 0 ? "" : DateFormat.getTimeFormat(ChatActivity.this).format(new Date(it.time))

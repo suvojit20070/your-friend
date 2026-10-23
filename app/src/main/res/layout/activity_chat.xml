@@ -1,10 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Chat: history and model picker at the top, full-width answers, floating composer. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <include layout="@layout/top_bar" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/top_bar_height"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="start|center_vertical"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/top_back"
+                android:layout_width="@dimen/icon_button"
+                android:layout_height="@dimen/icon_button"
+                android:background="@drawable/circle_glass"
+                android:contentDescription="@string/back"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_back"
+                android:tint="@color/text_primary" />
+
+            <ImageButton
+                android:id="@+id/chat_history"
+                android:layout_width="@dimen/icon_button"
+                android:layout_height="@dimen/icon_button"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/circle_glass"
+                android:contentDescription="@string/chat_history"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_history"
+                android:tint="@color/text_primary" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/chat_model"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="112dp"
+            android:layout_marginEnd="64dp"
+            android:background="@drawable/row_bg"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:id="@+id/chat_model_title"
+                style="@style/YF.Title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/chat_conv_title"
+                style="@style/YF.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/chat_menu"
+            android:layout_width="@dimen/icon_button"
+            android:layout_height="@dimen/icon_button"
+            android:layout_gravity="end|center_vertical"
+            android:background="@drawable/circle_glass"
+            android:contentDescription="@string/more"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_more"
+            android:tint="@color/text_primary" />
+    </FrameLayout>
 
     <ListView
         android:id="@+id/chat_list"
@@ -13,9 +96,13 @@
         android:layout_weight="1"
         android:clipToPadding="false"
         android:divider="@null"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="8dp"
+        android:fadingEdgeLength="24dp"
+        android:paddingStart="16dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="12dp"
+        android:requiresFadingEdge="vertical"
+        android:scrollbars="none"
         android:stackFromBottom="true"
         android:transcriptMode="normal" />
 
@@ -25,15 +112,16 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingEnd="12dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="4dp"
         android:visibility="gone">
 
         <ProgressBar
             android:id="@+id/chat_progress"
             style="?android:attr/progressBarStyleSmall"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
             android:tag="accent" />
 
         <TextView
@@ -41,7 +129,7 @@
             style="@style/YF.Caption"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="10dp"
             android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1" />
@@ -51,46 +139,71 @@
             style="@style/YF.Chip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="0dp"
             android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="12dp"
-        android:background="@drawable/glass_pill"
-        android:gravity="center_vertical"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/input_pill"
+        android:gravity="bottom"
+        android:minHeight="60dp"
         android:orientation="horizontal"
         android:padding="6dp">
 
         <ImageButton
-            android:id="@+id/chat_mic"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:background="@drawable/circle_glass"
-            android:contentDescription="@string/mic"
-            android:src="@drawable/ic_mic" />
+            android:id="@+id/chat_plus"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/circle_tonal"
+            android:contentDescription="@string/chat_attach_image"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_add"
+            android:tint="@color/accent" />
 
         <EditText
             android:id="@+id/chat_input"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
             android:layout_weight="1"
             android:background="@null"
             android:hint="@string/chat_input_hint"
             android:inputType="textCapSentences|textMultiLine"
             android:maxLines="6"
-            android:paddingStart="12dp"
+            android:minHeight="48dp"
+            android:paddingStart="14dp"
             android:paddingEnd="8dp"
             android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_secondary" />
+            android:textColorHint="@color/text_secondary"
+            android:textSize="16sp" />
+
+        <ImageButton
+            android:id="@+id/chat_mic"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/row_bg"
+            android:contentDescription="@string/mic"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_mic"
+            android:tint="@color/text_secondary" />
 
         <ImageButton
             android:id="@+id/chat_send"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
             android:background="@drawable/circle_accent"
             android:contentDescription="@string/send"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
             android:src="@drawable/ic_send"
             android:tag="accent"
             android:tint="@color/text_on_accent" />

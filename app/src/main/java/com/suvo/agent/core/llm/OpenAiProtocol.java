@@ -33,6 +33,7 @@ public final class OpenAiProtocol {
             double temp = Double.isNaN(req.temperatureOverride) ? cfg.temperature : req.temperatureOverride;
             if (cfg.sendTemperature || !Double.isNaN(req.temperatureOverride)) body.put("temperature", temp);
             if (cfg.sendTopP) body.put("top_p", cfg.topP);
+            if (cfg.reasoningEffort != null && !cfg.reasoningEffort.isEmpty()) body.put("reasoning_effort", cfg.reasoningEffort);
             if (stream) {
                 body.put("stream", true);
                 if (cfg.supportsStreamUsage) body.put("stream_options", new JSONObject().put("include_usage", true));

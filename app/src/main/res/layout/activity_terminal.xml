@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Private terminal: backend selector, scrolling output, command input. -->
+<!-- Private terminal: backend chips, a real terminal panel (your commands and the agent's, live), command line. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -10,6 +10,7 @@
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:clipToPadding="false"
         android:paddingStart="@dimen/screen_padding"
         android:paddingEnd="@dimen/screen_padding"
         android:scrollbars="none">
@@ -22,70 +23,158 @@
             android:paddingBottom="8dp" />
     </HorizontalScrollView>
 
-    <TextView
-        android:id="@+id/term_status"
-        style="@style/YF.Caption"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="@dimen/screen_padding"
-        android:paddingEnd="@dimen/screen_padding" />
-
-    <ScrollView
-        android:id="@+id/term_scroll"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_margin="@dimen/screen_padding"
-        android:layout_weight="1"
-        android:background="@drawable/code_bg"
-        android:fillViewport="true">
-
-        <TextView
-            android:id="@+id/term_output"
-            style="@style/YF.Mono"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="12dp"
-            android:textIsSelectable="true" />
-    </ScrollView>
-
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="@dimen/screen_padding"
-        android:paddingEnd="@dimen/screen_padding"
-        android:paddingBottom="12dp">
+        android:layout_height="0dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_weight="1"
+        android:background="@drawable/term_bg"
+        android:clipToOutline="true"
+        android:orientation="vertical">
 
-        <ImageButton
-            android:id="@+id/term_history"
-            android:layout_width="@dimen/icon_button"
-            android:layout_height="@dimen/icon_button"
-            android:background="@drawable/circle_glass"
-            android:contentDescription="@string/terminal_history"
-            android:src="@drawable/ic_history" />
+        <!-- Window-style header: three dots + where commands run -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingEnd="12dp">
 
-        <EditText
-            android:id="@+id/term_input"
-            style="@style/YF.Input"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/dot"
+                android:backgroundTint="@color/term_red" />
+
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/dot"
+                android:backgroundTint="@color/term_yellow" />
+
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/dot"
+                android:backgroundTint="@color/term_green" />
+
+            <TextView
+                android:id="@+id/term_status"
+                style="@style/YF.Terminal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:ellipsize="middle"
+                android:maxLines="1"
+                android:textColor="@color/term_dim"
+                android:textSize="11.5sp" />
+
+            <ProgressBar
+                android:id="@+id/term_busy"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:tag="accent"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#1FFFFFFF" />
+
+        <ScrollView
+            android:id="@+id/term_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:fontFamily="monospace"
-            android:hint="@string/terminal_hint"
-            android:imeOptions="actionSend"
-            android:inputType="text|textNoSuggestions"
-            android:maxLines="4" />
+            android:fillViewport="true"
+            android:scrollbars="none">
 
-        <ImageButton
-            android:id="@+id/term_run"
-            android:layout_width="@dimen/icon_button"
-            android:layout_height="@dimen/icon_button"
-            android:background="@drawable/circle_accent"
-            android:contentDescription="@string/terminal_run"
-            android:src="@drawable/ic_send"
-            android:tag="accent" />
+            <TextView
+                android:id="@+id/term_output"
+                style="@style/YF.Terminal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingStart="14dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="14dp"
+                android:paddingBottom="10dp"
+                android:textIsSelectable="true" />
+        </ScrollView>
+
+        <!-- Command line inside the terminal panel -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#14FFFFFF"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:id="@+id/term_prompt"
+                style="@style/YF.Terminal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxWidth="140dp"
+                android:ellipsize="start"
+                android:maxLines="1"
+                android:text="$"
+                android:textColor="@color/term_green" />
+
+            <EditText
+                android:id="@+id/term_input"
+                style="@style/YF.Terminal"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@null"
+                android:hint="@string/terminal_hint"
+                android:imeOptions="actionSend"
+                android:inputType="text|textNoSuggestions"
+                android:maxLines="4"
+                android:minHeight="44dp"
+                android:textColorHint="@color/term_dim" />
+
+            <ImageButton
+                android:id="@+id/term_run"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/circle_accent"
+                android:contentDescription="@string/terminal_run"
+                android:padding="11dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_send"
+                android:tag="accent"
+                android:tint="@color/text_on_accent" />
+        </LinearLayout>
     </LinearLayout>
+
+    <!-- Quick keys -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="10dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/term_keys"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
 </LinearLayout>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dropdown field: input surface with a chevron on the right. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/glass_input"/>
+    <item android:width="20dp" android:height="20dp" android:gravity="end|center_vertical" android:end="14dp" android:drawable="@drawable/ic_expand"/>
+</layer-list>
