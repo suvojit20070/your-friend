@@ -91,6 +91,14 @@
         android:theme="@style/Theme.YourFriend"
         tools:targetApi="35">
 
+        <!-- Crash report screen. Own process, so it still opens when app startup itself crashes. -->
+        <activity
+            android:name=".DebugActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:process=":debug"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
