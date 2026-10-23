@@ -1,0 +1,34 @@
+Aura — Personal AI Agent
+Copyright (c) 2026 Suvo (GitHub: suvojit20070)
+
+Source-available license with mandatory attribution.
+
+Permission is hereby granted to any person obtaining a copy of this software
+and associated files (the "Software") to use, copy, modify, and distribute it,
+subject to the following conditions:
+
+1. ATTRIBUTION (REQUIRED, NON-REMOVABLE)
+   The original author's credit — "Aura, created by Suvo (@suvojit20070)" —
+   must be retained and remain visible:
+     (a) in this LICENSE and NOTICE file, unchanged;
+     (b) in the application's "About" screen;
+     (c) in the source headers where present.
+   You may NOT remove, hide, obscure, or replace this attribution in any
+   copy, fork, modified version, or redistribution, whether source or binary.
+
+2. NO FALSE ATTRIBUTION
+   You may add your own credits for your changes, but you may not claim the
+   original work as solely your own or imply the original author endorses
+   your modified version.
+
+3. THIRD-PARTY COMPONENTS
+   This Software uses third-party open-source components, each under its own
+   license. See NOTICE. Those licenses govern those components and are not
+   altered by this license.
+
+4. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED. THE AUTHOR IS NOT LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY
+   ARISING FROM THE USE OF THE SOFTWARE.
+
+By using or distributing this Software you accept these terms.
