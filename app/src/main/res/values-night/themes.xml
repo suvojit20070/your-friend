@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.YourFriend" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.YourFriend" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:windowBackground">@drawable/bg_app</item>
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:colorPrimary">@color/accent</item>
@@ -18,6 +18,19 @@
         <item name="android:textCursorDrawable">@null</item>
         <item name="android:colorBackground">@color/bg_top</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <!-- Material 3 colour roles (MaterialSwitch, Slider) follow the app accent. -->
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorOnPrimary">@color/text_on_accent</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorOutline">@color/switch_thumb_off</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <!-- Text selection handles in the accent colour -->
+        <item name="android:textSelectHandle">@drawable/text_select_handle</item>
+        <item name="android:textSelectHandleLeft">@drawable/text_select_handle_left</item>
+        <item name="android:textSelectHandleRight">@drawable/text_select_handle_right</item>
+        <item name="android:textColorHighlight">@color/accent_soft</item>
     </style>
 
     <style name="Theme.YourFriend.Dialog" parent="android:Theme.Material.Dialog.Alert">

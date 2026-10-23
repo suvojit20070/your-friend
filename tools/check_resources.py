@@ -6,6 +6,8 @@ Static resource checks for Your Friend (runs in CI before Gradle, and locally wi
   * translations only contain keys that exist in values/strings.xml and keep the same
     format specifiers (%1$s, %2$d, …) — a mismatch would crash at runtime
   * android:* attributes used in layouts/xml exist in the platform (when android.jar is found)
+  * @android:<type>/<name> references and parent="android:..." styles are PUBLIC platform
+    resources (AAPT2 refuses private ones, e.g. Widget.Material.Button.ButtonBar.AlertDialog)
   * all XML files are well formed
 
 Options:
@@ -31,6 +33,11 @@ ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 
 errors = []
 warnings = []
+
+# Styles that come from libraries in app/build.gradle (Material Components), not from this project.
+LIBRARY_STYLES = {
+    "Theme.Material3.Light.NoActionBar", "Theme.Material3.Dark.NoActionBar", "Theme.Material3.DayNight.NoActionBar",
+}
 
 
 def err(msg):
@@ -115,7 +122,7 @@ def check_xml_refs(defined):
             parent = el.get("parent")
             if el.tag == "style" and parent and not parent.startswith("android:") and not parent.startswith("@android:"):
                 p = parent.replace("@style/", "").replace(".", "_")
-                if p not in defined["style"]:
+                if p not in defined["style"] and parent.replace("@style/", "") not in LIBRARY_STYLES:
                     err(f"{rel}: style {el.get('name')} has unknown parent {parent}")
 
 
@@ -222,6 +229,42 @@ def check_android_attrs(attrs):
                     err(f"{os.path.relpath(path, ROOT)}: unknown style item android:{a}")
 
 
+def platform_public(android_jar, rtype):
+    if not android_jar or not os.path.isfile(android_jar):
+        return None
+    try:
+        out = subprocess.run(["javap", "-classpath", android_jar, "android.R$" + rtype],
+                             capture_output=True, text=True, timeout=120).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return set(re.findall(r"public static final int (\w+);", out))
+
+
+def check_platform_refs(android_jar):
+    if not android_jar or not os.path.isfile(android_jar):
+        warnings.append("android.jar not found: public platform resource check skipped")
+        return
+    cache = {}
+    files = [os.path.join(APP, "AndroidManifest.xml")]
+    for folder in os.listdir(RES):
+        full = os.path.join(RES, folder)
+        if os.path.isdir(full):
+            files += [os.path.join(full, f) for f in os.listdir(full) if f.endswith(".xml")]
+    ref = re.compile(r"@android:(\w+)/([\w.]+)")
+    par = re.compile(r'parent="(?:@android:style/|android:)([\w.]+)"')
+    for path in files:
+        text = open(path, encoding="utf-8").read()
+        found = [(t, n) for t, n in ref.findall(text)] + [("style", n) for n in par.findall(text)]
+        for rtype, name in found:
+            if rtype not in cache:
+                cache[rtype] = platform_public(android_jar, rtype)
+            names = cache[rtype]
+            if names is None:
+                continue
+            if name.replace(".", "_") not in names:
+                err(f"{os.path.relpath(path, ROOT)}: @android:{rtype}/{name} is not a public platform resource")
+
+
 def emit_r(defined, out_dir):
     pkg_dir = os.path.join(out_dir, *PACKAGE.split("."))
     os.makedirs(pkg_dir, exist_ok=True)
@@ -252,6 +295,7 @@ def main():
     check_java_refs(defined)
     check_translations()
     check_android_attrs(platform_attrs(a.android_jar))
+    check_platform_refs(a.android_jar)
     if a.emit_r:
         emit_r(defined, a.emit_r)
     for w in warnings:

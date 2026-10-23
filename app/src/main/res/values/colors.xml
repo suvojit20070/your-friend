@@ -15,9 +15,14 @@
     <color name="blob_1">#00000000</color>
     <color name="blob_2">#00000000</color>
     <color name="blob_3">#00000000</color>
-    <color name="glass_fill">@color/surface</color>
-    <color name="glass_fill_strong">@color/surface</color>
-    <color name="glass_stroke">@color/stroke</color>
+    <!-- Liquid glass -->
+    <color name="glass_fill">#B8FFFFFF</color>
+    <color name="glass_fill_strong">#E6FFFFFF</color>
+    <color name="glass_fill_menu">#E0FFFFFF</color>
+    <color name="glass_tile">#99FFFFFF</color>
+    <color name="glass_stroke">#14000000</color>
+    <color name="glass_rim_top">#33FFFFFF</color>
+    <color name="glass_sheen">#40FFFFFF</color>
     <color name="glass_stroke_dark">@color/stroke</color>
     <color name="nav_pill">@color/surface</color>
     <color name="divider">#FFE9EDF3</color>

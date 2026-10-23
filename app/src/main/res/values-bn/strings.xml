@@ -167,15 +167,24 @@
     <string name="character_voice_note">ভয়েস নোট</string>
     <string name="character_wander">অলস থাকলে ঘুরে বেড়াও</string>
     <string name="characters_intro">কে আপনার সঙ্গে থাকবে বেছে নিন। অপশনের জন্য ক্যারেক্টারে ট্যাপ করুন।</string>
+    <string name="chat_add_camera">ক্যামেরা</string>
+    <string name="chat_add_file">ফাইল</string>
+    <string name="chat_add_folder">ফোল্ডার</string>
+    <string name="chat_add_photos">ছবি</string>
+    <string name="chat_add_title">কথোপকথনে যোগ করুন</string>
     <string name="chat_attach_image">ছবি যোগ করুন</string>
     <string name="chat_describe_image">এই ছবিতে কী আছে?</string>
+    <string name="chat_empty_message">আগে একটা মেসেজ লিখুন</string>
     <string name="chat_error_tap_retry">আবার চেষ্টা করতে ট্যাপ করুন</string>
+    <string name="chat_file_attached">📎 ফাইল যুক্ত: %1$s</string>
+    <string name="chat_folder_attached">📁 শেয়ার করা ফোল্ডার: %1$s</string>
     <string name="chat_history">কথোপকথন</string>
     <string name="chat_images_attached">%1$sটি ছবি যুক্ত</string>
     <string name="chat_input_hint">মেসেজ</string>
     <string name="chat_manage_providers">প্রোভাইডার ম্যানেজ করুন…</string>
     <string name="chat_max_images">এক মেসেজে সর্বোচ্চ %1$sটি ছবি</string>
     <string name="chat_new">নতুন কথোপকথন</string>
+    <string name="chat_no_app">ফোনে এটা করার মতো কোনো অ্যাপ নেই</string>
     <string name="chat_no_provider">কোনো প্রোভাইডার নেই</string>
     <string name="chat_no_vision">সক্রিয় প্রোভাইডার ভিশন-সক্ষম হিসেবে চিহ্নিত নয়। ছবি পাঠাতে তার সেটিংসে \"Vision\" চালু করুন।</string>
     <string name="chat_summarized">আগের মেসেজগুলোর সারাংশ করা হয়েছে</string>
@@ -188,6 +197,7 @@
     <string name="chat_tool_result">ফলাফল</string>
     <string name="chat_tool_running">চলছে…</string>
     <string name="chat_tool_title">%1$s · %2$s</string>
+    <string name="chat_tools_failed">%1$dটিতে সমস্যা</string>
     <string name="chat_untitled">শিরোনামহীন</string>
     <string name="checkin_conversation">নিজে থেকে চেক-ইন</string>
     <string name="chip_approval_needed">অনুমোদন দরকার</string>
@@ -790,6 +800,10 @@
     <plurals name="chat_images_pending">
         <item quantity="one">%dটি ছবি যুক্ত</item>
         <item quantity="other">%dটি ছবি যুক্ত</item>
+    </plurals>
+    <plurals name="chat_tools_count">
+        <item quantity="one">%dটি টুল</item>
+        <item quantity="other">%dটি টুল</item>
     </plurals>
     <plurals name="memories_imported">
         <item quantity="one">%dটি স্মৃতি ইমপোর্ট হয়েছে</item>

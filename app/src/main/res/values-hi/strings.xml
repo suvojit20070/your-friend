@@ -167,15 +167,24 @@
     <string name="character_voice_note">आवाज़ नोट</string>
     <string name="character_wander">निष्क्रिय होने पर इधर-उधर घूमें</string>
     <string name="characters_intro">चुनें कि आपके साथ कौन रहेगा। विकल्पों के लिए कैरेक्टर पर टैप करें।</string>
+    <string name="chat_add_camera">कैमरा</string>
+    <string name="chat_add_file">फ़ाइल</string>
+    <string name="chat_add_folder">फ़ोल्डर</string>
+    <string name="chat_add_photos">फ़ोटो</string>
+    <string name="chat_add_title">बातचीत में जोड़ें</string>
     <string name="chat_attach_image">छवि जोड़ें</string>
     <string name="chat_describe_image">इस छवि में क्या है?</string>
+    <string name="chat_empty_message">पहले संदेश लिखें</string>
     <string name="chat_error_tap_retry">फिर से कोशिश करने के लिए टैप करें</string>
+    <string name="chat_file_attached">📎 फ़ाइल जोड़ी: %1$s</string>
+    <string name="chat_folder_attached">📁 साझा फ़ोल्डर: %1$s</string>
     <string name="chat_history">बातचीत</string>
     <string name="chat_images_attached">%1$s छवि संलग्न</string>
     <string name="chat_input_hint">संदेश</string>
     <string name="chat_manage_providers">प्रोवाइडर मैनेज करें…</string>
     <string name="chat_max_images">एक संदेश में अधिकतम %1$s छवियाँ</string>
     <string name="chat_new">नई बातचीत</string>
+    <string name="chat_no_app">फ़ोन में यह करने वाला कोई ऐप नहीं है</string>
     <string name="chat_no_provider">कोई प्रोवाइडर नहीं</string>
     <string name="chat_no_vision">सक्रिय प्रदाता विज़न-सक्षम चिह्नित नहीं है। छवियाँ भेजने के लिए उसकी सेटिंग्स में \"Vision\" चालू करें।</string>
     <string name="chat_summarized">पुराने संदेशों का सारांश बना</string>
@@ -188,6 +197,7 @@
     <string name="chat_tool_result">परिणाम</string>
     <string name="chat_tool_running">चल रहा है…</string>
     <string name="chat_tool_title">%1$s · %2$s</string>
+    <string name="chat_tools_failed">%1$d में दिक़्क़त</string>
     <string name="chat_untitled">बिना शीर्षक</string>
     <string name="checkin_conversation">सेल्फ़ चेक-इन</string>
     <string name="chip_approval_needed">अनुमोदन आवश्यक</string>
@@ -790,6 +800,10 @@
     <plurals name="chat_images_pending">
         <item quantity="one">%d छवि संलग्न</item>
         <item quantity="other">%d छवियाँ संलग्न</item>
+    </plurals>
+    <plurals name="chat_tools_count">
+        <item quantity="one">%d टूल</item>
+        <item quantity="other">%d टूल</item>
     </plurals>
     <plurals name="memories_imported">
         <item quantity="one">%d याद आयात हुई</item>

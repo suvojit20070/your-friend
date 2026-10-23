@@ -11,7 +11,6 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -205,23 +204,8 @@ public final class MemoryActivity extends BaseActivity {
         TextView impLabel = new TextView(this, null, 0, R.style.YF_Label);
         impLabel.setText(getString(R.string.memory_importance, e.importance));
         form.addView(impLabel);
-        SeekBar imp = Widgets.styleSeekBar(new SeekBar(this));
-        imp.setMax(4);
-        imp.setProgress(e.importance - 1);
-        imp.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar s, int p, boolean u) {
-                impLabel.setText(getString(R.string.memory_importance, p + 1));
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar s) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar s) {
-            }
-        });
+        com.google.android.material.slider.Slider imp = Widgets.newSlider(this, 1, 5, e.importance);
+        imp.addOnChangeListener((s, v, u) -> impLabel.setText(getString(R.string.memory_importance, Math.round(v))));
         form.addView(imp);
 
         TextView tagLabel = new TextView(this, null, 0, R.style.YF_Label);
@@ -260,7 +244,7 @@ public final class MemoryActivity extends BaseActivity {
                     long now = System.currentTimeMillis();
                     e.content = text;
                     e.category = MemoryCategory.values()[cat.getSelectedItemPosition()];
-                    e.importance = imp.getProgress() + 1;
+                    e.importance = Widgets.value(imp);
                     e.tags.clear();
                     for (String t : tags.getText().toString().split(",")) {
                         String s = t.trim().replace("#", "");

@@ -3,7 +3,6 @@ package com.suvo.agent.ui;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.LinearLayout;
-import android.widget.Switch;
 
 import com.suvo.agent.R;
 import com.suvo.agent.agent.ChildAgent;
@@ -128,7 +127,7 @@ public final class TeamActivity extends BaseActivity {
         r.row(R.drawable.ic_agent, getString(R.string.team_steps), String.valueOf(e.maxSteps), null, v -> pickSteps());
         r.row(R.drawable.ic_tools, getString(R.string.team_tools),
                 e.tools.isEmpty() ? getString(R.string.team_tools_all) : String.join(", ", e.tools), null, v -> pickTools());
-        Switch on = Widgets.styleSwitch(new Switch(this));
+        com.google.android.material.materialswitch.MaterialSwitch on = Widgets.newSwitch(this);
         on.setChecked(e.enabled);
         on.setOnCheckedChangeListener((b, val) -> e.enabled = val);
         r.row(R.drawable.ic_check, getString(R.string.team_enabled), getString(R.string.team_enabled_desc), on, v -> on.toggle());

@@ -786,6 +786,16 @@ S = {
 "settings_vrm_importing": "Checking the 3D model…",
 "settings_vrm_imported": "Model ready: %1$s. The character now shows in 3D.",
 "settings_vrm_invalid": "This file cannot be used as a 3D character: %1$s",
+"chat_empty_message": "Please enter a message",
+"chat_add_title": "Add to conversation",
+"chat_add_photos": "Photos",
+"chat_add_camera": "Camera",
+"chat_add_file": "File",
+"chat_add_folder": "Folder",
+"chat_file_attached": "📎 Attached file: %1$s",
+"chat_folder_attached": "📁 Shared folder: %1$s",
+"chat_no_app": "No app on this phone can do that",
+"chat_tools_failed": "%1$d need attention",
 }
 
 P = {
@@ -795,4 +805,5 @@ P = {
 "memories_saved": ("%d memory saved", "%d memories saved"),
 "memories_used": ("Used %d memory", "Used %d memories"),
 "messages_count": ("%d message", "%d messages"),
+"chat_tools_count": ("%d tool", "%d tools"),
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- View tags used by the motion helpers (ui/Fx.java). -->
+    <item name="fx_press" type="id" />
+    <item name="fx_sheet_panel" type="id" />
+    <item name="fx_height_anim" type="id" />
+</resources>

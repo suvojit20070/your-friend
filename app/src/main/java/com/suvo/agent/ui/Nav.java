@@ -34,8 +34,9 @@ public final class Nav {
      */
     public static void build(Activity a, LinearLayout nav, int selected) {
         nav.removeAllViews();
-        nav.setBackgroundResource(R.drawable.nav_bar);
-        nav.setElevation(Ui.dp(a, 6));
+        // Liquid glass: the screen content shows through, blurred (Android 12+).
+        BackdropDrawable.apply(nav, a.findViewById(android.R.id.content), Ui.dp(a, 34));
+        nav.setElevation(0f); // a shadow would show through the glass
         nav.setPadding(Ui.dp(a, 8), Ui.dp(a, 8), Ui.dp(a, 8), Ui.dp(a, 8));
         int accent = Ui.accent(a);
         int muted = a.getColor(R.color.text_secondary);
@@ -65,6 +66,7 @@ public final class Nav {
             }
             item.setContentDescription(a.getString(PRIMARY[i][1]));
             item.setOnClickListener(v -> go(a, idx, selected));
+            Fx.press(item);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, sel ? 1.9f : 1f);
             lp.setMargins(Ui.dp(a, 2), 0, Ui.dp(a, 2), 0);
             nav.addView(item, lp);
@@ -106,45 +108,15 @@ public final class Nav {
             {R.drawable.ic_info, R.string.section_about, AboutActivity.class},
     };
 
-    /** Bottom sheet with every section as a tile. */
+    /** Frosted bottom sheet with every section as a tile. */
     @SuppressWarnings("unchecked")
     public static void showMore(Activity a) {
-        Dialog d = new Dialog(a, R.style.Theme_YourFriend_Dialog);
-        LinearLayout sheet = new LinearLayout(a);
-        sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackgroundResource(R.drawable.sheet_bg);
-        sheet.setPadding(Ui.dp(a, 16), Ui.dp(a, 10), Ui.dp(a, 16), Ui.dp(a, 24));
-        View handle = new View(a);
-        handle.setBackgroundResource(R.drawable.sheet_handle);
-        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(Ui.dp(a, 40), Ui.dp(a, 5));
-        hp.gravity = Gravity.CENTER_HORIZONTAL;
-        hp.bottomMargin = Ui.dp(a, 14);
-        sheet.addView(handle, hp);
-        TextView title = new TextView(a, null, 0, R.style.YF_Title);
-        title.setText(R.string.section_more);
-        title.setPadding(Ui.dp(a, 6), 0, 0, Ui.dp(a, 10));
-        sheet.addView(title);
         GridLayout grid = new GridLayout(a);
         grid.setColumnCount(3);
+        final Dialog[] sheet = new Dialog[1];
         for (Object[] m : MORE) {
-            LinearLayout tile = new LinearLayout(a);
-            tile.setOrientation(LinearLayout.VERTICAL);
-            tile.setGravity(Gravity.CENTER);
-            tile.setBackgroundResource(R.drawable.tile_bg);
-            tile.setPadding(Ui.dp(a, 6), Ui.dp(a, 16), Ui.dp(a, 6), Ui.dp(a, 14));
-            ImageView iv = new ImageView(a);
-            iv.setImageResource((Integer) m[0]);
-            iv.setImageTintList(android.content.res.ColorStateList.valueOf(Ui.accent(a)));
-            tile.addView(iv, new LinearLayout.LayoutParams(Ui.dp(a, 26), Ui.dp(a, 26)));
-            TextView t = new TextView(a, null, 0, R.style.YF_Caption);
-            t.setText((Integer) m[1]);
-            t.setTextColor(a.getColor(R.color.text_primary));
-            t.setGravity(Gravity.CENTER);
-            t.setMaxLines(2);
-            t.setPadding(0, Ui.dp(a, 8), 0, 0);
-            tile.addView(t);
-            tile.setOnClickListener(v -> {
-                d.dismiss();
+            View tile = Fx.tile(a, (Integer) m[0], a.getString((Integer) m[1]), v -> {
+                if (sheet[0] != null) sheet[0].dismiss();
                 a.startActivity(new Intent(a, (Class<? extends Activity>) m[2]));
             });
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
@@ -153,20 +125,7 @@ public final class Nav {
             lp.setMargins(Ui.dp(a, 5), Ui.dp(a, 5), Ui.dp(a, 5), Ui.dp(a, 5));
             grid.addView(tile, lp);
         }
-        sheet.addView(grid);
-        d.setContentView(sheet);
-        Window w = d.getWindow();
-        if (w != null) {
-            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-            w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            w.setGravity(Gravity.BOTTOM);
-            w.setWindowAnimations(android.R.style.Animation_InputMethod);
-            if (android.os.Build.VERSION.SDK_INT >= 31) {
-                w.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
-                w.getAttributes().setBlurBehindRadius(32);
-            }
-        }
-        d.show();
+        sheet[0] = Fx.sheet(a, a.getString(R.string.section_more), grid);
     }
 
     /** Builds a status chip (used on Home). */

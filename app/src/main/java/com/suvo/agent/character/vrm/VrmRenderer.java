@@ -112,6 +112,8 @@ final class VrmRenderer {
     private final float[][] restWorldRot;
     private final float[] world;
     private final float[][] localRot;
+    /** Per-frame local translations (only the hips move; everything else keeps its rest offset). */
+    private final float[][] localPos;
     private final float[][] meshWeights;
 
     // Camera
@@ -151,7 +153,11 @@ final class VrmRenderer {
         flipQ = m.vrm0 ? VrmMath.axisAngle(0, 1, 0, (float) Math.PI) : VrmMath.quat(0, 0, 0, 1);
         Matrix.setIdentityM(root, 0);
         if (m.vrm0) Matrix.rotateM(root, 0, 180f, 0, 1, 0);
-        for (int i = 0; i < n; i++) localRot[i] = m.nodes.get(i).r.clone();
+        localPos = new float[n][];
+        for (int i = 0; i < n; i++) {
+            localRot[i] = m.nodes.get(i).r.clone();
+            localPos[i] = m.nodes.get(i).t.clone();
+        }
         computeWorld(restWorld, null);
         for (int i = 0; i < n; i++) restWorldRot[i] = VrmMath.rotationOf(restWorld, i * 16);
         leftArmRestDir = boneDir("leftUpperArm", "leftLowerArm");
@@ -442,11 +448,12 @@ final class VrmRenderer {
         if ("upper".equals(framing)) {
             fitH = Math.max(0.35f, (topY - headY) * 2.2f + height * 0.22f);
             targetY = topY - fitH / 2f;
-            fitW = width * 0.7f;
+            fitW = Math.min(width * 0.7f, height * 0.32f);
         } else {
             fitH = height * 1.04f;
             targetY = center[1];
-            fitW = width * 1.04f;
+            // The rest pose is a T/A-pose; the arms are lowered when drawn, so fit to the body, not the arm span.
+            fitW = Math.min(width * 1.04f, height * 0.42f);
         }
         float dist = Math.max(fitH / 2f / tanHalf, fitW / 2f / (tanHalf * aspect));
         Matrix.setLookAtM(view, 0, center[0], targetY, center[2] + dist, center[0], targetY, center[2], 0, 1, 0);
@@ -478,7 +485,7 @@ final class VrmRenderer {
     private void walk(int i, int parent, float[] out, float[][] rot, float[] local) {
         if (i < 0 || i >= n) return;
         VrmModel.Node node = m.nodes.get(i);
-        VrmMath.compose(node.t, rot == null ? node.r : rot[i], node.s, local, 0);
+        VrmMath.compose(rot == null ? node.t : localPos[i], rot == null ? node.r : rot[i], node.s, local, 0);
         if (parent < 0) System.arraycopy(local, 0, out, i * 16, 16);
         else Matrix.multiplyMM(out, i * 16, out, parent * 16, local, 0);
         for (int c : node.children) walk(c, i, out, rot, local);
@@ -497,42 +504,131 @@ final class VrmRenderer {
 
     private static final float DEG = (float) (Math.PI / 180);
 
+    // Smoothed activity levels (0..1) derived from the shared animation parameters.
+    private float speak, think, listen, happy, lastTime = -1;
+
+    private static float approach(float cur, float target, float rate, float dt) {
+        return cur + (target - cur) * (1f - (float) Math.exp(-rate * dt));
+    }
+
+    private static final String[] FINGERS = {"Index", "Middle", "Ring", "Little"};
+    private static final String[] JOINTS = {"Proximal", "Intermediate", "Distal"};
+
+    /**
+     * Procedural full-body animation on top of the face/head parameters: weight shift between the
+     * legs, breathing through chest and shoulders, relaxed arms with a gentle swing, curled fingers,
+     * talking gestures while speaking, a hand-to-chin pose while thinking, leaning in while
+     * listening, and a small bounce when happy. All rotations are given in the camera-facing
+     * model space and converted per bone, so they work for VRM 0.x and 1.0 rigs alike.
+     */
     private void pose(RigParams p, float time) {
+        float dt = lastTime < 0 ? 1f / 30f : Math.max(0f, Math.min(0.1f, time - lastTime));
+        lastTime = time;
         for (int i = 0; i < n; i++) {
-            float[] r = m.nodes.get(i).r;
-            float[] l = localRot[i];
-            l[0] = r[0];
-            l[1] = r[1];
-            l[2] = r[2];
-            l[3] = r[3];
+            VrmModel.Node node = m.nodes.get(i);
+            System.arraycopy(node.r, 0, localRot[i], 0, 4);
+            System.arraycopy(node.t, 0, localPos[i], 0, 3);
         }
-        // Arms down from the T/A-pose into a relaxed stance, with a little breathing sway.
-        float sway = (float) Math.sin(time * 1.1) * 1.5f * DEG;
-        armDown("leftUpperArm", leftArmRestDir, sway);
-        armDown("rightUpperArm", rightArmRestDir, -sway);
-        Integer lLow = m.bones.get("leftLowerArm"), rLow = m.bones.get("rightLowerArm");
-        if (lLow != null) rotateBone("leftLowerArm", VrmMath.axisAngle(0, 1, 0, -12 * DEG));
-        if (rLow != null) rotateBone("rightLowerArm", VrmMath.axisAngle(0, 1, 0, 12 * DEG));
+        speak = approach(speak, p.mouthOpen > 0.08f ? 1f : 0f, p.mouthOpen > 0.08f ? 4f : 1.2f, dt);
+        think = approach(think, p.thinkDots > 0.15f ? 1f : 0f, 2.2f, dt);
+        listen = approach(listen, p.listenLevel > 0.02f ? 1f : 0f, 2.5f, dt);
+        happy = approach(happy, Math.max(p.eyeSmile, p.sparkle) > 0.3f ? 1f : 0f, 3f, dt);
+        float breath = p.breath - 0.5f;
 
-        // Body: breathing and sway.
-        float breath = p.breath;
-        rotateBone("spine", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, -p.bodyX * 4 * DEG), VrmMath.axisAngle(1, 0, 0, (breath - 0.5f) * 1.6f * DEG)));
-        rotateBone("chest", VrmMath.axisAngle(1, 0, 0, -(breath - 0.5f) * 1.2f * DEG));
+        // ---- Hips: slow weight shift, breathing bob, happy bounce
+        float shift = (float) Math.sin(time * 0.42) * (1f - 0.6f * think);
+        float bounce = happy * (float) Math.abs(Math.sin(time * 5.5)) * 0.012f;
+        moveBone("hips", shift * 0.012f, breath * 0.004f + bounce - listen * 0.004f, listen * 0.01f);
+        rotateBone("hips", VrmMath.axisAngle(0, 0, 1, shift * 2.8f * DEG));
 
-        // Head: look direction (shared between neck and head for a natural turn).
-        float yaw = p.angleX * 30 * DEG;
-        float pitch = p.angleY * 20 * DEG;
-        float roll = -p.angleZ * 12 * DEG;
+        // ---- Legs: the leg carrying the weight stays straight, the other relaxes at the knee
+        float relaxL = Math.max(0f, -shift), relaxR = Math.max(0f, shift);
+        rotateBone("leftUpperLeg", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, -shift * 2.8f * DEG), VrmMath.axisAngle(1, 0, 0, -relaxL * 5 * DEG)));
+        rotateBone("rightUpperLeg", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, -shift * 2.8f * DEG), VrmMath.axisAngle(1, 0, 0, -relaxR * 5 * DEG)));
+        rotateBone("leftLowerLeg", VrmMath.axisAngle(1, 0, 0, relaxL * 9 * DEG));
+        rotateBone("rightLowerLeg", VrmMath.axisAngle(1, 0, 0, relaxR * 9 * DEG));
+
+        // ---- Spine and chest: counter the hips, breathe, lean in when listening, sway
+        float lean = listen * 5f + think * 2f;
+        rotateBone("spine", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (-shift * 3.6f - p.bodyX * 4f) * DEG),
+                VrmMath.axisAngle(1, 0, 0, (lean + breath * 1.6f) * DEG)));
+        rotateBone("chest", VrmMath.mul(VrmMath.axisAngle(0, 1, 0, speak * (float) Math.sin(time * 1.7) * 3f * DEG),
+                VrmMath.axisAngle(1, 0, 0, -breath * 2.2f * DEG)));
+        rotateBone("upperChest", VrmMath.axisAngle(1, 0, 0, -breath * 1.2f * DEG));
+        rotateBone("leftShoulder", VrmMath.axisAngle(0, 0, 1, breath * 2.0f * DEG));
+        rotateBone("rightShoulder", VrmMath.axisAngle(0, 0, 1, -breath * 2.0f * DEG));
+
+        // ---- Arms: relaxed at the sides, gentle swing; talking gestures; hand to chin when thinking
+        float swing = (float) Math.sin(time * 0.9) * 2.5f;
+        float gestL = speak * Math.max(0f, (float) Math.sin(time * 2.3 + 1.0)) * (1f - think);
+        float gestR = speak * Math.max(0f, (float) Math.sin(time * 2.3 + 2.9)) * (1f - think);
+        armDown("leftUpperArm", leftArmRestDir, 0);
+        armDown("rightUpperArm", rightArmRestDir, 0);
+        rotateBone("leftUpperArm", VrmMath.axisAngle(1, 0, 0, (-swing - gestL * 22f) * DEG));
+        rotateBone("rightUpperArm", VrmMath.axisAngle(1, 0, 0, (swing - gestR * 22f - think * 38f) * DEG));
+        rotateBone("rightUpperArm", VrmMath.axisAngle(0, 1, 0, think * 18f * DEG));
+        // Elbows (given in the rest frame: bending forward around the vertical axis).
+        float elbowL = 14f + gestL * 55f + listen * 6f;
+        float elbowR = 14f + gestR * 55f + think * 105f + listen * 6f;
+        rotateBone("leftLowerArm", VrmMath.axisAngle(0, 1, 0, -elbowL * DEG));
+        rotateBone("rightLowerArm", VrmMath.axisAngle(0, 1, 0, elbowR * DEG));
+        // Wrists: soft, palms turning in while gesturing.
+        rotateBone("leftHand", VrmMath.axisAngle(1, 0, 0, (8f + gestL * 20f) * DEG));
+        rotateBone("rightHand", VrmMath.axisAngle(1, 0, 0, (-8f - gestR * 20f) * DEG));
+        // Fingers: naturally curled (more when thinking), opening a little while gesturing.
+        for (String f : FINGERS) {
+            for (int k = 0; k < JOINTS.length; k++) {
+                float base = (k == 0 ? 14f : 20f) + ("Little".equals(f) ? 6f : "Ring".equals(f) ? 3f : 0f);
+                float curlL = base * (1f - 0.45f * gestL);
+                float curlR = base * (1f - 0.45f * gestR) + think * (k == 0 ? 25f : 35f);
+                rotateBone("left" + f + JOINTS[k], VrmMath.axisAngle(0, 0, 1, -curlL * DEG));
+                rotateBone("right" + f + JOINTS[k], VrmMath.axisAngle(0, 0, 1, curlR * DEG));
+            }
+        }
+        rotateBone("leftThumbProximal", VrmMath.axisAngle(0, 1, 0, -10f * DEG));
+        rotateBone("rightThumbProximal", VrmMath.axisAngle(0, 1, 0, 10f * DEG));
+
+        // ---- Head: look direction from the shared parameters, plus nods while talking,
+        // a thoughtful tilt and a curious tilt while listening.
+        float nod = speak * (float) Math.sin(time * 4.6) * 2.5f;
+        float yaw = (p.angleX * 30f - think * 10f) * DEG;
+        float pitch = (p.angleY * 20f + nod - think * 8f - listen * 2f) * DEG;
+        float roll = (-p.angleZ * 12f + think * 7f + listen * 5f) * DEG;
         float[] look = VrmMath.mul(VrmMath.axisAngle(0, 1, 0, yaw), VrmMath.mul(VrmMath.axisAngle(1, 0, 0, pitch), VrmMath.axisAngle(0, 0, 1, roll)));
         rotateBone("neck", VrmMath.scale(look, 0.35f));
         rotateBone("head", VrmMath.scale(look, m.bones.containsKey("neck") ? 0.65f : 1f));
 
         // Eyes follow the gaze when the model has eye bones.
-        float[] eye = VrmMath.mul(VrmMath.axisAngle(0, 1, 0, p.eyeBallX * 9 * DEG), VrmMath.axisAngle(1, 0, 0, p.eyeBallY * 7 * DEG));
+        float[] eye = VrmMath.mul(VrmMath.axisAngle(0, 1, 0, (p.eyeBallX * 9 - think * 6) * DEG), VrmMath.axisAngle(1, 0, 0, (p.eyeBallY * 7 - think * 6) * DEG));
         rotateBone("leftEye", eye);
         rotateBone("rightEye", eye);
 
         computeWorld(world, localRot);
+    }
+
+    /** Moves a bone by a display-space offset (metres). */
+    private void moveBone(String bone, float dx, float dy, float dz) {
+        Integer idx = m.bones.get(bone);
+        if (idx == null || idx < 0 || idx >= n) return;
+        float[] d = {m.vrm0 ? -dx : dx, dy, m.vrm0 ? -dz : dz};
+        int parent = m.nodes.get(idx).parent;
+        if (parent >= 0) {
+            float[] inv = VrmMath.inverse(restWorldRot[parent]);
+            float[] q = VrmMath.mul(VrmMath.mul(inv, new float[]{d[0], d[1], d[2], 0}), restWorldRot[parent]);
+            d[0] = q[0];
+            d[1] = q[1];
+            d[2] = q[2];
+            // Undo the parent's scale so the offset stays in metres.
+            float sx = VrmMath.len(restWorld[parent * 16], restWorld[parent * 16 + 1], restWorld[parent * 16 + 2]);
+            if (sx > 1e-6f) {
+                d[0] /= sx;
+                d[1] /= sx;
+                d[2] /= sx;
+            }
+        }
+        localPos[idx][0] += d[0];
+        localPos[idx][1] += d[1];
+        localPos[idx][2] += d[2];
     }
 
     private void armDown(String bone, float[] restDir, float sway) {
@@ -544,9 +640,9 @@ final class VrmRenderer {
             d[2] = -d[2];
         }
         float side = d[0] >= 0 ? 1 : -1;
-        float[] target = VrmMath.norm3(new float[]{side * 0.30f, -1f, 0.04f});
+        float[] target = VrmMath.norm3(new float[]{side * 0.26f, -1f, 0.05f});
         float[] q = VrmMath.between(d, target);
-        q = VrmMath.mul(VrmMath.axisAngle(0, 0, 1, sway), q);
+        if (sway != 0) q = VrmMath.mul(VrmMath.axisAngle(0, 0, 1, sway), q);
         rotateBone(bone, q);
     }
 

@@ -9,8 +9,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import com.suvo.agent.R;
@@ -159,8 +157,8 @@ public final class Rows {
         return c;
     }
 
-    public Switch switchRow(int iconRes, int titleRes, int subtitleRes, String key, boolean def, Change<Boolean> change) {
-        Switch sw = Widgets.styleSwitch(new Switch(a));
+    public com.google.android.material.materialswitch.MaterialSwitch switchRow(int iconRes, int titleRes, int subtitleRes, String key, boolean def, Change<Boolean> change) {
+        com.google.android.material.materialswitch.MaterialSwitch sw = Widgets.newSwitch(a);
         sw.setChecked(settings.bool(key, def));
         sw.setOnCheckedChangeListener((b, v) -> {
             settings.put(key, v);
@@ -226,29 +224,23 @@ public final class Rows {
         value.setTextSize(14f);
         top.addView(value);
         box.addView(top);
-        SeekBar sb = Widgets.styleSeekBar(new SeekBar(a));
-        sb.setMax(max - min);
         int cur = Math.max(min, Math.min(max, settings.integer(key, def)));
-        sb.setProgress(cur - min);
+        com.google.android.material.slider.Slider sb = Widgets.newSlider(a, min, max, cur);
         value.setText(cur + unit);
-        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        sb.addOnChangeListener((s, v, fromUser) -> value.setText(Math.round(v) + unit));
+        sb.addOnSliderTouchListener(new com.google.android.material.slider.Slider.OnSliderTouchListener() {
             @Override
-            public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
-                value.setText((p + min) + unit);
+            public void onStartTrackingTouch(com.google.android.material.slider.Slider s) {
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar s) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar s) {
-                int val = s.getProgress() + min;
+            public void onStopTrackingTouch(com.google.android.material.slider.Slider s) {
+                int val = Widgets.value(s);
                 settings.put(key, val);
                 if (change != null) change.onChange(val);
             }
         });
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(a, 44));
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         sp.setMarginStart(iconRes != 0 ? Ui.dp(a, 34) : 0);
         box.addView(sb, sp);
         addToGroup(box, iconRes != 0);

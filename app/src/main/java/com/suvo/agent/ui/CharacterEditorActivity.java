@@ -8,8 +8,6 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import com.suvo.agent.R;
@@ -125,7 +123,7 @@ public final class CharacterEditorActivity extends BaseActivity {
         slider(box, R.string.character_idle_intensity, spec.idleIntensity, 0.2f, 1.5f, v -> spec.idleIntensity = v);
         slider(box, R.string.character_blink_rate, spec.blinkRate, 0.3f, 2.0f, v -> spec.blinkRate = v);
         slider(box, R.string.character_expressiveness, spec.expressiveness, 0.3f, 1.5f, v -> spec.expressiveness = v);
-        Switch wander = Widgets.styleSwitch(new Switch(this));
+        com.google.android.material.materialswitch.MaterialSwitch wander = Widgets.newSwitch(this);
         wander.setTextColor(getColor(R.color.text_primary));
         wander.setTextSize(15f);
         wander.setText(R.string.character_wander);
@@ -274,23 +272,19 @@ public final class CharacterEditorActivity extends BaseActivity {
         TextView label = new TextView(this, null, 0, R.style.YF_Label);
         label.setText(getString(labelRes) + "  " + String.format(Locale.ROOT, "%.2f", value));
         box.addView(label);
-        SeekBar sb = Widgets.styleSeekBar(new SeekBar(this));
-        sb.setMax(100);
-        sb.setProgress(Math.round((value - min) / (max - min) * 100f));
-        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        com.google.android.material.slider.Slider sb = Widgets.newSlider(this, 0, 100, Math.round((value - min) / (max - min) * 100f));
+        sb.addOnChangeListener((s, p, user) -> {
+            float v = min + (max - min) * p / 100f;
+            label.setText(getString(labelRes) + "  " + String.format(Locale.ROOT, "%.2f", v));
+            cb.set(v);
+        });
+        sb.addOnSliderTouchListener(new com.google.android.material.slider.Slider.OnSliderTouchListener() {
             @Override
-            public void onProgressChanged(SeekBar s, int p, boolean user) {
-                float v = min + (max - min) * p / 100f;
-                label.setText(getString(labelRes) + "  " + String.format(Locale.ROOT, "%.2f", v));
-                cb.set(v);
+            public void onStartTrackingTouch(com.google.android.material.slider.Slider s) {
             }
 
             @Override
-            public void onStartTrackingTouch(SeekBar s) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar s) {
+            public void onStopTrackingTouch(com.google.android.material.slider.Slider s) {
                 refreshPreview();
             }
         });

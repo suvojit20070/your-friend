@@ -786,6 +786,16 @@ S = {
 "settings_vrm_importing": "3D モデルを確認中…",
 "settings_vrm_imported": "モデル準備完了: %1$s。キャラクターが 3D で表示されます。",
 "settings_vrm_invalid": "このファイルは 3D キャラクターに使えません: %1$s",
+"chat_empty_message": "メッセージを入力してください",
+"chat_add_title": "会話に追加",
+"chat_add_photos": "写真",
+"chat_add_camera": "カメラ",
+"chat_add_file": "ファイル",
+"chat_add_folder": "フォルダ",
+"chat_file_attached": "📎 添付ファイル: %1$s",
+"chat_folder_attached": "📁 共有フォルダ: %1$s",
+"chat_no_app": "これを行えるアプリがありません",
+"chat_tools_failed": "%1$d 件に問題",
 }
 
 P = {
@@ -795,4 +805,5 @@ P = {
 "memories_saved": ("保存された記憶 %d 件",),
 "memories_used": ("記憶を %d 件使用",),
 "messages_count": ("%d 件のメッセージ",),
+"chat_tools_count": ("ツール %d 個",),
 }

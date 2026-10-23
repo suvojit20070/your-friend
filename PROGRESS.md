@@ -81,6 +81,21 @@ Your Friend — Original project by Suvo.
       the default; falls back to 2D with the reason if a model cannot be shown
 - [x] Settings export now strips every encrypted secret and token
 
+## Phase 2.1 (this update)
+
+- [x] Build fix: public dialog button style; resource checker now rejects private platform styles
+- [x] Real Material 3 components: `MaterialSwitch` and `Slider` (Material Components 1.12.0), app theme on Material3
+- [x] Liquid glass: rgba(25,30,40,0.65) glass with 1px specular rim; **real-time backdrop blur** (RenderEffect,
+      Android 12+) on the nav bar, composers and toasts; cross-window blur behind menus, sheets and dialogs
+- [x] Spring physics press effect on every tappable view (1.15× pop, damping 0.55, stiffness 400) + radial glow
+- [x] Morphing popup menus (scale 0.35→1 from the tapped button, overshoot), frosted bottom sheets
+      (decelerating slide-up, dim, drag to close), floating glass pill toasts, spring-in dialogs
+- [x] Chat: "N tools" accordion with nested code boxes; "Add to conversation" sheet (Photos, Camera, File, Folder);
+      conversation scrolls under the glass composer; empty-send pill
+- [x] Text selection handles in the accent colour
+- [x] 3D: full-body motion (weight shift, breathing, relaxed arms, finger curl, talking gestures, thinking pose,
+      listening lean, happy bounce) and framing fixed (model fitted to the body, not the T-pose arm span)
+
 ## Planned
 
 - Spring-bone physics (hair/clothes) and MToon outlines for the 3D character

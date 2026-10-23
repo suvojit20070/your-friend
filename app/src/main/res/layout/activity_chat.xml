@@ -89,123 +89,139 @@
             android:tint="@color/text_primary" />
     </FrameLayout>
 
-    <ListView
-        android:id="@+id/chat_list"
+    <!-- The conversation scrolls underneath the floating glass composer. -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:divider="@null"
-        android:fadingEdgeLength="24dp"
-        android:paddingStart="16dp"
-        android:paddingTop="4dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="12dp"
-        android:requiresFadingEdge="vertical"
-        android:scrollbars="none"
-        android:stackFromBottom="true"
-        android:transcriptMode="normal" />
+        android:layout_weight="1">
 
-    <LinearLayout
-        android:id="@+id/chat_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="24dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="4dp"
-        android:visibility="gone">
+        <ListView
+            android:id="@+id/chat_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:divider="@null"
+            android:fadingEdgeLength="24dp"
+            android:paddingStart="16dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="12dp"
+            android:requiresFadingEdge="vertical"
+            android:scrollbars="none"
+            android:stackFromBottom="true"
+            android:transcriptMode="normal" />
 
-        <ProgressBar
-            android:id="@+id/chat_progress"
-            style="?android:attr/progressBarStyleSmall"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:tag="accent" />
-
-        <TextView
-            android:id="@+id/chat_status_text"
-            style="@style/YF.Caption"
-            android:layout_width="0dp"
+        <LinearLayout
+            android:id="@+id/chat_bottom"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1" />
+            android:layout_gravity="bottom"
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/chat_memory_chip"
-            style="@style/YF.Chip"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="0dp"
-            android:visibility="gone" />
-    </LinearLayout>
+            <LinearLayout
+                android:id="@+id/chat_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="24dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="4dp"
+                android:visibility="gone">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="14dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginEnd="14dp"
-        android:layout_marginBottom="12dp"
-        android:background="@drawable/input_pill"
-        android:gravity="bottom"
-        android:minHeight="60dp"
-        android:orientation="horizontal"
-        android:padding="6dp">
+                <ProgressBar
+                    android:id="@+id/chat_progress"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:tag="accent" />
 
-        <ImageButton
-            android:id="@+id/chat_plus"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/circle_tonal"
-            android:contentDescription="@string/chat_attach_image"
-            android:padding="12dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_add"
-            android:tint="@color/accent" />
+                <TextView
+                    android:id="@+id/chat_status_text"
+                    style="@style/YF.Caption"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1" />
 
-        <EditText
-            android:id="@+id/chat_input"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_weight="1"
-            android:background="@null"
-            android:hint="@string/chat_input_hint"
-            android:inputType="textCapSentences|textMultiLine"
-            android:maxLines="6"
-            android:minHeight="48dp"
-            android:paddingStart="14dp"
-            android:paddingEnd="8dp"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_secondary"
-            android:textSize="16sp" />
+                <TextView
+                    android:id="@+id/chat_memory_chip"
+                    style="@style/YF.Chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="0dp"
+                    android:visibility="gone" />
+            </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/chat_mic"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/row_bg"
-            android:contentDescription="@string/mic"
-            android:padding="12dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_mic"
-            android:tint="@color/text_secondary" />
+            <LinearLayout
+                android:id="@+id/chat_composer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="14dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/input_pill"
+                android:tag="composer"
+                android:gravity="bottom"
+                android:minHeight="60dp"
+                android:orientation="horizontal"
+                android:padding="6dp">
 
-        <ImageButton
-            android:id="@+id/chat_send"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="4dp"
-            android:background="@drawable/circle_accent"
-            android:contentDescription="@string/send"
-            android:padding="12dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_send"
-            android:tag="accent"
-            android:tint="@color/text_on_accent" />
-    </LinearLayout>
+                <ImageButton
+                    android:id="@+id/chat_plus"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/circle_tonal"
+                    android:contentDescription="@string/chat_attach_image"
+                    android:padding="12dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_add"
+                    android:tint="@color/accent" />
+
+                <EditText
+                    android:id="@+id/chat_input"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:hint="@string/chat_input_hint"
+                    android:inputType="textCapSentences|textMultiLine"
+                    android:maxLines="6"
+                    android:minHeight="48dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="8dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_secondary"
+                    android:textSize="16sp" />
+
+                <ImageButton
+                    android:id="@+id/chat_mic"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/row_bg"
+                    android:contentDescription="@string/mic"
+                    android:padding="12dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_mic"
+                    android:tint="@color/text_secondary" />
+
+                <ImageButton
+                    android:id="@+id/chat_send"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="4dp"
+                    android:background="@drawable/circle_accent"
+                    android:contentDescription="@string/send"
+                    android:padding="12dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_send"
+                    android:tag="accent"
+                    android:tint="@color/text_on_accent" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
 </LinearLayout>

@@ -8,7 +8,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import com.suvo.agent.R;
@@ -43,7 +42,7 @@ public final class CustomToolEditorActivity extends BaseActivity {
     private String originalName;
     private EditText name, description, version, schema, code, url, headers, body, secretHeader, secret, timeout;
     private Spinner kind, method, risk;
-    private Switch enabled;
+    private com.google.android.material.materialswitch.MaterialSwitch enabled;
     private LinearLayout pythonBox, httpBox;
     private TextView status;
 
@@ -117,7 +116,7 @@ public final class CustomToolEditorActivity extends BaseActivity {
         timeout = field(box, R.string.custom_tool_timeout, String.valueOf(def.timeoutS), false);
         timeout.setInputType(InputType.TYPE_CLASS_NUMBER);
 
-        enabled = Widgets.styleSwitch(new Switch(this));
+        enabled = Widgets.newSwitch(this);
         enabled.setTextColor(getColor(R.color.text_primary));
         enabled.setTextSize(15f);
         enabled.setText(R.string.custom_tool_enabled);

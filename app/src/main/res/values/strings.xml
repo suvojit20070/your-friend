@@ -167,15 +167,24 @@
     <string name="character_voice_note">Voice note</string>
     <string name="character_wander">Move around when idle</string>
     <string name="characters_intro">Choose who keeps you company. Tap a character for options.</string>
+    <string name="chat_add_camera">Camera</string>
+    <string name="chat_add_file">File</string>
+    <string name="chat_add_folder">Folder</string>
+    <string name="chat_add_photos">Photos</string>
+    <string name="chat_add_title">Add to conversation</string>
     <string name="chat_attach_image">Attach image</string>
     <string name="chat_describe_image">What is in this image?</string>
+    <string name="chat_empty_message">Please enter a message</string>
     <string name="chat_error_tap_retry">Tap to retry</string>
+    <string name="chat_file_attached">📎 Attached file: %1$s</string>
+    <string name="chat_folder_attached">📁 Shared folder: %1$s</string>
     <string name="chat_history">Conversations</string>
     <string name="chat_images_attached">%1$s image(s) attached</string>
     <string name="chat_input_hint">Message</string>
     <string name="chat_manage_providers">Manage providers…</string>
     <string name="chat_max_images">At most %1$s images per message</string>
     <string name="chat_new">New conversation</string>
+    <string name="chat_no_app">No app on this phone can do that</string>
     <string name="chat_no_provider">No provider</string>
     <string name="chat_no_vision">The active provider is not marked as vision-capable. Enable \"Vision\" in its settings to send images.</string>
     <string name="chat_summarized">Earlier messages summarized</string>
@@ -188,6 +197,7 @@
     <string name="chat_tool_result">Result</string>
     <string name="chat_tool_running">Running…</string>
     <string name="chat_tool_title">%1$s · %2$s</string>
+    <string name="chat_tools_failed">%1$d need attention</string>
     <string name="chat_untitled">Untitled</string>
     <string name="checkin_conversation">Self check-ins</string>
     <string name="chip_approval_needed">Approval needed</string>
@@ -790,6 +800,10 @@
     <plurals name="chat_images_pending">
         <item quantity="one">%d image attached</item>
         <item quantity="other">%d images attached</item>
+    </plurals>
+    <plurals name="chat_tools_count">
+        <item quantity="one">%d tool</item>
+        <item quantity="other">%d tools</item>
     </plurals>
     <plurals name="memories_imported">
         <item quantity="one">Imported %d memory</item>

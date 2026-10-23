@@ -167,15 +167,24 @@
     <string name="character_voice_note">Voice note</string>
     <string name="character_wander">Idle hone par idhar-udhar ghoomo</string>
     <string name="characters_intro">Chuno kaun aapke saath rahega. Options ke liye character par tap karo.</string>
+    <string name="chat_add_camera">Camera</string>
+    <string name="chat_add_file">File</string>
+    <string name="chat_add_folder">Folder</string>
+    <string name="chat_add_photos">Photos</string>
+    <string name="chat_add_title">Conversation mein jodo</string>
     <string name="chat_attach_image">Image lagao</string>
     <string name="chat_describe_image">Is image mein kya hai?</string>
+    <string name="chat_empty_message">Pehle message likho</string>
     <string name="chat_error_tap_retry">Dobara try karne ke liye tap karo</string>
+    <string name="chat_file_attached">📎 File attach ki: %1$s</string>
+    <string name="chat_folder_attached">📁 Folder share kiya: %1$s</string>
     <string name="chat_history">Conversations</string>
     <string name="chat_images_attached">%1$s image lagi hai</string>
     <string name="chat_input_hint">Message</string>
     <string name="chat_manage_providers">Providers manage karo…</string>
     <string name="chat_max_images">Ek message mein zyada se zyada %1$s images</string>
     <string name="chat_new">Nayi conversation</string>
+    <string name="chat_no_app">Phone mein ye karne wala koi app nahi hai</string>
     <string name="chat_no_provider">Koi provider nahi</string>
     <string name="chat_no_vision">Active provider vision-capable mark nahi hai. Images bhejne ke liye uski settings mein \"Vision\" on karo.</string>
     <string name="chat_summarized">Purane messages ka summary bana</string>
@@ -188,6 +197,7 @@
     <string name="chat_tool_result">Result</string>
     <string name="chat_tool_running">Chal raha hai…</string>
     <string name="chat_tool_title">%1$s · %2$s</string>
+    <string name="chat_tools_failed">%1$d mein dikkat</string>
     <string name="chat_untitled">Bina naam</string>
     <string name="checkin_conversation">Self check-ins</string>
     <string name="chip_approval_needed">Approval chahiye</string>
@@ -790,6 +800,10 @@
     <plurals name="chat_images_pending">
         <item quantity="one">%d image lagi hai</item>
         <item quantity="other">%d images lagi hain</item>
+    </plurals>
+    <plurals name="chat_tools_count">
+        <item quantity="one">%d tool</item>
+        <item quantity="other">%d tools</item>
     </plurals>
     <plurals name="memories_imported">
         <item quantity="one">%d memory import hui</item>

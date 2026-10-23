@@ -218,7 +218,10 @@ public final class MainActivity extends BaseActivity {
 
     private void send() {
         String text = input.getText().toString().trim();
-        if (text.isEmpty()) return;
+        if (text.isEmpty()) {
+            Fx.pill(this, getString(R.string.chat_empty_message), findViewById(R.id.home_composer));
+            return;
+        }
         String err = g.agent.submit(g.agent.activeConversation(), text, (java.util.List<ChatMessage.Image>) null);
         if (err != null) {
             showBubble(err);

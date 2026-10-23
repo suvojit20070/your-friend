@@ -41,6 +41,8 @@ public abstract class BaseActivity extends Activity {
         if (root != null) applyInsets(root);
         View back = findViewById(R.id.top_back);
         if (back != null) back.setOnClickListener(v -> onBackPressed());
+        View composer = root == null ? null : root.findViewWithTag("composer");
+        if (composer != null) BackdropDrawable.apply(composer, findViewById(android.R.id.content), Ui.dp(this, 30));
         Ui.tintAccent(this, root);
     }
 

@@ -1,10 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Row inside a group card: transparent, ripple clipped to the row. -->
-<ripple xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/accent_soft">
-    <item android:id="@android:id/mask">
-        <shape android:shape="rectangle">
-            <solid android:color="#FFFFFFFF"/>
-            <corners android:radius="@dimen/corner"/>
-        </shape>
-    </item>
-</ripple>
+<!-- Rows sit inside a glass card; their press feedback is the spring + glow from ui/Fx. -->
+<color xmlns:android="http://schemas.android.com/apk/res/android" android:color="@android:color/transparent"/>

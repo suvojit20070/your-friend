@@ -167,15 +167,24 @@
     <string name="character_voice_note">声のメモ</string>
     <string name="character_wander">待機中に動き回る</string>
     <string name="characters_intro">一緒にいてくれるキャラクターを選びましょう。タップするとオプションが表示されます。</string>
+    <string name="chat_add_camera">カメラ</string>
+    <string name="chat_add_file">ファイル</string>
+    <string name="chat_add_folder">フォルダ</string>
+    <string name="chat_add_photos">写真</string>
+    <string name="chat_add_title">会話に追加</string>
     <string name="chat_attach_image">画像を添付</string>
     <string name="chat_describe_image">この画像には何が写っていますか？</string>
+    <string name="chat_empty_message">メッセージを入力してください</string>
     <string name="chat_error_tap_retry">タップして再試行</string>
+    <string name="chat_file_attached">📎 添付ファイル: %1$s</string>
+    <string name="chat_folder_attached">📁 共有フォルダ: %1$s</string>
     <string name="chat_history">会話</string>
     <string name="chat_images_attached">画像 %1$s 枚を添付</string>
     <string name="chat_input_hint">メッセージ</string>
     <string name="chat_manage_providers">プロバイダーを管理…</string>
     <string name="chat_max_images">1 メッセージにつき画像は最大 %1$s 枚です</string>
     <string name="chat_new">新しい会話</string>
+    <string name="chat_no_app">これを行えるアプリがありません</string>
     <string name="chat_no_provider">プロバイダーなし</string>
     <string name="chat_no_vision">使用中のプロバイダーは画像対応に設定されていません。画像を送るにはプロバイダー設定で「Vision」をオンにしてください。</string>
     <string name="chat_summarized">以前のメッセージを要約しました</string>
@@ -188,6 +197,7 @@
     <string name="chat_tool_result">結果</string>
     <string name="chat_tool_running">実行中…</string>
     <string name="chat_tool_title">%1$s · %2$s</string>
+    <string name="chat_tools_failed">%1$d 件に問題</string>
     <string name="chat_untitled">無題</string>
     <string name="checkin_conversation">セルフチェックイン</string>
     <string name="chip_approval_needed">承認が必要</string>
@@ -789,6 +799,9 @@
     <string name="vrm_upper_body">上半身</string>
     <plurals name="chat_images_pending">
         <item quantity="other">画像 %d 枚を添付</item>
+    </plurals>
+    <plurals name="chat_tools_count">
+        <item quantity="other">ツール %d 個</item>
     </plurals>
     <plurals name="memories_imported">
         <item quantity="other">記憶を %d 件インポートしました</item>

@@ -786,6 +786,16 @@ S = {
 "settings_vrm_importing": "3D मॉडल जाँचा जा रहा है…",
 "settings_vrm_imported": "मॉडल तैयार: %1$s। कैरेक्टर अब 3D में दिखेगा।",
 "settings_vrm_invalid": "यह फ़ाइल 3D कैरेक्टर के लिए इस्तेमाल नहीं हो सकती: %1$s",
+"chat_empty_message": "पहले संदेश लिखें",
+"chat_add_title": "बातचीत में जोड़ें",
+"chat_add_photos": "फ़ोटो",
+"chat_add_camera": "कैमरा",
+"chat_add_file": "फ़ाइल",
+"chat_add_folder": "फ़ोल्डर",
+"chat_file_attached": "📎 फ़ाइल जोड़ी: %1$s",
+"chat_folder_attached": "📁 साझा फ़ोल्डर: %1$s",
+"chat_no_app": "फ़ोन में यह करने वाला कोई ऐप नहीं है",
+"chat_tools_failed": "%1$d में दिक़्क़त",
 }
 
 P = {
@@ -795,4 +805,5 @@ P = {
 "memories_saved": ("%d याद सहेजी", "%d यादें सहेजी गईं"),
 "memories_used": ("%d याद उपयोग हुई", "%d यादें उपयोग हुईं"),
 "messages_count": ("%d संदेश", "%d संदेश"),
+"chat_tools_count": ("%d टूल", "%d टूल"),
 }

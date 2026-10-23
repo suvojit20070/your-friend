@@ -6,7 +6,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.Switch;
 import android.widget.TextView;
 
 import com.suvo.agent.R;
@@ -63,7 +62,7 @@ public final class ProviderEditorActivity extends BaseActivity {
                 set(R.id.pe_name, p[0]);
                 set(R.id.pe_url, p[1]);
                 set(R.id.pe_model, p[2]);
-                ((Switch) findViewById(R.id.pe_vision)).setChecked("1".equals(p[3]));
+                ((android.widget.CompoundButton) findViewById(R.id.pe_vision)).setChecked("1".equals(p[3]));
             }
 
             @Override
@@ -90,7 +89,7 @@ public final class ProviderEditorActivity extends BaseActivity {
         return ((EditText) findViewById(id)).getText().toString().trim();
     }
 
-    private Switch sw(int id) {
+    private android.widget.CompoundButton sw(int id) {
         return findViewById(id);
     }
 

@@ -217,6 +217,13 @@
             android:exported="false"
             android:grantUriPermissions="true" />
 
+        <!-- One writable file for photos taken with the camera app ("Add to conversation → Camera") -->
+        <provider
+            android:name=".files.CaptureProvider"
+            android:authorities="${applicationId}.capture"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <!-- Shizuku binder delivery (only active once the user grants Shizuku permission) -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"

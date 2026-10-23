@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Your Friend design tokens, dark theme (the default look). -->
 <resources>
-    <color name="bg_top">#FF10141A</color>
-    <color name="bg_bottom">#FF0C1015</color>
+    <color name="bg_top">#FF0E131A</color>
+    <color name="bg_bottom">#FF0B0F14</color>
     <color name="bg_glow">#1A8AB4F8</color>
     <color name="surface">#FF181D24</color>
     <color name="surface_2">#FF20262F</color>
@@ -22,6 +22,15 @@
     <color name="success">#FF6CD6A0</color>
 
     <color name="code_bg">#FF0D1116</color>
+
+    <!-- Liquid glass: rgba(25,30,40,0.65) tint, rgba(255,255,255,0.14) rim -->
+    <color name="glass_fill">#A6191E28</color>
+    <color name="glass_fill_strong">#E6161B24</color>
+    <color name="glass_fill_menu">#C7181D27</color>
+    <color name="glass_tile">#8C232A36</color>
+    <color name="glass_stroke">#14FFFFFF</color>
+    <color name="glass_rim_top">#3DFFFFFF</color>
+    <color name="glass_sheen">#14FFFFFF</color>
     <color name="switch_track_off">#FF262D37</color>
     <color name="switch_thumb_off">#FF8E98A7</color>
 </resources>

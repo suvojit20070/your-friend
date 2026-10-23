@@ -20,7 +20,6 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
-import android.widget.SeekBar;
 import android.widget.Toast;
 
 import com.suvo.agent.R;
@@ -57,18 +56,22 @@ public final class Ui {
         return ctx.getColor(R.color.accent);
     }
 
-    /** Applies a non-default accent to views tagged "accent" (buttons, switches, progress bars). */
+    /**
+     * Applies a non-default accent to views tagged "accent" (buttons, switches, progress bars) and
+     * gives every tappable view the spring + glow press effect.
+     */
     public static void tintAccent(Context ctx, View root) {
         if (root == null) return;
         int c = accent(ctx);
         applyTint(root, c);
+        Fx.attachAll(root);
     }
 
     private static void applyTint(View v, int c) {
-        if (v instanceof android.widget.Switch) {
-            Widgets.styleSwitch((android.widget.Switch) v);
-        } else if (v instanceof SeekBar) {
-            Widgets.styleSeekBar((SeekBar) v);
+        if (v instanceof com.google.android.material.materialswitch.MaterialSwitch) {
+            Widgets.styleSwitch((com.google.android.material.materialswitch.MaterialSwitch) v);
+        } else if (v instanceof com.google.android.material.slider.Slider) {
+            Widgets.styleSlider((com.google.android.material.slider.Slider) v);
         } else if ("accent".equals(v.getTag())) {
             if (v instanceof CompoundButton) {
                 ((CompoundButton) v).setButtonTintList(ColorStateList.valueOf(c));
@@ -86,11 +89,21 @@ public final class Ui {
     }
 
     public static void toast(Context ctx, int res) {
-        Toast.makeText(ctx, res, Toast.LENGTH_SHORT).show();
+        toast(ctx, ctx.getString(res));
     }
 
+    /**
+     * Short message. Inside a screen it is a floating glass pill above the composer (or near the
+     * bottom); from a service it falls back to a system toast.
+     */
     public static void toast(Context ctx, CharSequence text) {
-        Toast.makeText(ctx, text, Toast.LENGTH_LONG).show();
+        Activity a = ctx instanceof Activity ? (Activity) ctx : null;
+        if (a != null && !a.isFinishing() && a.getWindow() != null && a.getWindow().getDecorView().isAttachedToWindow()) {
+            View anchor = a.getWindow().getDecorView().findViewWithTag("composer");
+            Fx.pill(a, text, anchor);
+            return;
+        }
+        Toast.makeText(ctx.getApplicationContext(), text, text.length() > 60 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT).show();
     }
 
     public static AlertDialog.Builder dialog(Context ctx) {
@@ -109,6 +122,18 @@ public final class Ui {
             }
         }
         d.show();
+        if (w != null) {
+            // Dialogs pop in with a soft spring instead of the stock fade.
+            View content = w.getDecorView();
+            content.setScaleX(0.9f);
+            content.setScaleY(0.9f);
+            content.setAlpha(0f);
+            new Fx.Spring(0.9f, 480f, 0.7f, v -> {
+                content.setScaleX(v);
+                content.setScaleY(v);
+                content.setAlpha(Math.max(0f, Math.min(1f, (v - 0.9f) / 0.08f)));
+            }).animateTo(1f);
+        }
         tintAccent(d.getContext(), w == null ? null : w.getDecorView());
         int c = accent(d.getContext());
         for (int which : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL}) {
