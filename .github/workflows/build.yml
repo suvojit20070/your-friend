@@ -54,18 +54,19 @@ jobs:
       - name: Build debug APK
         run: ./gradlew --stacktrace assembleDebug
 
-      - name: Run unit tests
-        run: ./gradlew --stacktrace testDebugUnitTest
-
-      - name: Run lint
-        run: ./gradlew --stacktrace lintDebug
-
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: YourFriend-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Run unit tests
+        run: ./gradlew --stacktrace testDebugUnitTest
+
+      - name: Run lint
+        if: ${{ !cancelled() }}
+        run: ./gradlew --stacktrace lintDebug
 
       - name: Upload test reports
         if: always()
