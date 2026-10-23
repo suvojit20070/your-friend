@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- End of a selection: round handle with its square corner at the top left (at the text). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:height="24dp"
-    android:width="24dp"
-    android:viewportWidth="24.0"
-    android:viewportHeight="24.0">
-    <path
-        android:fillColor="#ff0000"
-        android:pathData="M3,3L3,12A9,9 0,0 0,12 21A9,9 0,0 0,21 12A9,9 0,0 0,12 3L3,3z" />
+    android:width="22dp" android:height="22dp" android:viewportWidth="22" android:viewportHeight="22">
+    <path android:fillColor="@color/accent" android:pathData="M0,0 L11,0 A11,11 0 1,1 0,11 Z"/>
 </vector>
