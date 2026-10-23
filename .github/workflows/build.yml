@@ -18,12 +18,23 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install NDK and CMake
+      # ubuntu-latest already ships the Android SDK + cmdline-tools.
+      # We use it directly instead of android-actions/setup-android (its v3
+      # tries to install the obsolete 'tools' package and fails).
+      - name: Install SDK packages (platform, build-tools, NDK, CMake)
         run: |
-          yes | sdkmanager "ndk;26.3.11579264" "cmake;3.22.1" >/dev/null || true
+          set -e
+          SDK="$ANDROID_SDK_ROOT"
+          [ -z "$SDK" ] && SDK="$ANDROID_HOME"
+          echo "Using SDK at: $SDK"
+          SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMANAGER" ] || SDKMANAGER="$(ls "$SDK"/cmdline-tools/*/bin/sdkmanager | head -n1)"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" \
+            "platforms;android-35" \
+            "build-tools;34.0.0" \
+            "ndk;26.3.11579264" \
+            "cmake;3.22.1"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
