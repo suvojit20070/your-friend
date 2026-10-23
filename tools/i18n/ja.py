@@ -457,7 +457,7 @@ S = {
 "settings_export_config": "設定をエクスポート",
 "settings_export_config_desc": "API キーやシークレットは含みません",
 "settings_floating": "フローティングコンパニオン",
-"settings_floating_desc": "他のアプリの上にキャラクターを表示",
+"settings_floating_desc": "アプリを離れるとキャラクターが画面上に浮かびます。「他のアプリの上に重ねて表示」の許可が必要です。",
 "settings_import_config": "設定をインポート",
 "settings_imported": "設定をインポートしました",
 "settings_language": "アプリの言語",
@@ -680,6 +680,8 @@ S = {
 "voice_testing": "テスト音声を生成中…",
 "voice_threads": "CPU スレッド数",
 "voice_input_disabled": "音声入力は「権限とプライバシー」でオフになっています",
+"settings_tap_cursor": "エージェントのタップ位置を表示",
+"settings_tap_cursor_desc": "タップやスワイプの前にカーソルがその位置へ移動します",
 }
 
 P = {

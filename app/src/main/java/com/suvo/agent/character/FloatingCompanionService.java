@@ -40,15 +40,21 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * Optional floating companion drawn over other apps (needs "Display over other apps"). It can be
+ * Floating companion drawn over other apps (needs "Display over other apps"). It appears when you
+ * leave Your Friend and hides while the app is open (the app shows the character itself). It can be
  * dragged anywhere and snaps to the nearest screen edge. Tap: reaction. Double-tap: point mode —
  * the next tap anywhere is identified via Accessibility and sent to chat as context. Long-press:
- * open the app. The overlay never reads or controls other apps by itself.
+ * open the app.
+ *
+ * The service is started while the app is in the foreground (Android 15 does not allow starting it
+ * from the background) and then stays running; only the overlay's visibility follows the app.
  */
 public final class FloatingCompanionService extends Service {
 
     public static final String ACTION_STOP = "com.suvo.agent.companion.STOP";
     private static volatile boolean running;
+    private static volatile FloatingCompanionService instance;
+    private static volatile boolean appVisible = true;
 
     private WindowManager wm;
     private FrameLayout container;
@@ -65,6 +71,38 @@ public final class FloatingCompanionService extends Service {
 
     public static boolean canRun(Context ctx) {
         return Settings.canDrawOverlays(ctx);
+    }
+
+    /** On by default; the user can switch it off in Settings. */
+    public static boolean wanted(Context ctx) {
+        try {
+            return AppGraph.get().settings.bool(com.suvo.agent.data.Settings.FLOATING_COMPANION, true) && canRun(ctx);
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Called by the app when its first screen becomes visible or its last one goes away. Starts the
+     * service while the app is visible (allowed), then shows the overlay only when the app is not.
+     */
+    public static void onAppVisibilityChanged(Context ctx, boolean visible) {
+        appVisible = visible;
+        if (visible && !running && wanted(ctx)) {
+            try {
+                start(ctx);
+            } catch (RuntimeException ignored) {
+                // Foreground-service start refused; the next app start tries again.
+            }
+        }
+        FloatingCompanionService svc = instance;
+        if (svc != null) svc.main.post(svc::applyVisibility);
+    }
+
+    private void applyVisibility() {
+        if (container == null) return;
+        container.setVisibility(appVisible ? View.GONE : View.VISIBLE);
+        if (appVisible) removePointOverlay();
     }
 
     public static void start(Context ctx) {
@@ -116,6 +154,7 @@ public final class FloatingCompanionService extends Service {
     @SuppressLint("ClickableViewAccessibility")
     private void show() {
         running = true;
+        instance = this;
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
         AppGraph g = AppGraph.get();
         float density = getResources().getDisplayMetrics().density;
@@ -139,6 +178,7 @@ public final class FloatingCompanionService extends Service {
         lp.y = dm.heightPixels / 2;
         container.setOnTouchListener(new DragTouch());
         wm.addView(container, lp);
+        applyVisibility();
 
         agentListener = new AgentListener() {
             @Override
@@ -338,6 +378,7 @@ public final class FloatingCompanionService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        instance = null;
         removePointOverlay();
         try {
             AppGraph g = AppGraph.get();

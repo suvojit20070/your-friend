@@ -19,6 +19,7 @@ public final class StreamAccumulator {
         String id = "";
         String name = "";
         final StringBuilder args = new StringBuilder();
+        final JSONObject extra = new JSONObject();
         boolean announced;
     }
 
@@ -71,6 +72,7 @@ public final class StreamAccumulator {
                 }
                 String id = tc.optString("id", "");
                 if (!id.isEmpty() && !"null".equals(id)) pc.id = id;
+                mergeExtra(pc.extra, tc);
                 JSONObject fn = tc.optJSONObject("function");
                 if (fn != null) {
                     String n = fn.optString("name", "");
@@ -91,6 +93,37 @@ public final class StreamAccumulator {
                     listener.onToolCallStarted(index, pc.name);
                 }
             }
+        }
+    }
+
+    /**
+     * Keeps provider-specific fields of a tool-call delta (e.g. Gemini's extra_content with the
+     * thought signature). Objects are merged key by key; other values replace earlier ones.
+     */
+    static void mergeExtra(JSONObject into, JSONObject tc) {
+        java.util.Iterator<String> keys = tc.keys();
+        while (keys.hasNext()) {
+            String k = keys.next();
+            if (ToolCall.KNOWN_KEYS.contains(k)) continue;
+            Object v = tc.opt(k);
+            if (v == null || v == JSONObject.NULL) continue;
+            try {
+                Object old = into.opt(k);
+                if (old instanceof JSONObject && v instanceof JSONObject) deepMerge((JSONObject) old, (JSONObject) v);
+                else into.put(k, v);
+            } catch (org.json.JSONException ignored) {
+            }
+        }
+    }
+
+    private static void deepMerge(JSONObject into, JSONObject from) throws org.json.JSONException {
+        java.util.Iterator<String> keys = from.keys();
+        while (keys.hasNext()) {
+            String k = keys.next();
+            Object v = from.get(k);
+            Object old = into.opt(k);
+            if (old instanceof JSONObject && v instanceof JSONObject) deepMerge((JSONObject) old, (JSONObject) v);
+            else into.put(k, v);
         }
     }
 
@@ -121,7 +154,7 @@ public final class StreamAccumulator {
         for (PartialCall pc : calls.values()) {
             if (pc.name.isEmpty()) continue;
             String id = pc.id.isEmpty() ? "call_" + System.nanoTime() + "_" + n : pc.id;
-            out.add(new ToolCall(id, pc.name, pc.args.toString()));
+            out.add(new ToolCall(id, pc.name, pc.args.toString(), pc.extra));
             n++;
         }
         r.toolCalls.addAll(out);

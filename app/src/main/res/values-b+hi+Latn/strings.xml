@@ -458,7 +458,7 @@
     <string name="settings_export_config">Settings export karo</string>
     <string name="settings_export_config_desc">API keys ya secrets ke bina</string>
     <string name="settings_floating">Floating companion</string>
-    <string name="settings_floating_desc">Character ko dusre apps ke upar dikhao</string>
+    <string name="settings_floating_desc">App se bahar jaane par character screen par float karega. \"Display over other apps\" permission chahiye.</string>
     <string name="settings_import_config">Settings import karo</string>
     <string name="settings_imported">Settings import ho gayi</string>
     <string name="settings_language">App language</string>
@@ -486,6 +486,8 @@
     <string name="settings_searxng_url">SearXNG URL</string>
     <string name="settings_summaries">Lambi conversations ka summary</string>
     <string name="settings_summaries_desc">Lambi chats ko model ke context mein rakho</string>
+    <string name="settings_tap_cursor">Agent kahan tap karta hai, dikhao</string>
+    <string name="settings_tap_cursor_desc">Har tap ya swipe se pehle cursor us jagah jaata hai</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_tone">Tone</string>
     <string name="settings_tone_default">Character default</string>

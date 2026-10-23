@@ -10,7 +10,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.speech.SpeechRecognizer;
 
 import com.suvo.agent.AppGraph;
 import com.suvo.agent.R;
@@ -25,7 +24,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Optional hands-free conversation. Runs only after the user switches it on in the app (Android
  * requires microphone foreground services to start from the foreground) and shows a persistent
- * "listening" notification with a Stop button. It pauses listening while the companion speaks.
+ * "listening" notification with a Stop button. It pauses listening while the companion speaks or a
+ * task runs.
+ *
+ * Listening goes through {@link VoiceGate}, which never takes audio focus, so music and videos keep
+ * playing while the microphone waits for you to speak.
  */
 public final class HandsFreeService extends Service {
 
@@ -39,7 +42,7 @@ public final class HandsFreeService extends Service {
     private static final CopyOnWriteArrayList<StateListener> listeners = new CopyOnWriteArrayList<>();
 
     private final Handler main = new Handler(Looper.getMainLooper());
-    private SpeechInput input;
+    private VoiceGate gate;
     private AgentListener agentListener;
     private SpeechController.Listener speechListener;
     private boolean waitingForAgent;
@@ -108,7 +111,7 @@ public final class HandsFreeService extends Service {
         }
         if (!running) {
             running = true;
-            input = new SpeechInput(this);
+            gate = new VoiceGate(this);
             agentListener = new AgentListener() {
                 @Override
                 public void onFinished(TaskState task) {
@@ -121,6 +124,9 @@ public final class HandsFreeService extends Service {
                 public void onSpeechState(SpeechController.State state, String detail) {
                     if (state == SpeechController.State.IDLE || state == SpeechController.State.ERROR) {
                         main.postDelayed(HandsFreeService.this::listenIfIdle, 400);
+                    } else if (gate != null && gate.isRunning()) {
+                        // Do not hear our own voice as a command.
+                        gate.pause(true);
                     }
                 }
             };
@@ -131,21 +137,30 @@ public final class HandsFreeService extends Service {
         return START_NOT_STICKY;
     }
 
+    /** Starts the gate once, then only pauses/resumes it around tasks and speech. */
     private void listenIfIdle() {
-        if (!running || input == null || input.isListening()) return;
+        if (!running || gate == null) return;
         AppGraph g = AppGraph.get();
-        if (waitingForAgent || g.agent.isRunning() || g.speech.isActive()) return;
+        boolean busy = waitingForAgent || g.agent.isRunning() || g.speech.isActive();
+        if (gate.isRunning()) {
+            gate.pause(busy);
+            if (!busy) publish(getString(R.string.handsfree_listening));
+            return;
+        }
+        if (busy) return;
         publish(getString(R.string.handsfree_listening));
-        input.start(g.settings.str(Settings.STT_LANGUAGE, ""), new SpeechInput.Callback() {
+        gate.start(g.settings.str(Settings.STT_LANGUAGE, ""), new VoiceGate.Callback() {
             @Override
-            public void onFinal(String text) {
+            public void onPartial(String text) {
+                publish(text);
+            }
+
+            @Override
+            public void onText(String text) {
                 consecutiveErrors = 0;
-                if (text == null || text.trim().isEmpty()) {
-                    main.postDelayed(HandsFreeService.this::listenIfIdle, 300);
-                    return;
-                }
                 publish(text);
                 waitingForAgent = true;
+                gate.pause(true);
                 String err = g.agent.submit(g.agent.activeConversation(), text, null);
                 if (err != null) {
                     waitingForAgent = false;
@@ -155,15 +170,12 @@ public final class HandsFreeService extends Service {
             }
 
             @Override
-            public void onError(int code, String message) {
+            public void onError(String message, boolean fatal) {
                 publish(message);
-                boolean benign = code == SpeechRecognizer.ERROR_NO_MATCH || code == SpeechRecognizer.ERROR_SPEECH_TIMEOUT;
-                if (!benign) consecutiveErrors++;
-                if (code == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS || consecutiveErrors >= 5) {
+                consecutiveErrors++;
+                if (fatal || consecutiveErrors >= 8) {
                     stopSelf();
-                    return;
                 }
-                main.postDelayed(HandsFreeService.this::listenIfIdle, benign ? 300 : 2000);
             }
         });
     }
@@ -171,8 +183,8 @@ public final class HandsFreeService extends Service {
     @Override
     public void onDestroy() {
         running = false;
-        if (input != null) input.cancel();
-        input = null;
+        if (gate != null) gate.stop();
+        gate = null;
         try {
             AppGraph g = AppGraph.get();
             if (agentListener != null) g.agent.removeListener(agentListener);

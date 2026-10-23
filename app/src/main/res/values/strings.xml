@@ -458,7 +458,7 @@
     <string name="settings_export_config">Export settings</string>
     <string name="settings_export_config_desc">Without API keys or secrets</string>
     <string name="settings_floating">Floating companion</string>
-    <string name="settings_floating_desc">Show the character over other apps</string>
+    <string name="settings_floating_desc">When you leave the app, the character floats on screen. Needs \"Display over other apps\".</string>
     <string name="settings_import_config">Import settings</string>
     <string name="settings_imported">Settings imported</string>
     <string name="settings_language">App language</string>
@@ -486,6 +486,8 @@
     <string name="settings_searxng_url">SearXNG URL</string>
     <string name="settings_summaries">Summarize long conversations</string>
     <string name="settings_summaries_desc">Keep long chats within the model\'s context</string>
+    <string name="settings_tap_cursor">Show where the agent taps</string>
+    <string name="settings_tap_cursor_desc">A cursor moves to each tap or swipe before it happens</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_tone">Tone</string>
     <string name="settings_tone_default">Character default</string>

@@ -457,7 +457,7 @@ S = {
 "settings_export_config": "Export settings",
 "settings_export_config_desc": "Without API keys or secrets",
 "settings_floating": "Floating companion",
-"settings_floating_desc": "Show the character over other apps",
+"settings_floating_desc": "When you leave the app, the character floats on screen. Needs \"Display over other apps\".",
 "settings_import_config": "Import settings",
 "settings_imported": "Settings imported",
 "settings_language": "App language",
@@ -680,6 +680,8 @@ S = {
 "voice_testing": "Generating test audio…",
 "voice_threads": "CPU threads",
 "voice_input_disabled": "Voice input is turned off in Permissions & privacy",
+"settings_tap_cursor": "Show where the agent taps",
+"settings_tap_cursor_desc": "A cursor moves to each tap or swipe before it happens",
 }
 
 P = {

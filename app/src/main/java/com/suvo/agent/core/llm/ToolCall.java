@@ -3,17 +3,61 @@ package com.suvo.agent.core.llm;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-/** A tool call requested by the model. Arguments are kept as the raw JSON string the model produced. */
+/**
+ * A tool call requested by the model. Arguments are kept as the raw JSON string the model produced.
+ *
+ * {@link #extra} keeps any provider-specific fields that came with the call (for example Gemini's
+ * {@code extra_content.google.thought_signature}). They are stored and sent back unchanged, because
+ * some providers reject the next request when they are missing.
+ */
 public final class ToolCall {
+
+    /** Keys of a wire tool call that this class models itself; everything else goes into {@link #extra}. */
+    static final java.util.Set<String> KNOWN_KEYS = new java.util.HashSet<>(java.util.Arrays.asList("id", "type", "function", "index"));
 
     public final String id;
     public final String name;
     public final String argumentsJson;
+    /** Provider-specific fields of the call, never null. */
+    public final JSONObject extra;
 
     public ToolCall(String id, String name, String argumentsJson) {
+        this(id, name, argumentsJson, null);
+    }
+
+    public ToolCall(String id, String name, String argumentsJson, JSONObject extra) {
         this.id = id == null ? "" : id;
         this.name = name == null ? "" : name;
         this.argumentsJson = argumentsJson == null ? "" : argumentsJson;
+        this.extra = extra == null ? new JSONObject() : extra;
+    }
+
+    /** Gemini's thought signature for this call, or "" when the provider sent none. */
+    public String thoughtSignature() {
+        JSONObject ec = extra.optJSONObject("extra_content");
+        JSONObject google = ec != null ? ec.optJSONObject("google") : null;
+        return google != null ? google.optString("thought_signature", "") : "";
+    }
+
+    /** Copy of this call with Gemini's thought signature set (used for history from other providers). */
+    public ToolCall withThoughtSignature(String signature) {
+        try {
+            JSONObject copy = new JSONObject(extra.toString());
+            JSONObject ec = copy.optJSONObject("extra_content");
+            if (ec == null) {
+                ec = new JSONObject();
+                copy.put("extra_content", ec);
+            }
+            JSONObject google = ec.optJSONObject("google");
+            if (google == null) {
+                google = new JSONObject();
+                ec.put("google", google);
+            }
+            google.put("thought_signature", signature);
+            return new ToolCall(id, name, argumentsJson, copy);
+        } catch (JSONException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
@@ -41,6 +85,11 @@ public final class ToolCall {
         try {
             fn.put("name", name);
             fn.put("arguments", argumentsJson.isEmpty() ? "{}" : argumentsJson);
+            java.util.Iterator<String> keys = extra.keys();
+            while (keys.hasNext()) {
+                String k = keys.next();
+                if (!KNOWN_KEYS.contains(k)) o.put(k, extra.get(k));
+            }
             o.put("id", id);
             o.put("type", "function");
             o.put("function", fn);
@@ -60,7 +109,18 @@ public final class ToolCall {
         } else {
             args = "";
         }
-        return new ToolCall(o.optString("id", ""), name, args);
+        JSONObject extra = new JSONObject();
+        java.util.Iterator<String> keys = o.keys();
+        while (keys.hasNext()) {
+            String k = keys.next();
+            if (!KNOWN_KEYS.contains(k)) {
+                try {
+                    extra.put(k, o.get(k));
+                } catch (JSONException ignored) {
+                }
+            }
+        }
+        return new ToolCall(o.optString("id", ""), name, args, extra);
     }
 
     /** Stable signature used for loop detection. */

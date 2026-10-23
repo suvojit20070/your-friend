@@ -113,6 +113,9 @@ public final class ScreenActions {
         if (node == null) return Outcome.fail("Element not found on the current screen. Read the screen again to get fresh ids.");
         if (!node.isEnabled()) return Outcome.fail("The element is disabled: " + describe(node));
         AccessibilityNodeInfo target = longPress ? (node.isLongClickable() ? node : null) : clickableAncestor(node);
+        Rect shown = new Rect();
+        node.getBoundsInScreen(shown);
+        if (!shown.isEmpty()) com.suvo.agent.device.TapIndicator.tap(shown.centerX(), shown.centerY(), longPress);
         if (target != null) {
             boolean done = target.performAction(longPress ? AccessibilityNodeInfo.ACTION_LONG_CLICK : AccessibilityNodeInfo.ACTION_CLICK);
             if (done) return Outcome.ok((longPress ? "Long-pressed " : "Tapped ") + describe(node));
@@ -120,11 +123,19 @@ public final class ScreenActions {
         Rect r = new Rect();
         node.getBoundsInScreen(r);
         if (r.isEmpty()) return Outcome.fail("The element has no on-screen bounds: " + describe(node));
-        Outcome g = gestureTap(r.centerX(), r.centerY(), longPress ? 700 : 60);
+        Outcome g = dispatchTap(r.centerX(), r.centerY(), longPress ? 700 : 60);
         return g.ok ? Outcome.ok((longPress ? "Long-pressed " : "Tapped ") + describe(node) + " via gesture") : g;
     }
 
     public Outcome gestureTap(int x, int y, long durationMs) {
+        String bad = checkPoint(x, y);
+        if (bad != null) return Outcome.fail(bad);
+        com.suvo.agent.device.TapIndicator.tap(x, y, durationMs >= 500);
+        return dispatchTap(x, y, durationMs);
+    }
+
+    /** The tap itself, without showing the cursor (callers show it first). */
+    private Outcome dispatchTap(int x, int y, long durationMs) {
         String bad = checkPoint(x, y);
         if (bad != null) return Outcome.fail(bad);
         Path p = new Path();
@@ -139,6 +150,7 @@ public final class ScreenActions {
         String bad = checkPoint(x1, y1);
         if (bad == null) bad = checkPoint(x2, y2);
         if (bad != null) return Outcome.fail(bad);
+        com.suvo.agent.device.TapIndicator.swipe(x1, y1, x2, y2);
         Path p = new Path();
         p.moveTo(x1, y1);
         p.lineTo(x2, y2);

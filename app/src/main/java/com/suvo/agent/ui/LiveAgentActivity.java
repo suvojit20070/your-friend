@@ -110,6 +110,11 @@ public final class LiveAgentActivity extends BaseActivity {
                 TextView d = v.findViewById(R.id.msg_detail);
                 d.setVisibility(l.detail.isEmpty() ? View.GONE : View.VISIBLE);
                 d.setText(l.detail);
+                d.setTextIsSelectable(!l.detail.isEmpty());
+                // Full width: a wrap_content bubble would squeeze the detail box to one word per line.
+                ViewGroup.LayoutParams blp = bubble.getLayoutParams();
+                blp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                bubble.setLayoutParams(blp);
                 ((TextView) v.findViewById(R.id.msg_time)).setText(DateFormat.getTimeFormat(LiveAgentActivity.this).format(new Date(l.time)));
                 return v;
             }

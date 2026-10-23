@@ -37,6 +37,30 @@ Your Friend — Original project by Suvo.
 - [ ] audio.cpp Android cross-compile workflow and on-device OmniVoice speed and memory
 - [ ] omnivoice-server against a real server
 
+## Phase 1 (this update)
+
+- [x] Gemini: tool calls keep `extra_content.google.thought_signature` (streamed, stored, sent back);
+      old history gets Google's documented placeholder. Unit-tested.
+- [x] Floating companion appears when you leave the app and hides inside it (Settings toggle, on by default)
+- [x] Tap cursor: a pointer glides to every tap/swipe before it happens (accessibility overlay, no extra permission)
+- [x] Chat: Markdown (headings, bold/italic, code blocks, lists, quotes, links, tables) and selectable text
+- [x] Live log: detail boxes use the full width (no more one-word-per-line)
+- [x] Hands-free: own microphone listener that never takes audio focus, so music keeps playing
+- [x] Termux: exact reason when it cannot connect (old Play Store build, permission, allow-external-apps)
+- [x] Shizuku `device_admin` tool: silent APK install, uninstall, permissions, appops, settings, Wi-Fi/BT/data,
+      brightness, volume, force-stop, notifications, dumpsys
+- [x] Screen reading: long text cut (inputs 60, text 120 chars) with `get_text`; last 5 screens + actions as history
+- [x] A broken tool can no longer crash the app at start
+
+## Planned
+
+- Phase 2: new UI in the style of the reference screenshots, Hugging Face Space voice engine (Tanu voice)
+  with System TTS fallback, thinking on/off
+- Phase 3: multi-agent (user-created child agents, each with its own provider; boss agent delegates or
+  works alone; live task tree in the app), persistent task tree, mood memory, self-active check-ins,
+  browser use, skill discovery from the web
+- Phase 4: optional 3D VRM character (2D stays the default; 3D applied from Settings)
+
 ## Next steps
 
 1. Push to GitHub and run the **Android CI** workflow. Fix anything AAPT2/lint reports.

@@ -31,7 +31,9 @@
             style="@style/YF.Body"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textIsSelectable="false" />
+            android:textIsSelectable="false"
+            android:breakStrategy="simple"
+            android:hyphenationFrequency="none" />
 
         <TextView
             android:id="@+id/msg_detail"

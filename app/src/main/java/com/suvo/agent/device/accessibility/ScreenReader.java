@@ -16,8 +16,15 @@ import java.util.Map;
 /**
  * Turns the accessibility tree of the active window into a compact element list with short ids
  * ("e12"). The ids stay valid until the next snapshot, so the model can say "tap e12".
+ *
+ * To save tokens, long texts are cut: input fields to {@link #INPUT_CLIP} characters and other text
+ * to {@link #TEXT_CLIP}. A cut element carries "len" (full length) and "cut": true, and its full text
+ * can be fetched with {@link #fullText}.
  */
 public final class ScreenReader {
+
+    public static final int INPUT_CLIP = 60;
+    public static final int TEXT_CLIP = 120;
 
     public static final class Snapshot {
         public final JSONObject json;
@@ -88,7 +95,17 @@ public final class ScreenReader {
             JSONObject e = new JSONObject();
             e.put("id", id);
             if (text != null && text.length() > 0) {
-                e.put("text", node.isPassword() ? "••••" : clip(text.toString(), 200));
+                if (node.isPassword()) {
+                    e.put("text", "••••");
+                } else {
+                    int limit = node.isEditable() ? INPUT_CLIP : TEXT_CLIP;
+                    String t = text.toString();
+                    e.put("text", clip(t, limit));
+                    if (t.length() > limit) {
+                        e.put("len", t.length());
+                        e.put("cut", true);
+                    }
+                }
             }
             if (desc != null && desc.length() > 0) e.put("desc", clip(desc.toString(), 160));
             if (hint != null && hint.length() > 0) e.put("hint", clip(hint.toString(), 80));
@@ -118,7 +135,38 @@ public final class ScreenReader {
         if (skipped > 0) o.put("omitted_elements", skipped);
         Snapshot s = new Snapshot(o, map);
         last = s;
+        ScreenHistory.recordScreen(o);
+        JSONArray prev = ScreenHistory.previous();
+        if (prev.length() > 0) o.put("previous_screens", prev);
         return s;
+    }
+
+    /**
+     * Full text of an element from the last snapshot, paged by offset/limit. Password fields are
+     * never returned.
+     */
+    public static JSONObject fullText(String elementId, int offset, int limit) throws JSONException {
+        Snapshot s = last;
+        AccessibilityNodeInfo node = s == null ? null : s.nodes.get(elementId);
+        if (node == null) return null;
+        node.refresh();
+        JSONObject o = new JSONObject();
+        o.put("element", elementId);
+        if (node.isPassword()) {
+            o.put("text", "");
+            o.put("note", "Password fields are never read");
+            return o;
+        }
+        CharSequence t = node.getText();
+        if (t == null || t.length() == 0) t = node.getContentDescription();
+        String all = t == null ? "" : t.toString();
+        int from = Math.max(0, Math.min(offset, all.length()));
+        int to = Math.min(all.length(), from + Math.max(1, limit));
+        o.put("text", all.substring(from, to));
+        o.put("offset", from);
+        o.put("length", all.length());
+        if (to < all.length()) o.put("next_offset", to);
+        return o;
     }
 
     private static String clip(String s, int n) {

@@ -457,7 +457,7 @@ S = {
 "settings_export_config": "Settings export karo",
 "settings_export_config_desc": "API keys ya secrets ke bina",
 "settings_floating": "Floating companion",
-"settings_floating_desc": "Character ko dusre apps ke upar dikhao",
+"settings_floating_desc": "App se bahar jaane par character screen par float karega. \"Display over other apps\" permission chahiye.",
 "settings_import_config": "Settings import karo",
 "settings_imported": "Settings import ho gayi",
 "settings_language": "App language",
@@ -680,6 +680,8 @@ S = {
 "voice_testing": "Test audio ban raha hai…",
 "voice_threads": "CPU threads",
 "voice_input_disabled": "Voice input Permissions & privacy mein band hai",
+"settings_tap_cursor": "Agent kahan tap karta hai, dikhao",
+"settings_tap_cursor_desc": "Har tap ya swipe se pehle cursor us jagah jaata hai",
 }
 
 P = {

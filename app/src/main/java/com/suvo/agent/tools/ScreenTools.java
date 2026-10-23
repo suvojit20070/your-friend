@@ -15,6 +15,7 @@ import com.suvo.agent.core.tools.RiskLevel;
 import com.suvo.agent.core.tools.ToolInvocation;
 import com.suvo.agent.core.tools.ToolResult;
 import com.suvo.agent.core.tools.ToolSpec;
+import com.suvo.agent.core.util.TextUtil;
 import com.suvo.agent.data.Settings;
 import com.suvo.agent.device.CameraCapture;
 import com.suvo.agent.device.ImageUtil;
@@ -59,9 +60,12 @@ public final class ScreenTools {
                             + "find locates an element by text. tap/long_press accept element, text or x/y. type sets text in a field "
                             + "(element or the focused field; password fields are refused). scroll takes direction. swipe takes x,y,x2,y2. "
                             + "back/home/recents/notifications/quick_settings are navigation. wait_for waits until text appears. "
-                            + "After an action the screen is re-read unless read_after=false.")
+                            + "After an action the screen is re-read unless read_after=false. "
+                            + "Long texts are cut to save tokens (input fields 60 chars, other text 120) and marked cut=true with their "
+                            + "full len; use get_text with the element (and offset for very long text) only when you need the whole text. "
+                            + "Each read also lists previous_screens: the last few screens and what you did on them.")
                     .schema("{\"type\":\"object\",\"properties\":{"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"read\",\"find\",\"tap\",\"long_press\",\"type\",\"scroll\",\"swipe\",\"back\",\"home\",\"recents\",\"notifications\",\"quick_settings\",\"wait_for\"]},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"read\",\"get_text\",\"find\",\"tap\",\"long_press\",\"type\",\"scroll\",\"swipe\",\"back\",\"home\",\"recents\",\"notifications\",\"quick_settings\",\"wait_for\"]},"
                             + "\"element\":{\"type\":\"string\",\"description\":\"Element id from the last read, e.g. e12\"},"
                             + "\"text\":{\"type\":\"string\",\"description\":\"Visible text to target (tap/find/wait_for) or text to type\"},"
                             + "\"x\":{\"type\":\"integer\",\"minimum\":0},\"y\":{\"type\":\"integer\",\"minimum\":0},"
@@ -71,7 +75,9 @@ public final class ScreenTools {
                             + "\"append\":{\"type\":\"boolean\",\"default\":false},"
                             + "\"timeout_ms\":{\"type\":\"integer\",\"minimum\":500,\"maximum\":30000,\"default\":8000},"
                             + "\"max_elements\":{\"type\":\"integer\",\"minimum\":10,\"maximum\":400,\"default\":150},"
-                            + "\"read_after\":{\"type\":\"boolean\",\"default\":true}"
+                            + "\"read_after\":{\"type\":\"boolean\",\"default\":true},"
+                            + "\"offset\":{\"type\":\"integer\",\"minimum\":0,\"default\":0},"
+                            + "\"limit\":{\"type\":\"integer\",\"minimum\":50,\"maximum\":20000,\"default\":4000}"
                             + "},\"required\":[\"action\"],\"additionalProperties\":false}")
                     .requires(Capability.ACCESSIBILITY).risk(RiskLevel.MEDIUM).backend("accessibility").timeoutMs(45_000).build());
         }
@@ -79,7 +85,7 @@ public final class ScreenTools {
         @Override
         public RiskLevel riskFor(JSONObject args) {
             String a = args.optString("action");
-            return a.equals("read") || a.equals("find") || a.equals("wait_for") ? RiskLevel.READ_ONLY : RiskLevel.MEDIUM;
+            return a.equals("read") || a.equals("find") || a.equals("wait_for") || a.equals("get_text") ? RiskLevel.READ_ONLY : RiskLevel.MEDIUM;
         }
 
         @Override
@@ -87,6 +93,31 @@ public final class ScreenTools {
             String a = args.optString("action");
             String target = args.optString("element", args.optString("text", args.has("x") ? "(" + args.optInt("x") + "," + args.optInt("y") + ")" : ""));
             return "Screen: " + a + " " + target;
+        }
+
+        /** Short label for the screen history, e.g. tap e12 "Send". */
+        private static String historyLabel(String action, ToolInvocation inv) {
+            StringBuilder sb = new StringBuilder(action);
+            String el = inv.str("element");
+            if (!el.isEmpty()) {
+                sb.append(' ').append(el);
+                ScreenReader.Snapshot s = ScreenReader.last();
+                AccessibilityNodeInfo n = s == null ? null : s.nodes.get(el);
+                if (n != null) {
+                    CharSequence t = n.getText() != null && n.getText().length() > 0 ? n.getText() : n.getContentDescription();
+                    if (t != null && t.length() > 0 && !n.isPassword()) {
+                        String l = t.toString();
+                        sb.append(" \"").append(l.length() > 25 ? l.substring(0, 25) + "…" : l).append('"');
+                    }
+                }
+            } else if (!inv.str("text").isEmpty() && !action.equals("type")) {
+                sb.append(" \"").append(TextUtil.truncate(inv.str("text"), 25)).append('"');
+            } else if (inv.args.has("x")) {
+                sb.append(" (").append(inv.num("x", 0)).append(',').append(inv.num("y", 0)).append(')');
+            }
+            if (action.equals("type")) sb.append(" typed ").append(inv.str("text").length()).append(" chars");
+            if (action.equals("scroll")) sb.append(' ').append(inv.str("direction", "down"));
+            return sb.toString();
         }
 
         @Override
@@ -102,6 +133,12 @@ public final class ScreenTools {
                 case "read": {
                     ScreenReader.Snapshot s = ScreenReader.read(svc, dm, max, false);
                     return ToolResult.ok(s.json.getJSONArray("elements").length() + " elements on screen", s.json);
+                }
+                case "get_text": {
+                    if (inv.str("element").isEmpty()) return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, "get_text needs an element id from the last read");
+                    JSONObject t = ScreenReader.fullText(inv.str("element"), (int) inv.num("offset", 0), (int) inv.num("limit", 4000));
+                    if (t == null) return ToolResult.fail("Element " + inv.str("element") + " not found; read the screen again");
+                    return ToolResult.ok("Text of " + inv.str("element") + " (" + t.optInt("length") + " chars)", t);
                 }
                 case "find": {
                     AccessibilityNodeInfo n = act.find(null, inv.str("text"));
@@ -153,6 +190,7 @@ public final class ScreenTools {
                 default:
                     return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, "Unknown action " + action);
             }
+            if (out.ok) com.suvo.agent.device.accessibility.ScreenHistory.recordAction(historyLabel(action, inv));
             JSONObject data = new JSONObject();
             if (out.ok && inv.bool("read_after", true)) {
                 Thread.sleep(700);
@@ -198,6 +236,7 @@ public final class ScreenTools {
                     int x = (int) inv.num("x", -1), y = (int) inv.num("y", -1);
                     String bad = bounds(x, y, dm);
                     if (bad != null) return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, bad);
+                    com.suvo.agent.device.TapIndicator.tap(x, y, a.equals("long_press"));
                     cmd = a.equals("tap") ? "input tap " + x + " " + y
                             : "input swipe " + x + " " + y + " " + x + " " + y + " " + inv.num("duration_ms", 700);
                     break;
@@ -207,6 +246,7 @@ public final class ScreenTools {
                     String bad = bounds(x, y, dm);
                     if (bad == null) bad = bounds(x2, y2, dm);
                     if (bad != null) return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, bad);
+                    com.suvo.agent.device.TapIndicator.swipe(x, y, x2, y2);
                     cmd = "input swipe " + x + " " + y + " " + x2 + " " + y2 + " " + inv.num("duration_ms", 300);
                     break;
                 }
@@ -268,6 +308,7 @@ public final class ScreenTools {
             Bitmap bmp = null;
             String used = null;
             StringBuilder errors = new StringBuilder();
+            com.suvo.agent.device.TapIndicator.hideForCapture();
             if ((backend.equals("auto") || backend.equals("accessibility")) && AgentAccessibilityService.isConnected() && AgentAccessibilityService.canCaptureScreen()) {
                 try {
                     bmp = AgentAccessibilityService.get().captureScreen(8000);

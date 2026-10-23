@@ -458,7 +458,7 @@
     <string name="settings_export_config">設定をエクスポート</string>
     <string name="settings_export_config_desc">API キーやシークレットは含みません</string>
     <string name="settings_floating">フローティングコンパニオン</string>
-    <string name="settings_floating_desc">他のアプリの上にキャラクターを表示</string>
+    <string name="settings_floating_desc">アプリを離れるとキャラクターが画面上に浮かびます。「他のアプリの上に重ねて表示」の許可が必要です。</string>
     <string name="settings_import_config">設定をインポート</string>
     <string name="settings_imported">設定をインポートしました</string>
     <string name="settings_language">アプリの言語</string>
@@ -486,6 +486,8 @@
     <string name="settings_searxng_url">SearXNG URL</string>
     <string name="settings_summaries">長い会話を要約</string>
     <string name="settings_summaries_desc">長いチャットをモデルのコンテキスト内に収めます</string>
+    <string name="settings_tap_cursor">エージェントのタップ位置を表示</string>
+    <string name="settings_tap_cursor_desc">タップやスワイプの前にカーソルがその位置へ移動します</string>
     <string name="settings_theme">テーマ</string>
     <string name="settings_tone">口調</string>
     <string name="settings_tone_default">キャラクターの既定</string>

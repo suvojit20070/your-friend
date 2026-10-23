@@ -72,11 +72,49 @@ public final class TermuxBackend implements ShellBackend {
         return ctx.checkSelfPermission(PERMISSION) == PackageManager.PERMISSION_GRANTED;
     }
 
+    /** Termux's versionCode; the Play Store build (0.101) is too old for RUN_COMMAND results. */
+    public long versionCode() {
+        try {
+            android.content.pm.PackageInfo pi = ctx.getPackageManager().getPackageInfo(PACKAGE, 0);
+            return Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
+        } catch (PackageManager.NameNotFoundException e) {
+            return -1;
+        }
+    }
+
+    /** True when the installed Termux declares the RUN_COMMAND permission at all. */
+    public boolean permissionDefined() {
+        try {
+            ctx.getPackageManager().getPermissionInfo(PERMISSION, 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
     @Override
     public String unavailableReason() {
-        if (!isInstalled()) return "Termux is not installed (install it from F-Droid or GitHub)";
-        if (!hasPermission()) return "The Termux RUN_COMMAND permission has not been granted to Your Friend";
+        if (!isInstalled()) return "Termux is not installed (install it from F-Droid or GitHub, not the Play Store)";
+        long vc = versionCode();
+        if (vc >= 0 && vc < 108) {
+            return "This Termux is too old (Play Store build). Uninstall it and install Termux from F-Droid or GitHub";
+        }
+        if (!permissionDefined()) {
+            return "Termux does not offer the RUN_COMMAND permission. Install Termux from F-Droid or GitHub, then reinstall Your Friend";
+        }
+        if (!hasPermission()) {
+            return "Your Friend is not allowed to run commands in Termux yet. Grant it in Your Friend > Permissions > Termux "
+                    + "(or App info > Permissions > Additional permissions). If no option appears, reinstall Your Friend after Termux";
+        }
         return null;
+    }
+
+    /** Explains the usual reasons Termux never answered. */
+    static String noAnswerHelp() {
+        return "Termux did not answer. Check: 1) open Termux once so it finishes setting up; "
+                + "2) in Termux run: mkdir -p ~/.termux && echo \"allow-external-apps = true\" >> ~/.termux/termux.properties && termux-reload-settings ; "
+                + "3) allow Termux to run in the background (Battery > Unrestricted); "
+                + "4) Termux shows a notification with the exact error if it refused the command.";
     }
 
     @Override
@@ -130,7 +168,7 @@ public final class TermuxBackend implements ShellBackend {
             }
             if (!got) {
                 // The command keeps running inside Termux; we can only stop waiting for it.
-                return new ExecResult(id(), -1, "", cancel.isCancelled() ? "" : "No result from Termux within the timeout",
+                return new ExecResult(id(), -1, "", cancel.isCancelled() ? "" : "No result from Termux within the timeout. " + noAnswerHelp(),
                         !cancel.isCancelled(), cancel.isCancelled(), System.currentTimeMillis() - t0, "");
             }
             Bundle b = pending.result;

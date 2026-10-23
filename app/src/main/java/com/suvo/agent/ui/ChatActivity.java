@@ -560,6 +560,8 @@ public final class ChatActivity extends BaseActivity {
         if (requestCode == REQ_MIC && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) toggleMic();
     }
 
+    private Markdown.Style mdStyle;
+
     private final class Adapter extends BaseAdapter {
         @Override
         public int getCount() {
@@ -640,7 +642,24 @@ public final class ChatActivity extends BaseActivity {
                     bubble.setBackgroundTintList(null);
                     break;
             }
-            text.setText(it.type == STREAM ? it.text + " ▍" : it.text);
+            boolean prose = it.type == ASSISTANT || it.type == STREAM;
+            if (prose) {
+                if (mdStyle == null) mdStyle = Markdown.styleFor(ChatActivity.this);
+                CharSequence md = Markdown.render(it.text, mdStyle);
+                text.setText(it.type == STREAM ? new android.text.SpannableStringBuilder(md).append(" ▍") : md);
+            } else {
+                text.setText(it.text);
+            }
+            // Message text can be selected and copied; links in answers open on tap.
+            boolean selectable = prose || it.type == USER || it.type == NOTICE;
+            text.setTextIsSelectable(selectable && it.type != STREAM);
+            if (prose && it.type != STREAM) {
+                text.setLinkTextColor(Ui.accent(ChatActivity.this));
+                text.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+            }
+            detail.setTextIsSelectable(detail.getVisibility() == View.VISIBLE);
+            // An expanded tool detail would otherwise shrink to the title's width (one word per line).
+            lp.width = detail.getVisibility() == View.VISIBLE ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
             bubble.setAlpha(it.dim ? 0.55f : 1f);
             bubble.setLayoutParams(lp);
             time.setText(it.time == 0 ? "" : DateFormat.getTimeFormat(ChatActivity.this).format(new Date(it.time))

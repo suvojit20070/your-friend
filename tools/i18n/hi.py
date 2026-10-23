@@ -457,7 +457,7 @@ S = {
 "settings_export_config": "सेटिंग्स निर्यात करें",
 "settings_export_config_desc": "API कुंजी या सीक्रेट के बिना",
 "settings_floating": "फ़्लोटिंग साथी",
-"settings_floating_desc": "कैरेक्टर को अन्य ऐप्स के ऊपर दिखाएँ",
+"settings_floating_desc": "ऐप से बाहर जाने पर कैरेक्टर स्क्रीन पर तैरेगा। \"दूसरे ऐप्स के ऊपर दिखाएँ\" अनुमति चाहिए।",
 "settings_import_config": "सेटिंग्स आयात करें",
 "settings_imported": "सेटिंग्स आयात हुईं",
 "settings_language": "ऐप की भाषा",
@@ -680,6 +680,8 @@ S = {
 "voice_testing": "टेस्ट ऑडियो बन रहा है…",
 "voice_threads": "CPU थ्रेड",
 "voice_input_disabled": "वॉइस इनपुट Permissions & privacy में बंद है",
+"settings_tap_cursor": "एजेंट कहाँ टैप करता है, दिखाएँ",
+"settings_tap_cursor_desc": "हर टैप या स्वाइप से पहले कर्सर उस जगह जाता है",
 }
 
 P = {

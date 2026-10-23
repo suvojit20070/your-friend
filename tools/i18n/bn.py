@@ -457,7 +457,7 @@ S = {
 "settings_export_config": "সেটিংস এক্সপোর্ট",
 "settings_export_config_desc": "API কী বা সিক্রেট ছাড়া",
 "settings_floating": "ফ্লোটিং সঙ্গী",
-"settings_floating_desc": "অন্য অ্যাপের উপরে ক্যারেক্টার দেখান",
+"settings_floating_desc": "অ্যাপ থেকে বেরোলে ক্যারেক্টার স্ক্রিনে ভাসবে। \"অন্য অ্যাপের উপরে দেখান\" অনুমতি লাগবে।",
 "settings_import_config": "সেটিংস ইমপোর্ট",
 "settings_imported": "সেটিংস ইমপোর্ট হয়েছে",
 "settings_language": "অ্যাপের ভাষা",
@@ -680,6 +680,8 @@ S = {
 "voice_testing": "টেস্ট অডিও তৈরি হচ্ছে…",
 "voice_threads": "CPU থ্রেড",
 "voice_input_disabled": "ভয়েস ইনপুট Permissions & privacy-তে বন্ধ",
+"settings_tap_cursor": "এজেন্ট কোথায় ট্যাপ করছে দেখান",
+"settings_tap_cursor_desc": "প্রতিটি ট্যাপ বা সোয়াইপের আগে কার্সর সেই জায়গায় যায়",
 }
 
 P = {

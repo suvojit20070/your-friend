@@ -9,7 +9,6 @@ import android.os.Process;
 import android.util.Log;
 
 import com.suvo.agent.character.FloatingCompanionService;
-import com.suvo.agent.data.Settings;
 import com.suvo.agent.ui.LocaleHelper;
 import com.suvo.agent.ui.Notifications;
 
@@ -99,11 +98,13 @@ public final class App extends Application {
             @Override
             public void onActivityStarted(Activity activity) {
                 startedActivities++;
+                if (startedActivities == 1) FloatingCompanionService.onAppVisibilityChanged(App.this, true);
             }
 
             @Override
             public void onActivityStopped(Activity activity) {
                 startedActivities = Math.max(0, startedActivities - 1);
+                if (startedActivities == 0) FloatingCompanionService.onAppVisibilityChanged(App.this, false);
             }
 
             @Override
@@ -126,12 +127,5 @@ public final class App extends Application {
             public void onActivityDestroyed(Activity activity) {
             }
         });
-        if (g.settings.bool(Settings.FLOATING_COMPANION, false) && FloatingCompanionService.canRun(this)) {
-            // Restarted only while the app itself is starting (allowed foreground-service start).
-            try {
-                FloatingCompanionService.start(this);
-            } catch (RuntimeException ignored) {
-            }
-        }
     }
 }

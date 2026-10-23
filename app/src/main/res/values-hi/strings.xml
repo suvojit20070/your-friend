@@ -458,7 +458,7 @@
     <string name="settings_export_config">सेटिंग्स निर्यात करें</string>
     <string name="settings_export_config_desc">API कुंजी या सीक्रेट के बिना</string>
     <string name="settings_floating">फ़्लोटिंग साथी</string>
-    <string name="settings_floating_desc">कैरेक्टर को अन्य ऐप्स के ऊपर दिखाएँ</string>
+    <string name="settings_floating_desc">ऐप से बाहर जाने पर कैरेक्टर स्क्रीन पर तैरेगा। \"दूसरे ऐप्स के ऊपर दिखाएँ\" अनुमति चाहिए।</string>
     <string name="settings_import_config">सेटिंग्स आयात करें</string>
     <string name="settings_imported">सेटिंग्स आयात हुईं</string>
     <string name="settings_language">ऐप की भाषा</string>
@@ -486,6 +486,8 @@
     <string name="settings_searxng_url">SearXNG URL</string>
     <string name="settings_summaries">लंबी बातचीत का सारांश</string>
     <string name="settings_summaries_desc">लंबी चैट को मॉडल के कॉन्टेक्स्ट में रखें</string>
+    <string name="settings_tap_cursor">एजेंट कहाँ टैप करता है, दिखाएँ</string>
+    <string name="settings_tap_cursor_desc">हर टैप या स्वाइप से पहले कर्सर उस जगह जाता है</string>
     <string name="settings_theme">थीम</string>
     <string name="settings_tone">लहजा</string>
     <string name="settings_tone_default">कैरेक्टर डिफ़ॉल्ट</string>

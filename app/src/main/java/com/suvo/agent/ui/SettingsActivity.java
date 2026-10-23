@@ -98,19 +98,21 @@ public final class SettingsActivity extends BaseActivity {
             g.settings.put(Settings.CHARACTER_POS_Y, 0f);
             Ui.toast(this, R.string.done);
         });
-        r.switchRow(R.drawable.ic_character, R.string.settings_floating, R.string.settings_floating_desc, Settings.FLOATING_COMPANION, false, on -> {
+        r.switchRow(R.drawable.ic_character, R.string.settings_floating, R.string.settings_floating_desc, Settings.FLOATING_COMPANION, true, on -> {
             if (on) {
                 if (g.capabilities.state(Capability.OVERLAY) != CapabilityState.AVAILABLE) {
                     g.settings.put(Settings.FLOATING_COMPANION, false);
                     PermissionFlows.fix(this, Capability.OVERLAY);
                     build();
                 } else {
-                    FloatingCompanionService.start(this);
+                    FloatingCompanionService.onAppVisibilityChanged(this, true);
                 }
             } else {
                 FloatingCompanionService.stop(this);
             }
         });
+        r.switchRow(R.drawable.ic_screen, R.string.settings_tap_cursor, R.string.settings_tap_cursor_desc,
+                com.suvo.agent.device.TapIndicator.SETTING, true, null);
 
         r.section(R.string.settings_web);
         r.choiceRow(R.drawable.ic_search, R.string.settings_search_provider, Settings.SEARCH_PROVIDER, "duckduckgo",
