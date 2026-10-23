@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Your Friend</string>
+    <string name="hint_input">Aura से बात करो…</string>
+    <string name="send">भेजें</string>
+    <string name="mic">बोलें</string>
+    <string name="accessibility_desc">Aura को स्क्रीन पढ़ने और टैप करने देता है ताकि वह स्क्रीन के कामों में मदद कर सके। आप इसे कभी भी बंद कर सकते हैं।</string>
+</resources>
