@@ -3,6 +3,7 @@
 # Android; this workflow may need adjustments when audio.cpp changes.
 # Run it manually from the Actions tab, then download the artifact and import the
 # .so in the app (Voice > OmniVoice engine library).
+# Built for API 28+ (Android 9+): audio.cpp uses posix_spawn, which Android added in API 28.
 name: Build audio.cpp for Android (experimental)
 
 on:
@@ -51,7 +52,7 @@ jobs:
           cmake -S audiocpp -B build -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=${{ inputs.abi }} \
-            -DANDROID_PLATFORM=android-26 \
+            -DANDROID_PLATFORM=android-28 \
             -DANDROID_STL=c++_shared \
             -DCMAKE_BUILD_TYPE=Release \
             -DAUDIOCPP_BUILD_C_API=ON \
@@ -63,7 +64,8 @@ jobs:
             -DENGINE_ENABLE_VULKAN=OFF -DENGINE_ENABLE_METAL=OFF
 
       - name: Build libaudiocpp.so
-        run: cmake --build build --target audiocpp -j 4
+        # -k 0: keep compiling after an error so one run shows every problem at once.
+        run: cmake --build build --target audiocpp -j 4 -- -k 0
 
       - name: Collect library and its companions
         run: |
