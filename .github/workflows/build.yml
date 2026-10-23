@@ -1,3 +1,4 @@
+cat > .github/workflows/build.yml <<'EOF'
 name: Android build
 
 on:
@@ -32,13 +33,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Install SDK platform, build tools, NDK and CMake
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$ANDROID_NDK" "$ANDROID_CMAKE"
+          # Use the SDK preinstalled on GitHub's Ubuntu runners (the setup-android action fails on
+          # the removed legacy "tools" package). Pick the newest cmdline-tools sdkmanager.
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          SDKM="$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          echo "Using $SDKM"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$ANDROID_NDK" "$ANDROID_CMAKE"
 
       - name: Set up Gradle (with caching)
         uses: gradle/actions/setup-gradle@v4
@@ -113,14 +116,16 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
-        if: steps.secrets.outputs.present == 'true'
-
       - name: Install SDK components
         if: steps.secrets.outputs.present == 'true'
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
+          # Use the SDK preinstalled on GitHub's Ubuntu runners (the setup-android action fails on
+          # the removed legacy "tools" package). Pick the newest cmdline-tools sdkmanager.
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          SDKM="$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
+          echo "Using $SDKM"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
       - uses: gradle/actions/setup-gradle@v4
         if: steps.secrets.outputs.present == 'true'
@@ -144,3 +149,7 @@ jobs:
         with:
           name: YourFriend-release-apk
           path: app/build/outputs/apk/release/*.apk
+EOF
+git add .github/workflows/build.yml
+git commit -m "CI: use preinstalled Android SDK instead of setup-android"
+git push
