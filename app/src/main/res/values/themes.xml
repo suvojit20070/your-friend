@@ -20,9 +20,9 @@
         <item name="android:textCursorDrawable">@null</item>
         <item name="android:colorBackground">@color/bg_top</item>
         <item name="android:windowLightNavigationBar">true</item>
-        <item name="android:textSelectHandle">@drawable/text-select-handle</item>
-        <item name="android:textSelectHandleLeft">@drawable/text-select-handle-left</item>
-        <item name="android:textSelectHandleRight">@drawable/text-select-handle-right</item>
+        <item name="android:textSelectHandle">@drawable/text_select_handle</item>
+        <item name="android:textSelectHandleLeft">@drawable/text_select_handle_left</item>
+        <item name="android:textSelectHandleRight">@drawable/text_select_handle_right</item>
     </style>
 
     <style
@@ -39,9 +39,9 @@
         <item name="android:windowTitleStyle">@style/YF.DialogTitle</item>
         <item name="android:buttonBarButtonStyle">@style/YF.DialogButton</item>
         <item name="android:backgroundDimAmount">0.55</item>
-        <item name="android:textSelectHandle">@drawable/text-select-handle</item>
-        <item name="android:textSelectHandleLeft">@drawable/text-select-handle-left</item>
-        <item name="android:textSelectHandleRight">@drawable/text-select-handle-right</item>
+        <item name="android:textSelectHandle">@drawable/text_select_handle</item>
+        <item name="android:textSelectHandleLeft">@drawable/text_select_handle_left</item>
+        <item name="android:textSelectHandleRight">@drawable/text_select_handle_right</item>
     </style>
 
     <style
@@ -50,8 +50,8 @@
         <item name="android:windowNoDisplay">false</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowAnimationStyle">@null</item>
-        <item name="android:textSelectHandle">@drawable/text-select-handle</item>
-        <item name="android:textSelectHandleLeft">@drawable/text-select-handle-left</item>
-        <item name="android:textSelectHandleRight">@drawable/text-select-handle-right</item>
+        <item name="android:textSelectHandle">@drawable/text_select_handle</item>
+        <item name="android:textSelectHandleLeft">@drawable/text_select_handle_left</item>
+        <item name="android:textSelectHandleRight">@drawable/text_select_handle_right</item>
     </style>
 </resources>
