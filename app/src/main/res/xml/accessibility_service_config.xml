@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<<<<<<< HEAD
 <!--
   Screen control for Your Friend. The service reads the window only when a tool asks for it
   (screen_operation_accessibility / screenshot) and never logs typed text or password fields.
@@ -16,13 +15,3 @@
     android:notificationTimeout="200"
     android:settingsActivity="com.suvo.agent.ui.ScreenControlActivity"
     android:summary="@string/accessibility_summary" />
-=======
-<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
-    android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds"
-    android:canPerformGestures="true"
-    android:canRetrieveWindowContent="true"
-    android:description="@string/accessibility_desc"
-    android:notificationTimeout="100" />
->>>>>>> 2fdbf158535950372900ccd3a8ad3b5b0f730b15

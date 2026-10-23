@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 Your Friend — Original project by Suvo.
 Copyright 2026 Suvo (https://github.com/suvojit20070)
 
@@ -21,22 +20,3 @@ These are optional and not bundled. You obtain them yourself:
   - omnivoice-server (https://github.com/maemreyo/omnivoice-server) — MIT License
   - OmniVoice model weights (https://github.com/k2-fsa/OmniVoice) — CC BY-NC 4.0
     (non-commercial use only)
-=======
-Aura — Personal AI Agent
-Created by Suvo (@suvojit20070). Credit required — see LICENSE.
-
-This product includes third-party open-source software:
-
-- OkHttp / Okio — Apache License 2.0 (Square, Inc.)
-- AndroidX libraries — Apache License 2.0 (The Android Open Source Project)
-- Material Components for Android — Apache License 2.0 (Google LLC)
-- Shizuku API — Apache License 2.0 (RikkaApps)
-- OmniVoice (k2-fsa) — Apache License 2.0 — used for voice synthesis
-
-Character models (Live2D / VRM) are NOT bundled. Users import their own or
-openly-licensed models; each such model keeps its own license and copyright.
-No third-party copyrighted characters are distributed with this app.
-
-The Live2D Cubism SDK, if integrated, is subject to Live2D Inc.'s own license
-terms, which the integrator must accept separately.
->>>>>>> 2fdbf158535950372900ccd3a8ad3b5b0f730b15

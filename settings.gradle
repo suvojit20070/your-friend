@@ -5,27 +5,14 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> 2fdbf158535950372900ccd3a8ad3b5b0f730b15
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
-<<<<<<< HEAD
     }
 }
 
 rootProject.name = "YourFriend"
 include ':app'
-=======
-        // Shizuku
-        maven { url = uri("https://jitpack.io") }
-    }
-}
-
-rootProject.name = "Aura"
-include(":app")
->>>>>>> 2fdbf158535950372900ccd3a8ad3b5b0f730b15

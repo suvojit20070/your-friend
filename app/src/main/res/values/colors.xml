@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-<<<<<<< HEAD
     <!-- Light theme -->
     <color name="bg_top">#FFF2F0FF</color>
     <color name="bg_bottom">#FFE6F3FA</color>
@@ -27,19 +26,4 @@
     <color name="nav_pill">#E6FFFFFF</color>
     <color name="code_bg">#FF1E1E2A</color>
     <color name="code_text">#FFE8E6F3</color>
-=======
-    <!-- Fallback accent (used when Material You dynamic color is off/unavailable) -->
-    <color name="accent">#B692FF</color>
-    <color name="accent2">#58E6D9</color>
-
-    <color name="bg">#0A0D18</color>
-    <color name="text">#EDEFFB</color>
-    <color name="text_dim">#9AA0C2</color>
-
-    <!-- glass -->
-    <color name="glass">#14FFFFFF</color>        <!-- ~8% white -->
-    <color name="glass_border">#24FFFFFF</color>  <!-- ~14% white -->
-    <color name="user_bubble">#2BB692FF</color>   <!-- accent tint -->
-    <color name="danger">#FF7A90</color>
->>>>>>> 2fdbf158535950372900ccd3a8ad3b5b0f730b15
 </resources>
