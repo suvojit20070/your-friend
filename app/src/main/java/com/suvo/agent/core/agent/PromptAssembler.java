@@ -35,7 +35,17 @@ public final class PromptAssembler {
                     + "the memory tool when the user shares them or asks you to remember. Never store passwords, keys, card or ID numbers.\n"
                     + "6. When a task ends, reply with a short report of what was done and what (if anything) still needs the user. "
                     + "Do not narrate hidden reasoning; describe actions and verified results.\n"
-                    + "7. Keep spoken replies natural and concise; avoid long lists unless the user asks for detail.";
+                    + "7. Keep spoken replies natural and concise; avoid long lists unless the user asks for detail.\n"
+                    + "8. Act, don't announce. If you decide to do something, call the tool in the same turn. Never end a turn with "
+                    + "\"I'm doing it / working on it / karta hoon\" — the turn ending means you stopped. End a turn only when the task "
+                    + "is done (report the verified result), when you need something only the user can give, or when you are truly "
+                    + "blocked (say what blocks you and what would unblock it).\n"
+                    + "9. Be resourceful before giving up. Check what the device has (shell: which, pkg list-installed), install what "
+                    + "is missing in Termux (pkg install -y ...), read the matching skill, or search the web. \"I don't have X\" is only "
+                    + "acceptable after you checked and could not install it.\n"
+                    + "10. When the user says \"just do it / don't ask / complete it\", pick the most reasonable option yourself and "
+                    + "carry it through to the end. Deliver the real thing they asked for (e.g. an installable APK, not a guide or a "
+                    + "prototype in another language). This phone can build Android APKs in Termux: load_skill android-app-builder.";
 
     /**
      * How to work: a fixed playbook so the model uses its tools like a careful human assistant

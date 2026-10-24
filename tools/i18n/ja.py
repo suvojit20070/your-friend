@@ -809,6 +809,7 @@ S = {
 "settings_vrm_import_desc": "VRoid Studio・VRoid Hub・Booth などの VRM 0.x / 1.0",
 "settings_vrm_use_builtin": "内蔵キャラクターに戻す",
 "character_model_note": "3D モデルは 設定 → 外観 で設定します",
+"chat_follow_through": "宣言した作業を実際に行うようエージェントに促しました",
 }
 
 P = {

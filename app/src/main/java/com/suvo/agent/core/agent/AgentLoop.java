@@ -69,6 +69,8 @@ public final class AgentLoop {
         Map<String, String> lastResultBySig = new HashMap<>();
         int loopStrikes = 0;
         int steps = 0;
+        int reminders = 0;
+        boolean refusalChecked = false;
         try {
             if (userMessage != null) host.persist(task, userMessage);
             while (true) {
@@ -96,6 +98,22 @@ public final class AgentLoop {
                 listener.onAssistantMessage(task, assistant);
 
                 if (!resp.hasToolCalls()) {
+                    // "I'm doing it now…" without a tool call would end the task with nothing done.
+                    if (reminders < config.followThroughReminders && host.toolDefinitions().length() > 0
+                            && FollowThrough.isEmptyPromise(resp.content)) {
+                        reminders++;
+                        host.persist(task, ChatMessage.user(FollowThrough.REMINDER));
+                        listener.onNotice(task, "Reminded the agent to actually do the step it announced");
+                        continue;
+                    }
+                    // "I can't do that" without having checked anything: make it try first (once).
+                    if (!refusalChecked && config.followThroughReminders > 0 && host.toolDefinitions().length() > 0
+                            && FollowThrough.isUncheckedRefusal(resp.content, task)) {
+                        refusalChecked = true;
+                        host.persist(task, ChatMessage.user(FollowThrough.CHECK_FIRST));
+                        listener.onNotice(task, "Asked the agent to check the device before refusing");
+                        continue;
+                    }
                     return end(task, TaskState.Status.COMPLETED, resp.content, "");
                 }
 

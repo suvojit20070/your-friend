@@ -12,4 +12,6 @@ public final class AgentConfig {
     public int toolResultMaxChars = 12_000;
     /** Execute multiple tool calls from one turn (sequentially, in order). */
     public boolean allowMultipleToolCalls = true;
+    /** Times per task the loop reminds the model to act when it only announced work (0 = off). */
+    public int followThroughReminders = 2;
 }

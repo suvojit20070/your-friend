@@ -809,6 +809,7 @@ S = {
 "settings_vrm_import_desc": "VRoid Studio, VRoid Hub, Booth… se VRM 0.x ya 1.0",
 "settings_vrm_use_builtin": "Built-in character par wapas",
 "character_model_note": "3D model Settings → Appearance mein set hota hai",
+"chat_follow_through": "Agent ko yaad dilaya ki jo bola wo sach mein kare",
 }
 
 P = {

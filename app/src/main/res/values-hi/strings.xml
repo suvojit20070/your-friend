@@ -179,6 +179,7 @@
     <string name="chat_error_tap_retry">फिर से कोशिश करने के लिए टैप करें</string>
     <string name="chat_file_attached">📎 फ़ाइल जोड़ी: %1$s</string>
     <string name="chat_folder_attached">📁 साझा फ़ोल्डर: %1$s</string>
+    <string name="chat_follow_through">एजेंट को याद दिलाया कि जो कहा वह सच में करे</string>
     <string name="chat_history">बातचीत</string>
     <string name="chat_images_attached">%1$s छवि संलग्न</string>
     <string name="chat_input_hint">संदेश</string>

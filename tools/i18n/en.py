@@ -809,6 +809,7 @@ S = {
 "settings_vrm_import_desc": "VRM 0.x or 1.0 from VRoid Studio, VRoid Hub, Booth…",
 "settings_vrm_use_builtin": "Back to the built-in character",
 "character_model_note": "The 3D model is set in Settings → Appearance",
+"chat_follow_through": "The agent was reminded to actually do the step it announced",
 }
 
 P = {

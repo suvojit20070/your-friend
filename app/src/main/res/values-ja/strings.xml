@@ -179,6 +179,7 @@
     <string name="chat_error_tap_retry">タップして再試行</string>
     <string name="chat_file_attached">📎 添付ファイル: %1$s</string>
     <string name="chat_folder_attached">📁 共有フォルダ: %1$s</string>
+    <string name="chat_follow_through">宣言した作業を実際に行うようエージェントに促しました</string>
     <string name="chat_history">会話</string>
     <string name="chat_images_attached">画像 %1$s 枚を添付</string>
     <string name="chat_input_hint">メッセージ</string>

@@ -502,8 +502,9 @@ public final class ChatActivity extends BaseActivity {
                 case USER: {
                     Item it = new Item();
                     boolean toolImage = m.contentOrEmpty().startsWith("[Image output from");
-                    it.type = toolImage ? NOTICE : USER;
-                    it.text = toolImage ? getString(R.string.chat_tool_image, m.images.size()) : m.contentOrEmpty()
+                    boolean appCheck = m.contentOrEmpty().startsWith(com.suvo.agent.core.agent.FollowThrough.MARKER);
+                    it.type = toolImage || appCheck ? NOTICE : USER;
+                    it.text = appCheck ? getString(R.string.chat_follow_through) : toolImage ? getString(R.string.chat_tool_image, m.images.size()) : m.contentOrEmpty()
                             + (m.images.isEmpty() ? "" : "\n" + getString(R.string.chat_images_attached, m.images.size()));
                     it.time = sm.createdAt;
                     it.dim = sm.compacted;

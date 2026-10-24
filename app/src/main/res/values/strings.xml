@@ -179,6 +179,7 @@
     <string name="chat_error_tap_retry">Tap to retry</string>
     <string name="chat_file_attached">📎 Attached file: %1$s</string>
     <string name="chat_folder_attached">📁 Shared folder: %1$s</string>
+    <string name="chat_follow_through">The agent was reminded to actually do the step it announced</string>
     <string name="chat_history">Conversations</string>
     <string name="chat_images_attached">%1$s image(s) attached</string>
     <string name="chat_input_hint">Message</string>

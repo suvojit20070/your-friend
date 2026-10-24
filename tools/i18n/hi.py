@@ -809,6 +809,7 @@ S = {
 "settings_vrm_import_desc": "VRoid Studio, VRoid Hub, Booth… से VRM 0.x या 1.0",
 "settings_vrm_use_builtin": "बिल्ट-इन कैरेक्टर पर वापस",
 "character_model_note": "3D मॉडल Settings → Appearance में सेट होता है",
+"chat_follow_through": "एजेंट को याद दिलाया कि जो कहा वह सच में करे",
 }
 
 P = {
