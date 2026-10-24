@@ -86,6 +86,7 @@ public final class App extends Application {
         Notifications.createChannels(this);
         // A native crash or freeze last time is shown now (the Java handler cannot catch those).
         DebugActivity.reportLastExit(this);
+        com.suvo.agent.voice.BeepMuter.recover(this);
         AppGraph g = AppGraph.init(this);
         g.io.execute(() -> {
             try {

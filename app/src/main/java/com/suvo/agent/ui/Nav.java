@@ -37,7 +37,6 @@ public final class Nav {
         // Liquid glass. Nothing scrolls behind the bar, so it is glass without a live blur
         // (a live blur of the screen that contains the bar itself would loop forever).
         nav.setBackground(new GlassDrawable(a, Ui.dp(a, 34)));
-        nav.setClipToOutline(true);
         nav.setElevation(0f); // a shadow would show through the glass
         nav.setPadding(Ui.dp(a, 8), Ui.dp(a, 8), Ui.dp(a, 8), Ui.dp(a, 8));
         int accent = Ui.accent(a);

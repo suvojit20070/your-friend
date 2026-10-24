@@ -49,7 +49,7 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
         } else {
             host.setBackground(new GlassDrawable(c, radiusPx, c.getColor(R.color.glass_fill_strong)));
         }
-        host.setClipToOutline(true);
+        // No outline clipping: buttons inside may pop out past the edge when pressed.
     }
 
     /** True if {@code v} is {@code host} or contains it. */

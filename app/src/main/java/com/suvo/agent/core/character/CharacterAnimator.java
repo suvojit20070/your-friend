@@ -88,6 +88,19 @@ public final class CharacterAnimator {
         lastMouthInputTime = time;
     }
 
+    private final float[] visIn = new float[5];
+    private float lastVisTime = -10f;
+
+    /** Mouth shapes a, i, u, e, o measured from the audio playing now. */
+    public void setVisemes(float a, float i, float u, float e, float o) {
+        visIn[0] = a;
+        visIn[1] = i;
+        visIn[2] = u;
+        visIn[3] = e;
+        visIn[4] = o;
+        lastVisTime = time;
+    }
+
     public void setListenLevel(float level) {
         target.listenLevel = clamp(level, 0f, 1f);
     }
@@ -321,6 +334,14 @@ public final class CharacterAnimator {
         p.mouthWide += (wideTarget - p.mouthWide) * km;
         p.mouthForm += (target.mouthForm - p.mouthForm) * k;
         if (p.mouthOpen < 0.003f) p.mouthOpen = 0f;
+        boolean visFresh = activity == Activity.SPEAKING && time - lastVisTime < 0.25f;
+        float kv = 1f - (float) Math.exp(-dt * 26.0);
+        p.visA += (visIn[0] - p.visA) * kv;
+        p.visI += (visIn[1] - p.visI) * kv;
+        p.visU += (visIn[2] - p.visU) * kv;
+        p.visE += (visIn[3] - p.visE) * kv;
+        p.visO += (visIn[4] - p.visO) * kv;
+        p.visActive += ((visFresh ? 1f : 0f) - p.visActive) * kv;
 
         // --- Hair springs driven by head/body velocity ---------------------------------------------------
         float vx = (p.angleX - prevAngleX) / dt;

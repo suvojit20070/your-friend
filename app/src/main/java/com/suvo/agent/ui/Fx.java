@@ -63,6 +63,13 @@ public final class Fx {
     private Fx() {
     }
 
+    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /** Runs {@code r} on the main thread after {@code ms} (safe after a dialog or sheet has closed). */
+    public static void later(Runnable r, long ms) {
+        MAIN.postDelayed(r, ms);
+    }
+
     // =============================================================================== springs
 
     /** A damped spring driving one float value, stepped on the display's frame clock. */
@@ -202,6 +209,7 @@ public final class Fx {
                 });
             }
             boolean small = small();
+            if (p && small) unclipParents(view);
             if (p) {
                 scale.animateTo(small ? 1.15f : 0.975f);
                 burst(small);
@@ -254,6 +262,25 @@ public final class Fx {
         @Override
         public int getOpacity() {
             return PixelFormat.TRANSLUCENT;
+        }
+    }
+
+    /**
+     * Lets a popping button grow past its parents' edges instead of being cut off: ancestors stop
+     * clipping their children (up to the screen root). Glass surfaces draw their own rounded
+     * shape, so they do not need outline clipping either.
+     */
+    static void unclipParents(View v) {
+        ViewParent p = v.getParent();
+        for (int depth = 0; p instanceof ViewGroup && depth < 8; depth++) {
+            ViewGroup g = (ViewGroup) p;
+            if (g instanceof AbsListView || g instanceof ScrollView) break;
+            g.setClipChildren(false);
+            g.setClipToPadding(false);
+            if (g.getClipToOutline() && (g.getBackground() instanceof GlassDrawable || g.getBackground() instanceof android.graphics.drawable.LayerDrawable)) {
+                g.setClipToOutline(false);
+            }
+            p = g.getParent();
         }
     }
 
@@ -429,7 +456,9 @@ public final class Fx {
             row.setClickable(true);
             row.setOnClickListener(v -> {
                 d.dismiss();
-                v.postDelayed(() -> pick.onPick(idx), 60);
+                // Not v.postDelayed: the row is detached once the menu closes, and a detached view
+                // never runs its queued callbacks.
+                MAIN.postDelayed(() -> pick.onPick(idx), 60);
             });
             box.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }

@@ -14,6 +14,8 @@ public final class LipSync {
         public final float[] form;
         public final int hopSamples;
         public final int sampleRate;
+        /** Optional mouth shapes a/i/u/e/o per frame ({@link Visemes}), same frames as open/form. */
+        public float[][] vis;
 
         public Track(float[] open, float[] form, int hopSamples, int sampleRate) {
             this.open = open;

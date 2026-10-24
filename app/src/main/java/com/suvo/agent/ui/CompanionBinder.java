@@ -44,6 +44,11 @@ public final class CompanionBinder {
         public void onMouth(float open, float form) {
             view.setMouth(open, form);
         }
+
+        @Override
+        public void onVisemes(float a, float i, float u, float e, float o) {
+            view.setVisemes(a, i, u, e, o);
+        }
     };
 
     private final CharacterRepo.Listener characters = new CharacterRepo.Listener() {

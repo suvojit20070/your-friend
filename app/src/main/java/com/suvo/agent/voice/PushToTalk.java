@@ -84,6 +84,7 @@ public final class PushToTalk {
     /** Finger up: stop recording and recognise what was said. */
     public void end() {
         if (direct) {
+            BeepMuter.muteFor(ctx, 1500);
             if (recognizer != null) recognizer.stopListening();
             return;
         }
@@ -205,6 +206,7 @@ public final class PushToTalk {
                 return;
             }
         }
+        BeepMuter.muteFor(ctx, 1800);
         recognizer.startListening(i);
         if (readEnd != null) {
             try {

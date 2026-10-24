@@ -85,6 +85,7 @@ public final class Settings {
     public static final String REF_TEXT = "ref_text";
     public static final String STT_LANGUAGE = "stt_language";
     public static final String HANDS_FREE = "hands_free";
+    public static final String HANDS_FREE_WAKE = "hands_free_wake";   // "tanu, hey tanu" ("" = every sentence)
 
     // Web
     public static final String SEARCH_PROVIDER = "search_provider";   // duckduckgo | searxng | brave

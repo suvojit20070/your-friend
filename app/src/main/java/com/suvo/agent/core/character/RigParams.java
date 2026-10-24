@@ -27,6 +27,8 @@ public final class RigParams {
     public float sweat, sparkle, thinkDots;
     /** Listening rings (mic level) 0..1. */
     public float listenLevel;
+    /** Mouth shapes a, i, u, e, o from the audio (0..1 each) and how much to trust them (0..1). */
+    public float visA, visI, visU, visE, visO, visActive;
 
     public void copyFrom(RigParams o) {
         angleX = o.angleX;
@@ -54,5 +56,11 @@ public final class RigParams {
         sparkle = o.sparkle;
         thinkDots = o.thinkDots;
         listenLevel = o.listenLevel;
+        visA = o.visA;
+        visI = o.visI;
+        visU = o.visU;
+        visE = o.visE;
+        visO = o.visO;
+        visActive = o.visActive;
     }
 }

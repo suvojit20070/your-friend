@@ -71,17 +71,20 @@ public final class SpeechInput {
 
             @Override
             public void onEndOfSpeech() {
+                BeepMuter.muteFor(ctx, 1500); // the "done" sound
             }
 
             @Override
             public void onError(int error) {
                 listening = false;
+                BeepMuter.muteFor(ctx, 600);
                 cb.onError(error, describe(error));
             }
 
             @Override
             public void onResults(Bundle results) {
                 listening = false;
+                BeepMuter.muteFor(ctx, 600);
                 ArrayList<String> r = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 cb.onFinal(r == null || r.isEmpty() ? "" : r.get(0));
             }
@@ -102,12 +105,16 @@ public final class SpeechInput {
         i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         if (languageTag != null && !languageTag.isEmpty()) i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag);
         listening = true;
+        BeepMuter.muteFor(ctx, 1600); // the "start listening" sound
         recognizer.startListening(i);
     }
 
     /** Stops recording and delivers the final result. */
     public void stop() {
-        if (recognizer != null && listening) recognizer.stopListening();
+        if (recognizer != null && listening) {
+            BeepMuter.muteFor(ctx, 1500);
+            recognizer.stopListening();
+        }
     }
 
     /** Stops immediately without a result. */

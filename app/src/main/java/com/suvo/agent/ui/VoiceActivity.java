@@ -9,6 +9,8 @@ import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -124,10 +126,61 @@ public final class VoiceActivity extends BaseActivity {
                 HandsFreeService.stop(this);
             }
         });
+        r.textRow(R.drawable.ic_voice, R.string.voice_wake_words, Settings.HANDS_FREE_WAKE, "", false, R.string.voice_wake_words_none, null);
+        r.note(getString(R.string.voice_wake_words_note));
+        handsFreeStatus = r.row(R.drawable.ic_eye, getString(R.string.voice_hands_free_status), statusText(), null, null);
+        handsFreeLevel = new android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        handsFreeLevel.setMax(100);
+        handsFreeLevel.setProgressTintList(android.content.res.ColorStateList.valueOf(Ui.accent(this)));
+        handsFreeLevel.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.surface_3)));
+        LinearLayout.LayoutParams lvl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 6));
+        lvl.setMargins(Ui.dp(this, 20), Ui.dp(this, 6), Ui.dp(this, 20), Ui.dp(this, 4));
+        r.parent().addView(handsFreeLevel, lvl);
 
         r.section(R.string.voice_license);
         r.note(getString(R.string.voice_license_note));
         Ui.tintAccent(this, box);
+    }
+
+    private TextView handsFreeStatus;
+    private android.widget.ProgressBar handsFreeLevel;
+
+    private String statusText() {
+        if (!HandsFreeService.isRunning()) return getString(R.string.handsfree_stopped);
+        String st = HandsFreeService.lastStatus();
+        return st.isEmpty() ? getString(R.string.handsfree_listening) : st;
+    }
+
+    private final HandsFreeService.StateListener hfListener = new HandsFreeService.StateListener() {
+        @Override
+        public void onHandsFreeChanged(boolean running, String status) {
+            runOnUiThread(() -> {
+                if (handsFreeStatus != null) {
+                    handsFreeStatus.setText(running ? (status == null || status.isEmpty() ? getString(R.string.handsfree_listening) : status)
+                            : getString(R.string.handsfree_stopped));
+                    handsFreeStatus.setVisibility(View.VISIBLE);
+                }
+            });
+        }
+
+        @Override
+        public void onLevel(float level) {
+            runOnUiThread(() -> {
+                if (handsFreeLevel != null) handsFreeLevel.setProgress(Math.round(level * 100));
+            });
+        }
+    };
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        HandsFreeService.addListener(hfListener);
+    }
+
+    @Override
+    protected void onStop() {
+        HandsFreeService.removeListener(hfListener);
+        super.onStop();
     }
 
     private void startHandsFree() {

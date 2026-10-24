@@ -95,7 +95,33 @@ public final class VrmModel {
         }
     }
 
+    /** One simulated bone of a hair/skirt/accessory chain (VRM spring bones). */
+    public static final class SpringJoint {
+        public int node;
+        /** Node whose position is this joint's tail, or -1 (a tip: tail extended along the bone). */
+        public int tail = -1;
+        public float stiffness = 1f;
+        public float gravity = 0f;
+        public float[] gravityDir = {0, -1, 0};
+        public float drag = 0.4f;
+        public float hitRadius = 0.02f;
+        public int[] colliderGroups = new int[0];
+    }
+
+    /** Sphere (or capsule, when {@code tail} is set) that hair cannot pass through. */
+    public static final class Collider {
+        public int node;
+        public float[] offset = {0, 0, 0};
+        public float radius;
+        public float[] tail;
+    }
+
     public final List<Node> nodes = new ArrayList<>();
+    /** Spring joints in parent-before-child order. */
+    public final List<SpringJoint> springs = new ArrayList<>();
+    public final List<Collider> colliders = new ArrayList<>();
+    /** Collider group → collider indices. */
+    public final List<int[]> colliderGroups = new ArrayList<>();
     public final List<Mesh> meshes = new ArrayList<>();
     public final List<Skin> skins = new ArrayList<>();
     public final List<Material> materials = new ArrayList<>();
@@ -115,6 +141,47 @@ public final class VrmModel {
 
     private static SoftReference<VrmModel> cache;
     private static String cacheKey = "";
+
+    /** The 3D character bundled with the app (app/src/main/assets). */
+    public static final String DEFAULT_ASSET = "Pink_Haired_Girl_Teen.vrm";
+    public static final String ASSET_PREFIX = "asset:";
+
+    /** Bundled model name if the APK contains one (the default first, else any .vrm in assets), or null. */
+    public static String bundledAsset(android.content.Context ctx) {
+        try {
+            String[] names = ctx.getAssets().list("");
+            if (names == null) return null;
+            String any = null;
+            for (String n : names) {
+                if (n.equals(DEFAULT_ASSET)) return n;
+                if (any == null && n.toLowerCase(Locale.ROOT).endsWith(".vrm")) any = n;
+            }
+            return any;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /** Loads a model from "asset:name" or a file path (cached). */
+    public static VrmModel load(android.content.Context ctx, String source) throws IOException {
+        if (source.startsWith(ASSET_PREFIX)) {
+            String name = source.substring(ASSET_PREFIX.length());
+            synchronized (VrmModel.class) {
+                String key = source;
+                VrmModel m = cache == null ? null : cache.get();
+                if (m != null && key.equals(cacheKey)) return m;
+                byte[] data;
+                try (InputStream in = ctx.getAssets().open(name)) {
+                    data = readAll(in, 8 * 1024 * 1024);
+                }
+                m = parse(data);
+                cache = new SoftReference<>(m);
+                cacheKey = key;
+                return m;
+            }
+        }
+        return load(new File(source));
+    }
 
     /** Loads (or returns the cached copy of) the model at {@code path}. */
     public static synchronized VrmModel load(File file) throws IOException {
@@ -387,8 +454,10 @@ public final class VrmModel {
                     addV1Expressions(ex.optJSONObject("preset"));
                     addV1Expressions(ex.optJSONObject("custom"));
                 }
+                readSpringsV1(ext.optJSONObject("VRMC_springBone"));
             } else if (v0 != null) {
                 m.vrm0 = true;
+                readSpringsV0(v0.optJSONObject("secondaryAnimation"));
                 JSONObject meta = v0.optJSONObject("meta");
                 if (meta != null) {
                     m.title = meta.optString("title", "");
@@ -415,6 +484,119 @@ public final class VrmModel {
                         list.add(new Bind(b.optInt("mesh", -1), b.optInt("index", -1), (float) b.optDouble("weight", 100) / 100f));
                     }
                     if (!list.isEmpty() && !m.expressions.containsKey(key)) m.expressions.put(key, list);
+                }
+            }
+        }
+
+        // VRM 0.x stores these in Unity's left-handed axes: x is mirrored relative to glTF.
+        static float[] v0vec(JSONObject o, float[] def) {
+            if (o == null) return def;
+            return new float[]{-(float) o.optDouble("x", 0), (float) o.optDouble("y", 0), (float) o.optDouble("z", 0)};
+        }
+
+        void readSpringsV0(JSONObject sa) throws JSONException {
+            if (sa == null) return;
+            JSONArray groups = sa.optJSONArray("colliderGroups");
+            for (int i = 0; groups != null && i < groups.length(); i++) {
+                JSONObject g = groups.getJSONObject(i);
+                JSONArray cs = g.optJSONArray("colliders");
+                int[] idx = new int[cs == null ? 0 : cs.length()];
+                for (int k = 0; k < idx.length; k++) {
+                    JSONObject c = cs.getJSONObject(k);
+                    Collider col = new Collider();
+                    col.node = g.optInt("node", -1);
+                    col.offset = v0vec(c.optJSONObject("offset"), new float[]{0, 0, 0});
+                    col.radius = (float) c.optDouble("radius", 0);
+                    idx[k] = m.colliders.size();
+                    m.colliders.add(col);
+                }
+                m.colliderGroups.add(idx);
+            }
+            JSONArray bgs = sa.optJSONArray("boneGroups");
+            for (int i = 0; bgs != null && i < bgs.length(); i++) {
+                JSONObject bg = bgs.getJSONObject(i);
+                JSONArray cg = bg.optJSONArray("colliderGroups");
+                int[] groupsIdx = new int[cg == null ? 0 : cg.length()];
+                for (int k = 0; k < groupsIdx.length; k++) groupsIdx[k] = cg.getInt(k);
+                JSONArray bones = bg.optJSONArray("bones");
+                for (int b = 0; bones != null && b < bones.length(); b++) {
+                    addV0Chain(bones.getInt(b), bg, groupsIdx);
+                }
+            }
+        }
+
+        /** Every bone under a VRM 0.x spring root is a joint whose tail is its first child. */
+        void addV0Chain(int root, JSONObject bg, int[] groups) {
+            if (root < 0 || root >= m.nodes.size()) return;
+            java.util.ArrayDeque<Integer> stack = new java.util.ArrayDeque<>();
+            stack.push(root);
+            while (!stack.isEmpty()) {
+                int n = stack.pop();
+                Node node = m.nodes.get(n);
+                SpringJoint j = new SpringJoint();
+                j.node = n;
+                j.tail = node.children.length > 0 ? node.children[0] : -1;
+                j.stiffness = (float) bg.optDouble("stiffiness", bg.optDouble("stiffness", 1));
+                j.gravity = (float) bg.optDouble("gravityPower", 0);
+                j.gravityDir = v0vec(bg.optJSONObject("gravityDir"), new float[]{0, -1, 0});
+                j.drag = (float) bg.optDouble("dragForce", 0.4);
+                j.hitRadius = (float) bg.optDouble("hitRadius", 0.02);
+                j.colliderGroups = groups;
+                m.springs.add(j);
+                for (int c = node.children.length - 1; c >= 0; c--) {
+                    int ch = node.children[c];
+                    if (ch >= 0 && ch < m.nodes.size()) stack.push(ch);
+                }
+            }
+        }
+
+        void readSpringsV1(JSONObject sb) throws JSONException {
+            if (sb == null) return;
+            JSONArray cols = sb.optJSONArray("colliders");
+            for (int i = 0; cols != null && i < cols.length(); i++) {
+                JSONObject c = cols.getJSONObject(i);
+                Collider col = new Collider();
+                col.node = c.optInt("node", -1);
+                JSONObject shape = c.optJSONObject("shape");
+                JSONObject sphere = shape == null ? null : shape.optJSONObject("sphere");
+                JSONObject capsule = shape == null ? null : shape.optJSONObject("capsule");
+                JSONObject sh = sphere != null ? sphere : capsule;
+                if (sh != null) {
+                    float[] off = vec(sh.optJSONArray("offset"));
+                    if (off != null && off.length == 3) col.offset = off;
+                    col.radius = (float) sh.optDouble("radius", 0);
+                    if (capsule != null) col.tail = vec(capsule.optJSONArray("tail"));
+                }
+                m.colliders.add(col);
+            }
+            JSONArray groups = sb.optJSONArray("colliderGroups");
+            for (int i = 0; groups != null && i < groups.length(); i++) {
+                JSONArray cs = groups.getJSONObject(i).optJSONArray("colliders");
+                int[] idx = new int[cs == null ? 0 : cs.length()];
+                for (int k = 0; k < idx.length; k++) idx[k] = cs.getInt(k);
+                m.colliderGroups.add(idx);
+            }
+            JSONArray springs = sb.optJSONArray("springs");
+            for (int i = 0; springs != null && i < springs.length(); i++) {
+                JSONObject sp = springs.getJSONObject(i);
+                JSONArray cg = sp.optJSONArray("colliderGroups");
+                int[] groupsIdx = new int[cg == null ? 0 : cg.length()];
+                for (int k = 0; k < groupsIdx.length; k++) groupsIdx[k] = cg.getInt(k);
+                JSONArray joints = sp.optJSONArray("joints");
+                // The last joint is only the tail of the one before it.
+                for (int k = 0; joints != null && k + 1 < joints.length(); k++) {
+                    JSONObject jo = joints.getJSONObject(k);
+                    SpringJoint j = new SpringJoint();
+                    j.node = jo.optInt("node", -1);
+                    j.tail = joints.getJSONObject(k + 1).optInt("node", -1);
+                    j.stiffness = (float) jo.optDouble("stiffness", 1);
+                    j.gravity = (float) jo.optDouble("gravityPower", 0);
+                    float[] gd = vec(jo.optJSONArray("gravityDir"));
+                    if (gd != null && gd.length == 3) j.gravityDir = gd;
+                    j.drag = (float) jo.optDouble("dragForce", 0.5);
+                    j.hitRadius = (float) jo.optDouble("hitRadius", 0);
+                    j.colliderGroups = groupsIdx;
+                    if (j.node >= 0 && j.node < m.nodes.size()) m.springs.add(j);
                 }
             }
         }

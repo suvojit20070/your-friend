@@ -17,6 +17,10 @@ public final class AudioPlayback {
 
     public interface MouthCallback {
         void onMouth(float open, float form);
+
+        /** Mouth shape weights a, i, u, e, o for the sound playing right now. */
+        default void onVisemes(float a, float i, float u, float e, float o) {
+        }
     }
 
     private volatile AudioTrack current;
@@ -66,6 +70,8 @@ public final class AudioPlayback {
                     if (track != null && mouth != null) {
                         int f = track.frameAt(head);
                         mouth.onMouth(track.open[f], track.form[f]);
+                        float[][] v = track.vis;
+                        if (v != null && f < v[0].length) mouth.onVisemes(v[0][f], v[1][f], v[2][f], v[3][f], v[4][f]);
                     }
                     Thread.sleep(16);
                 }

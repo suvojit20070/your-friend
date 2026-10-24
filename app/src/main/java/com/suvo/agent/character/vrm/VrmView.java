@@ -35,7 +35,7 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
     private final RigParams params = new RigParams();
     private final Object lock = new Object();
     private final Handler main = new Handler(Looper.getMainLooper());
-    private File file;
+    private String source;
     private String framing = "full";
     private int fps = 30;
     private Callback callback;
@@ -44,6 +44,25 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
     private int surfW, surfH;
     private RenderThread thread;
     private volatile VrmRenderer renderer;
+    private volatile boolean sitting;
+    private volatile float windX, windY;
+
+    /** Sit on an edge (floating mode) or stand. */
+    public void setSitting(boolean s) {
+        sitting = s;
+    }
+
+    /** Force on hair and clothes from moving the window, in screen directions (x right, y down). */
+    public void setWind(float x, float y) {
+        windX = x;
+        windY = y;
+    }
+
+    /** {foot, seat} positions as fractions of the view height (seat &lt; 0 = cannot sit), or null before loading. */
+    public float[] anchors() {
+        VrmRenderer r = renderer;
+        return r == null ? null : new float[]{r.footFrac, r.seatFrac};
+    }
 
     public VrmView(Context ctx) {
         super(ctx);
@@ -51,8 +70,9 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
         setSurfaceTextureListener(this);
     }
 
-    public void setModel(File f, String framing, Callback cb) {
-        this.file = f;
+    /** @param source "asset:name.vrm" for a bundled model, or a file path. */
+    public void setModel(String source, String framing, Callback cb) {
+        this.source = source;
         this.framing = framing == null ? "full" : framing;
         this.callback = cb;
         restart();
@@ -84,8 +104,8 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
 
     private void restart() {
         stopThread();
-        if (!active || surface == null || file == null) return;
-        thread = new RenderThread(surface, file, framing);
+        if (!active || surface == null || source == null) return;
+        thread = new RenderThread(surface, source, framing);
         thread.setSize(surfW, surfH);
         thread.start();
     }
@@ -138,7 +158,7 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
 
     private final class RenderThread extends Thread {
         private final SurfaceTexture st;
-        private final File f;
+        private final String src;
         private final String frame;
         private volatile boolean running = true;
         private volatile int w, h;
@@ -147,10 +167,10 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
         private EGLContext context = EGL14.EGL_NO_CONTEXT;
         private EGLSurface eglSurface = EGL14.EGL_NO_SURFACE;
 
-        RenderThread(SurfaceTexture st, File f, String frame) {
+        RenderThread(SurfaceTexture st, String src, String frame) {
             super("yf-vrm");
             this.st = st;
-            this.f = f;
+            this.src = src;
             this.frame = frame;
         }
 
@@ -169,7 +189,7 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
         public void run() {
             VrmRenderer r = null;
             try {
-                VrmModel model = VrmModel.load(f);
+                VrmModel model = VrmModel.load(getContext(), src);
                 if (!running) return;
                 initEgl();
                 r = new VrmRenderer(model, frame);
@@ -190,6 +210,8 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
                     synchronized (lock) {
                         local.copyFrom(params);
                     }
+                    r.setSitting(sitting);
+                    r.setWind(windX, -windY, 0f);
                     r.draw(local, (t0 - start) / 1e9f);
                     if (!EGL14.eglSwapBuffers(display, eglSurface)) {
                         int err = EGL14.eglGetError();

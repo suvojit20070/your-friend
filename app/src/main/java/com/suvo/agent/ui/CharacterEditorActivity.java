@@ -49,7 +49,6 @@ public final class CharacterEditorActivity extends BaseActivity {
         topAction(R.drawable.ic_check, R.string.save, v -> save());
 
         preview = findViewById(R.id.ce_preview);
-        preview.setAllow3d(false);
         preview.setQuality(g.settings.str(Settings.ANIMATION_QUALITY, "high"), g.settings.bool(Settings.REDUCED_MOTION, false));
         preview.setDraggable(false);
         preview.setListener(new CharacterView.Listener() {
@@ -101,21 +100,10 @@ public final class CharacterEditorActivity extends BaseActivity {
         text(box, R.string.character_system_prompt, spec.systemPrompt, true, v -> spec.systemPrompt = v);
         r.note(getString(R.string.character_prompt_note));
 
+        // Appearance is the 3D model (VRM), chosen in Settings → Appearance.
         r.section(R.string.character_appearance);
-        choice(r, R.string.character_base, new String[]{"girl", "boy"}, spec.base, v -> {
-            spec.base = v;
-            if ("boy".equals(v) && Arrays.asList("long", "twintails", "bob").contains(spec.hairStyle)) spec.hairStyle = "short";
-            if ("girl".equals(v) && "spiky".equals(spec.hairStyle)) spec.hairStyle = "long";
-        });
-        choice(r, R.string.character_hair_style, new String[]{"long", "twintails", "bob", "short", "spiky"}, spec.hairStyle, v -> spec.hairStyle = v);
-        choice(r, R.string.character_eye_shape, new String[]{"round", "sharp"}, spec.eyeShape, v -> spec.eyeShape = v);
-        choice(r, R.string.character_outfit, new String[]{"sailor", "hoodie", "blouse", "jacket"}, spec.outfit, v -> spec.outfit = v);
-        choice(r, R.string.character_accessory, new String[]{"ribbon", "clip", "glasses", "none"}, spec.accessory, v -> spec.accessory = v);
-        color(r, R.string.character_hair_color, spec.hairColor, c -> spec.hairColor = c);
-        color(r, R.string.character_eye_color, spec.eyeColor, c -> spec.eyeColor = c);
-        color(r, R.string.character_skin_color, spec.skinColor, c -> spec.skinColor = c);
-        color(r, R.string.character_outfit_color, spec.outfitColor, c -> spec.outfitColor = c);
-        color(r, R.string.character_accent_color, spec.accentColor, c -> spec.accentColor = c);
+        r.row(R.drawable.ic_character, getString(R.string.settings_vrm_model), getString(R.string.character_model_note), null,
+                v -> startActivity(new android.content.Intent(this, SettingsActivity.class)));
 
         r.section(R.string.character_animation);
         choice(r, R.string.character_default_expression, new String[]{"neutral", "happy", "shy", "sleepy", "surprised", "sad", "angry"},

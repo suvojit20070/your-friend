@@ -142,14 +142,28 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
         invalidate();
     }
 
-    /** Applies the 2D/3D choice from Settings (call again after the user changes it). */
+    /**
+     * Where the 3D character comes from: the model the user imported in Settings, otherwise the
+     * one bundled with the app. Null when neither exists (then the built-in 2D rig is drawn).
+     */
+    public static String modelSource(Context ctx) {
+        Settings st = Settings.get(ctx);
+        String path = st.str(Settings.VRM_PATH, "");
+        if (!path.isEmpty() && new File(path).isFile()) return path;
+        String asset = VrmModel.bundledAsset(ctx);
+        return asset == null ? null : VrmModel.ASSET_PREFIX + asset;
+    }
+
+    /** Applies the current 3D model and camera from Settings (call again after they change). */
     public void refreshStyle() {
         Settings st = Settings.get(getContext());
-        boolean want3d = allow3d && "3d".equals(st.str(Settings.CHARACTER_MODE, "2d"));
-        String path = st.str(Settings.VRM_PATH, "");
         String framing = st.str(Settings.VRM_FRAMING, "full");
-        File f = path.isEmpty() ? null : new File(path);
-        String key = want3d && f != null && f.isFile() ? f.getAbsolutePath() + ":" + f.lastModified() + ":" + framing : "";
+        String source = allow3d ? modelSource(getContext()) : null;
+        String key = "";
+        if (source != null) {
+            File f = new File(source);
+            key = source + ":" + (f.isFile() ? f.lastModified() : 0) + ":" + framing;
+        }
         if (key.equals(vrmKey)) return;
         vrmKey = key;
         if (vrm != null) {
@@ -165,7 +179,7 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
         vrm = new VrmView(getContext());
         vrm.setFps(frameSkip == 0 ? 60 : 30);
         addView(vrm, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        vrm.setModel(f, framing, new VrmView.Callback() {
+        vrm.setModel(source, framing, new VrmView.Callback() {
             @Override
             public void onLoaded(VrmModel model) {
                 vrmReady = true;
@@ -206,6 +220,38 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
 
     public void setMouth(float open, float form) {
         animator.setMouthInput(open, form);
+    }
+
+    /** Sit on something (floating mode, 3D only). */
+    public void setSitting(boolean s) {
+        if (vrm != null) vrm.setSitting(s);
+    }
+
+    /** Hair/cloth force while the window is dragged (screen axes). */
+    public void setWind(float x, float y) {
+        if (vrm != null) vrm.setWind(x, y);
+    }
+
+    /** {foot, seat} as fractions of this view's height; seat &lt; 0 when the character cannot sit. */
+    public float[] anchors() {
+        float[] a = vrm != null && vrmReady ? vrm.anchors() : null;
+        return a != null ? a : new float[]{0.98f, -1f};
+    }
+
+    /** Turns toward a point given in screen coordinates (taps anywhere in the app). */
+    public void lookAtScreen(float rawX, float rawY) {
+        int[] loc = new int[2];
+        getLocationOnScreen(loc);
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        float cx = loc[0] + getWidth() / 2f, cy = loc[1] + getHeight() * 0.18f;
+        float nx = (rawX - cx) / (dm.widthPixels * 0.5f);
+        float ny = (rawY - cy) / (dm.heightPixels * 0.5f);
+        animator.lookAt(Math.max(-1f, Math.min(1f, nx)), Math.max(-1f, Math.min(1f, ny)), 2.2f);
+    }
+
+    /** Mouth shapes from the audio (a, i, u, e, o). */
+    public void setVisemes(float a, float i, float u, float e, float o) {
+        animator.setVisemes(a, i, u, e, o);
     }
 
     public void react(CharacterAnimator.Expression e, float seconds) {
@@ -290,7 +336,9 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        if (renderer == null || (vrm != null && vrmReady)) return;
+        // With a 3D model nothing 2D is drawn — not even while it loads. The 2D rig only appears
+        // when no model exists or the model could not be shown.
+        if (renderer == null || vrm != null) return;
         float w = getWidth() - getPaddingLeft() - getPaddingRight();
         float h = getHeight() - getPaddingTop() - getPaddingBottom();
         float scale = Math.min(w / PuppetRenderer.WIDTH, h / PuppetRenderer.HEIGHT);

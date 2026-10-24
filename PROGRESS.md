@@ -96,6 +96,28 @@ Your Friend — Original project by Suvo.
 - [x] 3D: full-body motion (weight shift, breathing, relaxed arms, finger curl, talking gestures, thinking pose,
       listening lean, happy bounce) and framing fixed (model fitted to the body, not the T-pose arm span)
 
+## Phase 2.2 (this update)
+
+- [x] Fixed: popup menu items did nothing (callback queued on a detached view)
+- [x] Fixed: pressed buttons were cut off by their parents (parents stop clipping while they pop)
+- [x] Chat: your messages and the AI's answers are selectable (links still open); "Select text" sheet
+- [x] Recognizer "tok tok" sounds muted around listening (restored automatically, also after a crash)
+- [x] Hands-free: normal recognizer first (the on-device one often lacks Bengali/Hindi and made hands-free
+      stop after 8 errors), lower speech threshold, automatic fallback when a recognizer ignores piped audio,
+      live status + mic level in Voice settings
+- [x] Wake words (Settings → Voice): "tanu, hey tanu, hi alex" anywhere in the sentence; tolerant of small
+      recognition slips; wake word alone opens an 8-second window for the request (unit-tested)
+- [x] 3D is the default character: bundled `assets/Pink_Haired_Girl_Teen.vrm` (or any .vrm in assets), custom
+      .vrm from Settings; 2D only as a silent fallback; 2D appearance editor removed
+- [x] 3D life: weight shifts, idle actions (look around, touch hair, hands together, sway, glance, stretch),
+      VRM spring-bone physics for hair/skirt with colliders, stronger look-at (also for taps on Home)
+- [x] Real lip sync: vowel shapes a/i/u/e/o from formant analysis of the playing audio (unit-tested)
+- [x] Floating: tall full-body window, hair trails when dragged, falls with gravity and lands — sits on the top
+      edge of screen elements (via accessibility) or stands on the screen bottom
+- [x] `tools/make-release-key.sh`: creates the signing key in Termux and the four GitHub secrets for the
+      signed release job
+- [x] DebugActivity also reports native crashes and ANRs (Android 11+)
+
 ## Planned
 
 - Spring-bone physics (hair/clothes) and MToon outlines for the 3D character

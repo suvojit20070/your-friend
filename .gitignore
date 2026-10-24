@@ -12,3 +12,4 @@
 *.keystore
 *.jks
 secrets.properties
+*.jks.base64

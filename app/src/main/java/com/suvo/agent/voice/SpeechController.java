@@ -38,6 +38,10 @@ public final class SpeechController {
 
         default void onMouth(float open, float form) {
         }
+
+        /** Mouth shapes a, i, u, e, o of the sound playing now (from the audio itself). */
+        default void onVisemes(float a, float i, float u, float e, float o) {
+        }
     }
 
     private final Context ctx;
@@ -125,6 +129,30 @@ public final class SpeechController {
         });
     }
 
+    private final AudioPlayback.MouthCallback mouthCb = new AudioPlayback.MouthCallback() {
+        @Override
+        public void onMouth(float open, float form) {
+            mouth(open, form);
+        }
+
+        @Override
+        public void onVisemes(float a, float i, float u, float e, float o) {
+            main.post(() -> {
+                for (Listener l : listeners) l.onVisemes(a, i, u, e, o);
+            });
+        }
+    };
+
+    /** Lip-sync data for one clip: loudness/form plus the a/i/u/e/o mouth shapes. */
+    private static LipSync.Track analyzeMouth(Pcm pcm) {
+        LipSync.Track t = NativeAudio.analyze(pcm, 60);
+        try {
+            t.vis = com.suvo.agent.core.audio.Visemes.analyze(pcm, t.hopSamples);
+        } catch (RuntimeException ignored) {
+        }
+        return t;
+    }
+
     public void stop() {
         CancellationToken c = current;
         if (c != null) c.cancel("stopped");
@@ -199,9 +227,9 @@ public final class SpeechController {
                         return;
                     }
                     Pcm pcm = (Pcm) o;
-                    LipSync.Track track = NativeAudio.analyze(pcm, 60);
+                    LipSync.Track track = analyzeMouth(pcm);
                     setState(State.SPEAKING, "");
-                    playback.play(pcm, track, token, this::mouth);
+                    playback.play(pcm, track, token, mouthCb);
                 }
                 setState(State.IDLE, "");
             } catch (InterruptedException e) {
@@ -228,7 +256,7 @@ public final class SpeechController {
             setState(State.SYNTHESIZING, engine.id());
             Pcm p = engine.synthesize(phrase, t).normalized();
             setState(State.SPEAKING, "");
-            playback.play(p, NativeAudio.analyze(p, 60), t, this::mouth);
+            playback.play(p, analyzeMouth(p), t, mouthCb);
             setState(State.IDLE, "");
             return null;
         } catch (Exception e) {

@@ -153,6 +153,9 @@ public final class ChatActivity extends BaseActivity {
         send = findViewById(R.id.chat_send);
         adapter = new Adapter();
         list.setAdapter(adapter);
+        // Rows must be able to take focus, or selectable message text cannot start a selection.
+        list.setItemsCanFocus(true);
+        list.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         speechInput = new SpeechInput(this);
         conversationId = getIntent().getLongExtra(EXTRA_CONVERSATION, g.agent.activeConversation());
         g.agent.setActiveConversation(conversationId);
@@ -252,7 +255,7 @@ public final class ChatActivity extends BaseActivity {
             final int which = i;
             View tile = Fx.tile(this, tiles[i][0], getString(tiles[i][1]), v -> {
                 if (sheet[0] != null) sheet[0].dismiss();
-                v.postDelayed(() -> attachAction(which), 180);
+                Fx.later(() -> attachAction(which), 180);
             });
             android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams();
             lp.width = 0;
@@ -596,6 +599,28 @@ public final class ChatActivity extends BaseActivity {
         list.post(() -> list.setSelection(Math.max(0, adapter.getCount() - 1)));
     }
 
+    /** The whole message in a sheet where any part can be selected and copied. */
+    private void selectTextSheet(Item it) {
+        TextView t = new TextView(this, null, 0, R.style.YF_Body);
+        if (it.type == ASSISTANT) {
+            if (mdStyle == null) mdStyle = Markdown.styleFor(this);
+            t.setText(Markdown.render(it.text, mdStyle));
+        } else {
+            t.setText(it.text);
+        }
+        t.setTextSize(16f);
+        t.setTextIsSelectable(true);
+        t.setMovementMethod(SelectLinkMovement.get());
+        t.setLinkTextColor(Ui.accent(this));
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(t);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                Math.min(Ui.dp(this, 460), (int) (getResources().getDisplayMetrics().heightPixels * 0.6f))));
+        Fx.sheet(this, getString(R.string.chat_select_text), box);
+    }
+
     private static String toolsText(Item group) {
         StringBuilder sb = new StringBuilder();
         for (Item c : group.children) sb.append(c.title).append(" — ").append(c.text).append('\n').append(c.detail).append("\n\n");
@@ -605,11 +630,13 @@ public final class ChatActivity extends BaseActivity {
     private void itemMenu(Item it) {
         List<String> opts = new ArrayList<>();
         opts.add(getString(R.string.copy));
+        if (it.type == ASSISTANT || it.type == USER) opts.add(getString(R.string.chat_select_text));
         if (it.type == ASSISTANT) opts.add(getString(R.string.speak));
         if (it.type == USER || it.type == ERROR) opts.add(getString(R.string.retry));
         Ui.show(Ui.dialog(this).setItems(opts.toArray(new String[0]), (d, which) -> {
             String o = opts.get(which);
             if (o.equals(getString(R.string.copy))) Ui.copy(this, it.type == TOOL ? it.detail : it.type == TOOLS ? toolsText(it) : it.text);
+            else if (o.equals(getString(R.string.chat_select_text))) selectTextSheet(it);
             else if (o.equals(getString(R.string.speak))) g.speech.speak(it.text);
             else if (o.equals(getString(R.string.retry))) {
                 if (it.type == USER) submit(it.text);
@@ -943,12 +970,19 @@ public final class ChatActivity extends BaseActivity {
             } else if (it.type != TOOLS) {
                 text.setText(it.text);
             }
-            // Message text can be selected and copied; links in answers open on tap.
-            boolean selectable = prose || it.type == USER || it.type == NOTICE;
-            text.setTextIsSelectable(selectable && it.type != STREAM);
-            if (prose && it.type != STREAM) {
+            // Message text (answers and your own messages) can be selected and copied; links in
+            // answers still open on a tap.
+            boolean selectable = (prose || it.type == USER || it.type == NOTICE) && it.type != STREAM;
+            text.setTextIsSelectable(selectable);
+            if (selectable) {
                 text.setLinkTextColor(Ui.accent(ChatActivity.this));
-                text.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+                text.setMovementMethod(SelectLinkMovement.get());
+                text.setFocusable(true);
+                text.setFocusableInTouchMode(true);
+                text.setLongClickable(true);
+            } else {
+                text.setMovementMethod(null);
+                text.setFocusable(false);
             }
             detail.setTextIsSelectable(detail.getVisibility() == View.VISIBLE);
             // An expanded tool detail would otherwise shrink to the title's width (one word per line).

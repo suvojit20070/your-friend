@@ -171,31 +171,31 @@ public final class SettingsActivity extends BaseActivity {
 
     private void characterStyle(Rows r) {
         String path = g.settings.str(Settings.VRM_PATH, "");
-        boolean hasModel = !path.isEmpty() && new java.io.File(path).isFile();
-        r.choiceRow(R.drawable.ic_character, R.string.settings_character_style, Settings.CHARACTER_MODE, "2d",
-                new String[]{getString(R.string.style_2d), getString(R.string.style_3d)}, new String[]{"2d", "3d"}, v -> {
-                    if ("3d".equals(v) && !hasModel) pickVrm();
-                    build();
-                });
+        boolean custom = !path.isEmpty() && new java.io.File(path).isFile();
+        String bundled = com.suvo.agent.character.vrm.VrmModel.bundledAsset(this);
         String sub;
-        if (hasModel) {
+        if (custom) {
             java.io.File f = new java.io.File(path);
-            sub = (vrmInfo.isEmpty() ? f.getName() : vrmInfo) + " · " + Ui.size(f.length());
+            sub = getString(R.string.settings_vrm_custom, vrmInfo.isEmpty() ? f.getName() : vrmInfo) + " · " + Ui.size(f.length());
+        } else if (bundled != null) {
+            sub = getString(R.string.settings_vrm_builtin, bundled);
         } else {
             sub = getString(R.string.settings_vrm_none);
         }
         String err = com.suvo.agent.character.CharacterView.lastVrmError();
-        if (!err.isEmpty() && "3d".equals(g.settings.str(Settings.CHARACTER_MODE, "2d"))) sub += "\n" + getString(R.string.settings_vrm_error, err);
-        r.row(R.drawable.ic_download, getString(R.string.settings_vrm_model), sub, null, v -> pickVrm());
-        if (hasModel) {
+        if (!err.isEmpty()) sub += "\n" + getString(R.string.settings_vrm_error, err);
+        r.row(R.drawable.ic_character, getString(R.string.settings_vrm_model), sub, null, v -> pickVrm());
+        r.row(R.drawable.ic_download, getString(R.string.settings_vrm_import), getString(R.string.settings_vrm_import_desc), null, v -> pickVrm());
+        if (custom || bundled != null) {
             r.choiceRow(R.drawable.ic_eye, R.string.settings_vrm_framing, Settings.VRM_FRAMING, "full",
                     new String[]{getString(R.string.vrm_full_body), getString(R.string.vrm_upper_body)}, new String[]{"full", "upper"}, null);
-            r.row(R.drawable.ic_delete, getString(R.string.settings_vrm_remove), null, null, v ->
-                    Ui.confirm(this, R.string.settings_vrm_remove, getString(R.string.settings_vrm_remove_confirm), () -> {
+        }
+        if (custom) {
+            r.row(R.drawable.ic_refresh, getString(R.string.settings_vrm_use_builtin), null, null, v ->
+                    Ui.confirm(this, R.string.settings_vrm_use_builtin, getString(R.string.settings_vrm_remove_confirm), () -> {
                         //noinspection ResultOfMethodCallIgnored
                         new java.io.File(path).delete();
                         g.settings.put(Settings.VRM_PATH, "");
-                        g.settings.put(Settings.CHARACTER_MODE, "2d");
                         vrmInfo = "";
                         build();
                     }));
@@ -235,7 +235,6 @@ public final class SettingsActivity extends BaseActivity {
                 if (!tmp.renameTo(dest)) throw new java.io.IOException("Could not save the model");
                 vrmInfo = info;
                 g.settings.put(Settings.VRM_PATH, dest.getAbsolutePath());
-                g.settings.put(Settings.CHARACTER_MODE, "3d");
                 result = getString(R.string.settings_vrm_imported, info);
                 ok = true;
             } catch (Exception | OutOfMemoryError e) {

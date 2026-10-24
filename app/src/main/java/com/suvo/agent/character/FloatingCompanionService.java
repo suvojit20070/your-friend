@@ -175,8 +175,10 @@ public final class FloatingCompanionService extends Service {
         AppGraph g = AppGraph.get();
         float density = getResources().getDisplayMetrics().density;
         int size = g.settings.integer(com.suvo.agent.data.Settings.CHARACTER_SIZE, 100);
-        int w = (int) (110 * density * size / 100f);
-        int h = (int) (132 * density * size / 100f);
+        // The 3D character is drawn full-body, so its window is tall; the 2D one is a bust.
+        boolean is3d = CharacterView.modelSource(this) != null;
+        int w = (int) ((is3d ? 120 : 110) * density * size / 100f);
+        int h = (int) ((is3d ? 240 : 132) * density * size / 100f);
         // Intercept every touch at the window level; otherwise the character view consumes them
         // and the window can never be dragged.
         container = new FrameLayout(this) {
@@ -214,6 +216,8 @@ public final class FloatingCompanionService extends Service {
         container.setOnTouchListener(new DragTouch());
         wm.addView(container, lp);
         applyVisibility();
+        // Drop in from the middle of the screen and land on something.
+        main.postDelayed(this::land, 1200);
 
         agentListener = new AgentListener() {
             @Override
@@ -242,6 +246,11 @@ public final class FloatingCompanionService extends Service {
             public void onMouth(float open, float form) {
                 if (character != null) character.setMouth(open, form);
             }
+
+            @Override
+            public void onVisemes(float a, float i, float u, float e, float o) {
+                if (character != null) character.setVisemes(a, i, u, e, o);
+            }
         };
         g.agent.addListener(agentListener);
         g.speech.addListener(speechListener);
@@ -252,6 +261,9 @@ public final class FloatingCompanionService extends Service {
         float downRawX, downRawY;
         int startX, startY;
         boolean moved;
+        float lastX, lastY;
+        long lastT;
+        float vx, vy;
         long lastTap;
         final Runnable holdToTalk = () -> {
             if (!moved) startTalking();
@@ -268,6 +280,11 @@ public final class FloatingCompanionService extends Service {
                     startX = lp.x;
                     startY = lp.y;
                     moved = false;
+                    cancelFall();
+                    lastX = e.getRawX();
+                    lastY = e.getRawY();
+                    lastT = e.getEventTime();
+                    vx = vy = 0;
                     main.postDelayed(holdToTalk, 380);
                     return true;
                 case MotionEvent.ACTION_MOVE: {
@@ -278,7 +295,19 @@ public final class FloatingCompanionService extends Service {
                         moved = true;
                         main.removeCallbacks(holdToTalk);
                     }
+                    long t = e.getEventTime();
+                    if (t > lastT) {
+                        float k = 1000f / (t - lastT);
+                        vx = vx * 0.6f + (e.getRawX() - lastX) * k * 0.4f;
+                        vy = vy * 0.6f + (e.getRawY() - lastY) * k * 0.4f;
+                    }
+                    lastX = e.getRawX();
+                    lastY = e.getRawY();
+                    lastT = t;
                     if (moved) {
+                        // Picked up: stand, and let the hair and clothes trail behind the motion.
+                        character.setSitting(false);
+                        character.setWind(-vx * 0.035f, -vy * 0.035f);
                         lp.x = startX + (int) dx;
                         lp.y = startY + (int) dy;
                         try {
@@ -293,7 +322,8 @@ public final class FloatingCompanionService extends Service {
                     if (talking) {
                         stopTalking();
                     } else if (moved) {
-                        snapToEdge();
+                        character.setWind(0f, 0f);
+                        land();
                     } else {
                         long now = System.currentTimeMillis();
                         if (now - lastTap < 350) {
@@ -402,6 +432,15 @@ public final class FloatingCompanionService extends Service {
         }
     }
 
+    /** The character perks up (wake word heard). Safe from any thread. */
+    public static void react() {
+        FloatingCompanionService svc = instance;
+        if (svc == null) return;
+        svc.main.post(() -> {
+            if (svc.character != null) svc.character.react(CharacterAnimator.Expression.SURPRISED, 1.2f);
+        });
+    }
+
     /**
      * Turns the floating character toward a point on screen (where the agent or the user tapped).
      * Safe to call from any thread.
@@ -413,11 +452,148 @@ public final class FloatingCompanionService extends Service {
             if (svc.character == null || svc.container == null || svc.container.getVisibility() != View.VISIBLE) return;
             DisplayMetrics dm = svc.getResources().getDisplayMetrics();
             float cx = svc.lp.x + svc.lp.width / 2f;
-            float cy = svc.lp.y + svc.lp.height * 0.35f;
+            // Eyes are near the top of the full-body 3D window, lower in the 2D bust.
+            float cy = svc.lp.y + svc.lp.height * (svc.lp.height > svc.lp.width * 1.5f ? 0.15f : 0.35f);
             float nx = (x - cx) / (dm.widthPixels * 0.5f);
             float ny = (y - cy) / (dm.heightPixels * 0.5f);
             svc.character.animator().lookAt(Math.max(-1f, Math.min(1f, nx)), Math.max(-1f, Math.min(1f, ny)), 1.8f);
         });
+    }
+
+    // ------------------------------------------------------------------ landing on screen objects
+
+    private android.animation.ValueAnimator fall;
+
+    private void cancelFall() {
+        if (fall != null) fall.cancel();
+        fall = null;
+    }
+
+    private static final class Surface {
+        final int top;
+        final boolean element;
+
+        Surface(int top, boolean element) {
+            this.top = top;
+            this.element = element;
+        }
+    }
+
+    /** Bottom of the usable screen (above the navigation bar). */
+    private int screenBottom() {
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            android.view.WindowMetrics wmx = wm.getCurrentWindowMetrics();
+            android.graphics.Insets ins = wmx.getWindowInsets().getInsetsIgnoringVisibility(
+                    android.view.WindowInsets.Type.navigationBars());
+            return wmx.getBounds().height() - ins.bottom;
+        }
+        return getResources().getDisplayMetrics().heightPixels;
+    }
+
+    /**
+     * Finds what the character lands on below its feet: the top edge of a visible element on screen
+     * (read through the accessibility service, when it is on) or the bottom of the screen.
+     */
+    private Surface findSurface(int footY, int left, int right) {
+        int bottom = screenBottom();
+        Surface best = new Surface(bottom, false);
+        com.suvo.agent.device.accessibility.AgentAccessibilityService svc =
+                com.suvo.agent.device.accessibility.AgentAccessibilityService.get();
+        if (svc == null) return best;
+        float density = getResources().getDisplayMetrics().density;
+        int minW = (int) ((right - left) * 0.6f);
+        int minH = (int) (18 * density);
+        int cx = (left + right) / 2;
+        java.util.ArrayDeque<android.view.accessibility.AccessibilityNodeInfo> q = new java.util.ArrayDeque<>();
+        try {
+            for (android.view.accessibility.AccessibilityWindowInfo win : svc.getWindows()) {
+                if (win.getType() == android.view.accessibility.AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY) continue;
+                android.view.accessibility.AccessibilityNodeInfo r = win.getRoot();
+                if (r != null) q.add(r);
+            }
+        } catch (RuntimeException ignored) {
+        }
+        android.graphics.Rect b = new android.graphics.Rect();
+        int visited = 0;
+        while (!q.isEmpty() && visited < 500) {
+            android.view.accessibility.AccessibilityNodeInfo nd = q.poll();
+            visited++;
+            if (nd == null) continue;
+            if (getPackageName().contentEquals(nd.getPackageName() == null ? "" : nd.getPackageName())) continue;
+            nd.getBoundsInScreen(b);
+            if (nd.isVisibleToUser() && b.width() >= minW && b.height() >= minH && b.left <= cx && b.right >= cx
+                    && b.top >= footY - (int) (14 * density) && b.top < best.top - (int) (24 * density) && b.top > (int) (40 * density)) {
+                best = new Surface(b.top, true);
+            }
+            for (int i = 0; i < nd.getChildCount(); i++) {
+                android.view.accessibility.AccessibilityNodeInfo c = nd.getChild(i);
+                if (c != null) q.add(c);
+            }
+        }
+        return best;
+    }
+
+    /** Falls (with gravity) onto the nearest surface below and stands or sits there. */
+    private void land() {
+        if (container == null || character == null) return;
+        cancelFall();
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        lp.x = Math.max(0, Math.min(dm.widthPixels - lp.width, lp.x));
+        float[] an = character.anchors();
+        int footY = lp.y + Math.round(an[0] * lp.height);
+        Surface s = findSurface(footY, lp.x, lp.x + lp.width);
+        boolean canSit = an[1] > 0 && s.element;
+        final int targetY = canSit ? s.top - Math.round(an[1] * lp.height) : s.top - Math.round(an[0] * lp.height);
+        final int startY = lp.y;
+        if (targetY <= startY + 2) {
+            lp.y = targetY;
+            safeUpdate();
+            touchDown(canSit);
+            return;
+        }
+        float g = 3200f * dm.density / 2.75f; // px/s², similar on all screens
+        long ms = (long) (Math.sqrt(2.0 * (targetY - startY) / g) * 1000);
+        fall = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        fall.setDuration(Math.max(120, Math.min(1400, ms)));
+        fall.setInterpolator(new android.view.animation.AccelerateInterpolator(1f));
+        final boolean sitAtEnd = canSit;
+        fall.addUpdateListener(a -> {
+            float t = (float) a.getAnimatedValue();
+            lp.y = startY + Math.round((targetY - startY) * t);
+            // Falling: hair and skirt lift up.
+            character.setWind(0f, -t * 60f);
+            safeUpdate();
+        });
+        fall.addListener(new android.animation.AnimatorListenerAdapter() {
+            boolean cancelled;
+
+            @Override
+            public void onAnimationCancel(android.animation.Animator animation) {
+                cancelled = true;
+            }
+
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                character.setWind(0f, 0f);
+                if (!cancelled) touchDown(sitAtEnd);
+            }
+        });
+        fall.start();
+    }
+
+    private void touchDown(boolean sit) {
+        character.setSitting(sit);
+        // A small squash on landing.
+        character.setPivotY(character.getHeight());
+        character.setScaleY(0.93f);
+        character.animate().scaleY(1f).setDuration(260).setInterpolator(new android.view.animation.OvershootInterpolator(3f)).start();
+    }
+
+    private void safeUpdate() {
+        try {
+            wm.updateViewLayout(container, lp);
+        } catch (IllegalArgumentException ignored) {
+        }
     }
 
     private void snapToEdge() {

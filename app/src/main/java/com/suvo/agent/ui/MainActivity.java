@@ -216,6 +216,15 @@ public final class MainActivity extends BaseActivity {
         }
     }
 
+    /** Wherever you touch the screen, the character looks there. */
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        if (ev.getActionMasked() == android.view.MotionEvent.ACTION_DOWN && character != null) {
+            character.lookAtScreen(ev.getRawX(), ev.getRawY());
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
     private void send() {
         String text = input.getText().toString().trim();
         if (text.isEmpty()) {

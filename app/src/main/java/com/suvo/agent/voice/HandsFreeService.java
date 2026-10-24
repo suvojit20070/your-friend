@@ -36,7 +36,22 @@ public final class HandsFreeService extends Service {
 
     public interface StateListener {
         void onHandsFreeChanged(boolean running, String status);
+
+        /** Microphone level 0..1, about ten times a second while listening. */
+        default void onLevel(float level) {
+        }
     }
+
+    private static volatile String lastStatus = "";
+
+    /** The last thing hands-free reported (shown in Voice settings). */
+    public static String lastStatus() {
+        return lastStatus;
+    }
+
+    /** Wake words are matched case-insensitively; empty = every sentence is a command. */
+    private long followUpUntil;
+    private long lastLevelAt;
 
     private static volatile boolean running;
     private static final CopyOnWriteArrayList<StateListener> listeners = new CopyOnWriteArrayList<>();
@@ -71,6 +86,7 @@ public final class HandsFreeService extends Service {
     }
 
     private void publish(String status) {
+        lastStatus = status == null ? "" : status;
         for (StateListener l : listeners) l.onHandsFreeChanged(running, status);
     }
 
@@ -151,14 +167,42 @@ public final class HandsFreeService extends Service {
         publish(getString(R.string.handsfree_listening));
         gate.start(g.settings.str(Settings.STT_LANGUAGE, ""), new VoiceGate.Callback() {
             @Override
-            public void onPartial(String text) {
-                publish(text);
+            public void onLevel(float level) {
+                long now = android.os.SystemClock.uptimeMillis();
+                if (now - lastLevelAt < 90) return;
+                lastLevelAt = now;
+                for (StateListener l : listeners) l.onLevel(level);
             }
 
             @Override
-            public void onText(String text) {
+            public void onPartial(String text) {
+                publish("… " + text);
+            }
+
+            @Override
+            public void onText(String heard) {
                 consecutiveErrors = 0;
-                publish(text);
+                java.util.List<String[]> words = com.suvo.agent.core.util.WakeWords.parse(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
+                com.suvo.agent.core.util.WakeWords.Match m = com.suvo.agent.core.util.WakeWords.match(heard, words);
+                String text;
+                long now = android.os.SystemClock.uptimeMillis();
+                if (m.triggered) {
+                    text = m.command;
+                } else if (now < followUpUntil) {
+                    text = heard; // said right after "hey tanu" on its own
+                } else {
+                    publish(getString(R.string.handsfree_ignored, heard));
+                    return;
+                }
+                if (text.isEmpty()) {
+                    // Only the wake word: wait a few seconds for the actual request.
+                    followUpUntil = now + 8000;
+                    publish(getString(R.string.handsfree_wake_heard));
+                    com.suvo.agent.character.FloatingCompanionService.react();
+                    return;
+                }
+                followUpUntil = 0;
+                publish("“" + text + "”");
                 waitingForAgent = true;
                 gate.pause(true);
                 String err = g.agent.submit(g.agent.activeConversation(), text, null);
@@ -173,7 +217,9 @@ public final class HandsFreeService extends Service {
             public void onError(String message, boolean fatal) {
                 publish(message);
                 consecutiveErrors++;
-                if (fatal || consecutiveErrors >= 8) {
+                // Only give up on real failures (no permission, no recognizer); recognition
+                // errors on single sentences just keep listening.
+                if (fatal || consecutiveErrors >= 30) {
                     stopSelf();
                 }
             }

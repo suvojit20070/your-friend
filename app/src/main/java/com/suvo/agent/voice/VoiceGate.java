@@ -80,6 +80,11 @@ public final class VoiceGate {
     private volatile FileOutputStream pipeOut;
     private volatile boolean feeding;
     private boolean audioSourceUnsupported = Build.VERSION.SDK_INT < 33;
+    /** The on-device recognizer failed (often: language not available offline); use the normal one. */
+    private boolean onDeviceFailed;
+    private boolean usingOnDevice;
+    /** Sentences fed through the pipe that produced nothing; after two, use the recognizer's own mic. */
+    private int pipeMisses;
 
     public VoiceGate(Context ctx) {
         this.ctx = ctx.getApplicationContext();
@@ -146,7 +151,9 @@ public final class VoiceGate {
                     preRoll.clear();
                     continue;
                 }
-                boolean isLoud = rms > Math.max(noise * 3.2f, 700f);
+                // Speech = clearly above the room's noise. The floor is low enough for phones whose
+                // VOICE_RECOGNITION input has no gain (no AGC).
+                boolean isLoud = rms > Math.max(noise * 2.6f, 380f);
                 if (!inSpeech) {
                     // Track background noise only while nobody speaks.
                     if (!isLoud) noise = noise * 0.97f + rms * 0.03f;
@@ -253,6 +260,8 @@ public final class VoiceGate {
                 closePipe();
             }
         }
+        // When the recognizer opens the microphone itself it plays its start sound; silence it.
+        if (readEnd == null) BeepMuter.muteFor(ctx, 1800);
         recognizer.startListening(i);
         if (readEnd != null) {
             // startListening() sent the recognizer its own copy of the read end; ours can go.
@@ -263,14 +272,21 @@ public final class VoiceGate {
         }
     }
 
+    /**
+     * The phone's normal recognizer first: it supports far more languages (Bengali, Hindi,
+     * Hinglish...). The on-device one is only used when no normal recognizer exists.
+     */
     private SpeechRecognizer createRecognizer() {
+        usingOnDevice = false;
+        if (SpeechRecognizer.isRecognitionAvailable(ctx)) return SpeechRecognizer.createSpeechRecognizer(ctx);
         try {
-            if (Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)) {
+            if (!onDeviceFailed && Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)) {
+                usingOnDevice = true;
                 return SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx);
             }
         } catch (RuntimeException ignored) {
         }
-        return SpeechRecognizer.isRecognitionAvailable(ctx) ? SpeechRecognizer.createSpeechRecognizer(ctx) : null;
+        return null;
     }
 
     private void finishFeeding() {
@@ -352,6 +368,7 @@ public final class VoiceGate {
 
         @Override
         public void onEndOfSpeech() {
+            if (pipeOut == null) BeepMuter.muteFor(ctx, 1500);
         }
 
         @Override
@@ -359,6 +376,16 @@ public final class VoiceGate {
             boolean usedPipe = feeding || pipeOut != null;
             closePipe();
             recognizing = false;
+            if (!usedPipe) BeepMuter.muteFor(ctx, 800);
+            if (usingOnDevice && (error == 12 || error == 13 || error == 14 || error == SpeechRecognizer.ERROR_CLIENT)) {
+                onDeviceFailed = true;
+                Log.i(TAG, "On-device recognizer failed (" + error + "); using the normal recognizer");
+            }
+            if (usedPipe && !audioSourceUnsupported && ++pipeMisses >= 2) {
+                // Recognizers that ignore the audio we hand them hear silence: switch to their own mic.
+                audioSourceUnsupported = true;
+                Log.i(TAG, "No results from the audio pipe twice; switching to the recognizer's microphone");
+            }
             if (usedPipe && (error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_AUDIO
                     || error == 13 /* ERROR_CANNOT_LISTEN_TO_DOWNLOAD_EVENTS */ || error == 14 /* ERROR_CANNOT_CHECK_SUPPORT */)) {
                 // This recognizer does not accept an external audio source; use its microphone next time.
@@ -371,10 +398,13 @@ public final class VoiceGate {
 
         @Override
         public void onResults(Bundle results) {
+            boolean usedPipe = feeding || pipeOut != null;
             closePipe();
             recognizing = false;
+            if (!usedPipe) BeepMuter.muteFor(ctx, 800);
             ArrayList<String> r = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             String text = r == null || r.isEmpty() ? "" : r.get(0);
+            if (!text.trim().isEmpty()) pipeMisses = 0;
             if (cb != null && !text.trim().isEmpty()) cb.onText(text.trim());
         }
 
