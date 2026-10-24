@@ -113,7 +113,7 @@ public final class AudioPlayback {
                 ticker.join(200);
             } catch (InterruptedException ignored) {
             }
-            mouth.onMouth(0f, 0.5f);
+            if (mouth != null) mouth.onMouth(0f, 0.5f); // null when only previewing a recording
             try {
                 t.stop();
             } catch (IllegalStateException ignored) {
