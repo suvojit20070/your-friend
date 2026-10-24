@@ -50,8 +50,20 @@ public final class ChatActivity extends BaseActivity {
     private static final int REQ_FILE = 24;
     private static final int REQ_FOLDER = 25;
     private static final int REQ_CAMERA_PERMISSION = 26;
-    private static final int MAX_IMAGES = 4;
-    private final List<ChatMessage.Image> pendingImages = new ArrayList<>();
+    private static final int MAX_IMAGES = 8;
+    /** Biggest text placed directly in the message (per file / all files together). */
+    private static final int INLINE_MAX = 60_000, INLINE_TOTAL = 120_000;
+
+    /** Something attached to the next message: images for the model to see and/or a note / inline text. */
+    static final class Pending {
+        String label;
+        final List<ChatMessage.Image> images = new ArrayList<>();
+        String note;
+        int inlineChars;
+    }
+
+    private final List<Pending> pending = new ArrayList<>();
+    private android.widget.LinearLayout chips;
 
     static final int USER = 0, ASSISTANT = 1, TOOL = 2, NOTICE = 3, STREAM = 4, SUMMARY = 5, ERROR = 6, TOOLS = 7;
 
@@ -149,6 +161,7 @@ public final class ChatActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
         list = findViewById(R.id.chat_list);
+        ((android.view.ViewGroup) list.getParent()).setClipChildren(true); // never draw over the top bar
         input = findViewById(R.id.chat_input);
         send = findViewById(R.id.chat_send);
         adapter = new Adapter();
@@ -164,6 +177,7 @@ public final class ChatActivity extends BaseActivity {
         findViewById(R.id.chat_menu).setOnClickListener(v -> showMenu());
         findViewById(R.id.chat_model).setOnClickListener(v -> pickProvider());
         findViewById(R.id.chat_plus).setOnClickListener(v -> showAttachSheet());
+        setUpChips();
         // Liquid glass composer over the scrolling conversation.
         View composer = findViewById(R.id.chat_composer);
         BackdropDrawable.apply(composer, list, Ui.dp(this, 30));
@@ -206,38 +220,93 @@ public final class ChatActivity extends BaseActivity {
             input.setSelection(input.getText().length());
         }
         android.net.Uri stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-        if (stream != null && intent.getType() != null && intent.getType().startsWith("image/")) attachImage(stream);
+        if (stream != null) attachAny(stream);
     }
 
-    private void attachImage(android.net.Uri uri) {
-        g.io.execute(() -> {
-            try (java.io.InputStream in = getContentResolver().openInputStream(uri)) {
-                if (in == null) throw new java.io.FileNotFoundException(String.valueOf(uri));
-                android.graphics.Bitmap b = com.suvo.agent.device.ImageUtil.decodeStream(in, 1600);
-                ChatMessage.Image img = com.suvo.agent.device.ImageUtil.toImage(com.suvo.agent.device.ImageUtil.jpeg(b, 85), "auto");
-                runOnUiThread(() -> {
-                    pendingImages.add(img);
-                    updateAttachmentHint();
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> Ui.toast(this, getString(R.string.error_prefix, e.getMessage())));
-            }
+    private int pendingImageCount() {
+        int n = 0;
+        for (Pending p : pending) n += p.images.size();
+        return n;
+    }
+
+    private int pendingInlineChars() {
+        int n = 0;
+        for (Pending p : pending) n += p.inlineChars;
+        return n;
+    }
+
+    private boolean modelSeesImages() {
+        com.suvo.agent.core.llm.ProviderConfig p = g.providers.active();
+        return p == null || p.supportsVision;
+    }
+
+    private void addPending(Pending p) {
+        runOnUiThread(() -> {
+            pending.add(p);
+            updateAttachmentHint();
         });
     }
 
+    /** Chips above the composer show what goes with the next message; tap one to remove it. */
     private void updateAttachmentHint() {
-        input.setHint(pendingImages.isEmpty() ? getString(R.string.chat_input_hint)
-                : getResources().getQuantityString(R.plurals.chat_images_pending, pendingImages.size(), pendingImages.size()));
+        int imgs = pendingImageCount();
+        input.setHint(imgs == 0 ? getString(R.string.chat_input_hint)
+                : getResources().getQuantityString(R.plurals.chat_images_pending, imgs, imgs));
+        if (chips == null) return;
+        chips.removeAllViews();
+        for (Pending p : pending) {
+            TextView c = new TextView(this);
+            c.setText(p.label + "  ✕");
+            c.setTextColor(getColor(R.color.text_primary));
+            c.setTextSize(13);
+            c.setMaxLines(1);
+            c.setMaxWidth(Ui.dp(this, 220));
+            c.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+            c.setBackgroundResource(R.drawable.row_bg);
+            int ph = Ui.dp(this, 12), pv = Ui.dp(this, 7);
+            c.setPadding(ph, pv, ph, pv);
+            c.setContentDescription(getString(R.string.chat_remove_attachment, p.label));
+            c.setOnClickListener(v -> {
+                pending.remove(p);
+                updateAttachmentHint();
+            });
+            android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMarginEnd(Ui.dp(this, 6));
+            chips.addView(c, lp);
+        }
+        ((View) chips.getParent()).setVisibility(pending.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    private void setUpChips() {
+        android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(this);
+        scroll.setHorizontalScrollBarEnabled(false);
+        scroll.setClipToPadding(false);
+        int pad = Ui.dp(this, 16);
+        scroll.setPadding(pad, Ui.dp(this, 4), pad, 0);
+        chips = new android.widget.LinearLayout(this);
+        chips.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        scroll.addView(chips);
+        scroll.setVisibility(View.GONE);
+        android.view.ViewGroup bottom = findViewById(R.id.chat_bottom);
+        bottom.addView(scroll, bottom.indexOfChild(findViewById(R.id.chat_composer)));
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK) return;
-        if (requestCode == REQ_IMAGE && data != null && data.getData() != null) attachImage(data.getData());
-        else if (requestCode == REQ_CAMERA) attachImage(android.net.Uri.fromFile(com.suvo.agent.files.CaptureProvider.file(this)));
-        else if (requestCode == REQ_FILE && data != null && data.getData() != null) attachFile(data.getData());
-        else if (requestCode == REQ_FOLDER && data != null && data.getData() != null) attachFolder(data.getData());
+        if (requestCode == REQ_CAMERA) {
+            attachAny(android.net.Uri.fromFile(com.suvo.agent.files.CaptureProvider.file(this)));
+        } else if ((requestCode == REQ_IMAGE || requestCode == REQ_FILE) && data != null) {
+            if (data.getClipData() != null) {
+                for (int i = 0; i < data.getClipData().getItemCount(); i++) attachAny(data.getClipData().getItemAt(i).getUri());
+            } else if (data.getData() != null) {
+                attachAny(data.getData());
+            }
+        } else if (requestCode == REQ_FOLDER && data != null && data.getData() != null) {
+            attachFolder(data.getData());
+        }
     }
 
     // ---------------------------------------------------------------- "Add to conversation" sheet
@@ -269,20 +338,22 @@ public final class ChatActivity extends BaseActivity {
 
     private void attachAction(int which) {
         boolean image = which == 0 || which == 1;
-        if (image && pendingImages.size() >= MAX_IMAGES) {
+        int slots = MAX_IMAGES - pendingImageCount();
+        if (image && slots <= 0) {
             Ui.toast(this, getString(R.string.chat_max_images, MAX_IMAGES));
             return;
         }
         try {
             switch (which) {
                 case 0:
-                    startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*"), REQ_IMAGE);
+                    startActivityForResult(mediaPicker(slots), REQ_IMAGE);
                     break;
                 case 1:
                     openCamera();
                     break;
                 case 2:
-                    startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), REQ_FILE);
+                    startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
+                            .setType("*/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_FILE);
                     break;
                 default:
                     startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
@@ -292,6 +363,19 @@ public final class ChatActivity extends BaseActivity {
         } catch (android.content.ActivityNotFoundException e) {
             Ui.toast(this, R.string.chat_no_app);
         }
+    }
+
+    /** Photos and videos: the system photo picker where available (no storage permission needed), else the file picker. */
+    private Intent mediaPicker(int slots) {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            Intent i = new Intent(android.provider.MediaStore.ACTION_PICK_IMAGES); // images and videos by default
+            int max = Math.min(slots, android.provider.MediaStore.getPickImagesMaxLimit());
+            if (max > 1) i.putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, max);
+            if (i.resolveActivity(getPackageManager()) != null) return i;
+        }
+        return new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                .putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"})
+                .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, slots > 1);
     }
 
     /** The phone's own camera app takes the photo (with its preview); it is saved into our cache. */
@@ -313,41 +397,199 @@ public final class ChatActivity extends BaseActivity {
         }
     }
 
-    /** Images are attached for the model to see; other files are copied into the workspace for the file tools. */
-    private void attachFile(android.net.Uri uri) {
-        String type = getContentResolver().getType(uri);
-        if (type != null && type.startsWith("image/") && pendingImages.size() < MAX_IMAGES) {
-            attachImage(uri);
-            return;
-        }
+    /**
+     * Attaches anything the user picked, natively, to the next request:
+     * images → sent as images; videos → a few frames as images; PDFs → first pages as images;
+     * text / code → its content placed in the message; everything is also copied to the workspace
+     * ("uploads/") so the file tools can use the whole file.
+     */
+    private void attachAny(android.net.Uri uri) {
+        final boolean vision = modelSeesImages();
         g.io.execute(() -> {
             try {
-                String name = "file";
-                try (android.database.Cursor c = getContentResolver().query(uri, new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
-                    if (c != null && c.moveToFirst() && c.getString(0) != null) name = c.getString(0);
+                String mime = getContentResolver().getType(uri);
+                String name = displayName(uri);
+                if (mime == null || mime.equals("application/octet-stream")) {
+                    String guess = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(
+                            android.webkit.MimeTypeMap.getFileExtensionFromUrl(name.replace(' ', '_')).toLowerCase(java.util.Locale.ROOT));
+                    if (guess != null) mime = guess;
                 }
-                name = name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
-                java.io.File dir = g.workspace.dir("uploads");
-                java.io.File dest = new java.io.File(dir, name);
-                for (int n = 2; dest.exists(); n++) dest = new java.io.File(dir, n + "_" + name);
-                long total = 0;
-                try (java.io.InputStream in = getContentResolver().openInputStream(uri);
-                     java.io.OutputStream out = new java.io.FileOutputStream(dest)) {
-                    if (in == null) throw new java.io.FileNotFoundException(String.valueOf(uri));
-                    byte[] buf = new byte[1 << 16];
-                    int r;
-                    while ((r = in.read(buf)) > 0) {
-                        total += r;
-                        if (total > 200L * 1024 * 1024) throw new java.io.IOException("larger than 200 MB");
-                        out.write(buf, 0, r);
-                    }
+                String m = mime == null ? "" : mime;
+                if (m.startsWith("image/") && vision) {
+                    attachImage(uri, name);
+                    return;
                 }
+                java.io.File dest = copyToWorkspace(uri, name);
                 String rel = g.workspace.relative(dest);
-                runOnUiThread(() -> appendToInput(getString(R.string.chat_file_attached, rel)));
+                Pending p = new Pending();
+                if (m.startsWith("video/")) {
+                    p.label = "🎬 " + name;
+                    videoFrames(dest, name, rel, vision, p);
+                } else if (m.equals("application/pdf")) {
+                    p.label = "📄 " + name;
+                    pdfPages(dest, name, rel, vision, p);
+                } else if (dest.length() <= 1024 * 1024 && (com.suvo.agent.core.util.Attachments.looksTextual(name, m) || isTextFile(dest))) {
+                    p.label = "📝 " + name;
+                    int room = Math.min(INLINE_MAX, INLINE_TOTAL - pendingInlineChars());
+                    String text = readText(dest);
+                    if (room < 2000) {
+                        p.note = com.suvo.agent.core.util.Attachments.workspaceFile(name, rel, dest.length(), m);
+                    } else {
+                        boolean cut = text.length() > room;
+                        p.inlineChars = Math.min(text.length(), room);
+                        p.note = com.suvo.agent.core.util.Attachments.inline(name, rel, cut ? text.substring(0, room) : text, text.length(), cut);
+                    }
+                } else {
+                    p.label = "📎 " + name;
+                    p.note = com.suvo.agent.core.util.Attachments.workspaceFile(name, rel, dest.length(), m);
+                }
+                addPending(p);
             } catch (Exception e) {
                 runOnUiThread(() -> Ui.toast(this, getString(R.string.error_prefix, e.getMessage())));
             }
         });
+    }
+
+    /** Runs on the io thread. */
+    private void attachImage(android.net.Uri uri, String name) throws java.io.IOException {
+        if (pendingImageCount() >= MAX_IMAGES) {
+            runOnUiThread(() -> Ui.toast(this, getString(R.string.chat_max_images, MAX_IMAGES)));
+            return;
+        }
+        try (java.io.InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) throw new java.io.FileNotFoundException(String.valueOf(uri));
+            android.graphics.Bitmap b = com.suvo.agent.device.ImageUtil.decodeStream(in, 1600);
+            Pending p = new Pending();
+            p.label = "🖼 " + name;
+            p.images.add(com.suvo.agent.device.ImageUtil.toImage(com.suvo.agent.device.ImageUtil.jpeg(b, 85), "auto"));
+            addPending(p);
+        }
+    }
+
+    private void videoFrames(java.io.File f, String name, String rel, boolean vision, Pending p) {
+        android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+        double seconds = 0;
+        int w = 0, h = 0;
+        List<Double> times = new ArrayList<>();
+        try {
+            r.setDataSource(f.getAbsolutePath());
+            seconds = parse(r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)) / 1000.0;
+            w = (int) parse(r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+            h = (int) parse(r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+            int n = vision ? Math.min(4, MAX_IMAGES - pendingImageCount()) : 0;
+            for (int i = 0; i < n; i++) {
+                double t = seconds <= 0 ? 0 : seconds * (i + 0.5) / n;
+                long us = (long) (t * 1_000_000L);
+                android.graphics.Bitmap b = android.os.Build.VERSION.SDK_INT >= 27
+                        ? r.getScaledFrameAtTime(us, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 1024, 1024)
+                        : r.getFrameAtTime(us, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                if (b == null) continue;
+                b = com.suvo.agent.device.ImageUtil.scaleToMax(b, 1024);
+                p.images.add(com.suvo.agent.device.ImageUtil.toImage(com.suvo.agent.device.ImageUtil.jpeg(b, 80), "low"));
+                times.add(t);
+            }
+        } catch (RuntimeException e) {
+            // Unknown codec: the agent still gets the file in the workspace.
+        } finally {
+            try {
+                r.release();
+            } catch (Exception ignored) {
+            }
+        }
+        double[] at = new double[times.size()];
+        for (int i = 0; i < at.length; i++) at[i] = times.get(i);
+        p.note = com.suvo.agent.core.util.Attachments.video(name, rel, seconds, w, h, at);
+    }
+
+    private void pdfPages(java.io.File f, String name, String rel, boolean vision, Pending p) {
+        int pages = 0;
+        int shown = 0;
+        try (android.os.ParcelFileDescriptor fd = android.os.ParcelFileDescriptor.open(f, android.os.ParcelFileDescriptor.MODE_READ_ONLY);
+             android.graphics.pdf.PdfRenderer pr = new android.graphics.pdf.PdfRenderer(fd)) {
+            pages = pr.getPageCount();
+            int n = vision ? Math.min(Math.min(3, pages), MAX_IMAGES - pendingImageCount()) : 0;
+            for (int i = 0; i < n; i++) {
+                try (android.graphics.pdf.PdfRenderer.Page page = pr.openPage(i)) {
+                    float scale = 1400f / Math.max(page.getWidth(), page.getHeight());
+                    android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(Math.max(1, (int) (page.getWidth() * scale)),
+                            Math.max(1, (int) (page.getHeight() * scale)), android.graphics.Bitmap.Config.ARGB_8888);
+                    b.eraseColor(android.graphics.Color.WHITE);
+                    page.render(b, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                    p.images.add(com.suvo.agent.device.ImageUtil.toImage(com.suvo.agent.device.ImageUtil.jpeg(b, 85), "high"));
+                    shown++;
+                }
+            }
+        } catch (Exception e) {
+            // Protected or broken PDF: the file is still in the workspace.
+        }
+        p.note = com.suvo.agent.core.util.Attachments.pdf(name, rel, pages, shown);
+    }
+
+    private static double parse(String s) {
+        try {
+            return s == null ? 0 : Double.parseDouble(s);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private String displayName(android.net.Uri uri) {
+        String name = null;
+        try (android.database.Cursor c = getContentResolver().query(uri, new String[]{android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst()) name = c.getString(0);
+        } catch (RuntimeException ignored) {
+            // file:// uris (camera) have no provider
+        }
+        if (name == null) name = uri.getLastPathSegment();
+        if (name == null || name.isEmpty()) name = "file";
+        return name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
+    }
+
+    private java.io.File copyToWorkspace(android.net.Uri uri, String name) throws java.io.IOException {
+        java.io.File dir = g.workspace.dir("uploads");
+        java.io.File dest = new java.io.File(dir, name);
+        for (int n = 2; dest.exists(); n++) dest = new java.io.File(dir, n + "_" + name);
+        long total = 0;
+        try (java.io.InputStream in = getContentResolver().openInputStream(uri);
+             java.io.OutputStream out = new java.io.FileOutputStream(dest)) {
+            if (in == null) throw new java.io.FileNotFoundException(String.valueOf(uri));
+            byte[] buf = new byte[1 << 16];
+            int r;
+            while ((r = in.read(buf)) > 0) {
+                total += r;
+                if (total > 200L * 1024 * 1024) throw new java.io.IOException("larger than 200 MB");
+                out.write(buf, 0, r);
+            }
+        } catch (java.io.IOException e) {
+            //noinspection ResultOfMethodCallIgnored
+            dest.delete();
+            throw e;
+        }
+        return dest;
+    }
+
+    private static boolean isTextFile(java.io.File f) {
+        byte[] head = new byte[4096];
+        int n;
+        try (java.io.InputStream in = new java.io.FileInputStream(f)) {
+            n = in.read(head);
+        } catch (java.io.IOException e) {
+            return false;
+        }
+        if (n <= 0) return false;
+        int bad = 0;
+        for (int i = 0; i < n; i++) {
+            int c = head[i] & 0xff;
+            if (c == 0) return false;
+            if (c < 9 || (c > 13 && c < 32)) bad++;
+        }
+        return bad * 20 < n;
+    }
+
+    private static String readText(java.io.File f) throws java.io.IOException {
+        byte[] b = java.nio.file.Files.readAllBytes(f.toPath());
+        String s = new String(b, java.nio.charset.StandardCharsets.UTF_8);
+        return s.startsWith("\uFEFF") ? s.substring(1) : s;
     }
 
     /** Shares a folder with the agent (persistent access, used by the file tools). */
@@ -356,17 +598,25 @@ public final class ChatActivity extends BaseActivity {
             g.saf.persistGrant(tree);
             String name = tree.getLastPathSegment();
             for (com.suvo.agent.files.SafStore.Grant gr : g.saf.grants()) if (gr.treeUri.equals(tree)) name = gr.name;
-            appendToInput(getString(R.string.chat_folder_attached, name));
+            Pending p = new Pending();
+            p.label = "📁 " + name;
+            p.note = com.suvo.agent.core.util.Attachments.folder(name, devicePath(tree));
+            pending.add(p);
+            updateAttachmentHint();
         } catch (RuntimeException e) {
             Ui.toast(this, getString(R.string.error_prefix, e.getMessage()));
         }
     }
 
-    private void appendToInput(String line) {
-        String cur = input.getText().toString();
-        input.setText(cur.isEmpty() ? line + "\n" : cur + (cur.endsWith("\n") ? "" : "\n") + line + "\n");
-        input.setSelection(input.getText().length());
-        input.requestFocus();
+    /** Real path of a folder picked from the phone's own storage (null for cloud / other providers). */
+    private static String devicePath(android.net.Uri tree) {
+        if (!"com.android.externalstorage.documents".equals(tree.getAuthority())) return null;
+        String id = android.provider.DocumentsContract.getTreeDocumentId(tree);
+        int c = id.indexOf(':');
+        if (c < 0) return null;
+        String vol = id.substring(0, c), rel = id.substring(c + 1);
+        String base = "primary".equals(vol) ? "/storage/emulated/0" : "/storage/" + vol;
+        return rel.isEmpty() ? base : base + "/" + rel;
     }
 
     @Override
@@ -440,11 +690,18 @@ public final class ChatActivity extends BaseActivity {
 
     private void submit(String raw) {
         String text = raw.trim();
-        if (text.isEmpty() && pendingImages.isEmpty()) {
+        List<ChatMessage.Image> pendingImages = new ArrayList<>();
+        StringBuilder notes = new StringBuilder();
+        for (Pending p : pending) {
+            pendingImages.addAll(p.images);
+            if (p.note != null) notes.append("\n\n").append(p.note);
+        }
+        if (text.isEmpty() && pending.isEmpty()) {
             Fx.pill(this, getString(R.string.chat_empty_message), findViewById(R.id.chat_composer));
             return;
         }
-        if (text.isEmpty()) text = getString(R.string.chat_describe_image);
+        if (text.isEmpty()) text = getString(notes.length() == 0 ? R.string.chat_describe_image : R.string.chat_check_attachment);
+        text = text + notes;
         if (!pendingImages.isEmpty()) {
             com.suvo.agent.core.llm.ProviderConfig p = g.providers.active();
             if (p != null && !p.supportsVision) {
@@ -459,7 +716,7 @@ public final class ChatActivity extends BaseActivity {
             return;
         }
         input.setText("");
-        pendingImages.clear();
+        pending.clear();
         updateAttachmentHint();
         streamItem = null;
         reload();
@@ -504,7 +761,8 @@ public final class ChatActivity extends BaseActivity {
                     boolean toolImage = m.contentOrEmpty().startsWith("[Image output from");
                     boolean appCheck = m.contentOrEmpty().startsWith(com.suvo.agent.core.agent.FollowThrough.MARKER);
                     it.type = toolImage || appCheck ? NOTICE : USER;
-                    it.text = appCheck ? getString(R.string.chat_follow_through) : toolImage ? getString(R.string.chat_tool_image, m.images.size()) : m.contentOrEmpty()
+                    it.text = appCheck ? getString(R.string.chat_follow_through) : toolImage ? getString(R.string.chat_tool_image, m.images.size())
+                            : com.suvo.agent.core.util.Attachments.forDisplay(m.contentOrEmpty(), getString(R.string.chat_file_attached), getString(R.string.chat_folder_attached))
                             + (m.images.isEmpty() ? "" : "\n" + getString(R.string.chat_images_attached, m.images.size()));
                     it.time = sm.createdAt;
                     it.dim = sm.compacted;

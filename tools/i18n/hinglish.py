@@ -810,6 +810,8 @@ S = {
 "settings_vrm_use_builtin": "Built-in character par wapas",
 "character_model_note": "3D model Settings → Appearance mein set hota hai",
 "chat_follow_through": "Agent ko yaad dilaya ki jo bola wo sach mein kare",
+"chat_remove_attachment": "%1$s hatao",
+"chat_check_attachment": "Maine jo attach kiya hai use dekho.",
 }
 
 P = {

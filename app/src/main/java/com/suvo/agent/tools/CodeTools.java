@@ -44,7 +44,10 @@ public final class CodeTools {
             super(g, ToolSpec.builder("shell")
                     .description("Run a shell command. backend=local uses Android's sh/toybox in the private workspace (no packages, no root). "
                             + "backend=termux runs in Termux (bash, pkg, python, clang, node, git) if installed and authorized. "
-                            + "backend=shizuku runs with ADB-shell identity via Shizuku (input, pm, dumpsys). Output is captured with exit code.")
+                            + "backend=shizuku runs with ADB-shell identity via Shizuku (input, pm, dumpsys). Output is captured with exit code. "
+                            + "Termux has its own files (it starts in its home folder ~); it cannot read this app's workspace (file_* tools), "
+                            + "so create and edit files for Termux projects with this tool, e.g. cat > ~/apps/x/File.java <<'EOF' ... EOF, "
+                            + "and always cd into the project folder with an absolute path.")
                     .schema("{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000},"
                             + "\"backend\":{\"type\":\"string\",\"enum\":[\"default\",\"local\",\"termux\",\"shizuku\"],\"default\":\"default\"},"
                             + "\"stdin\":{\"type\":\"string\",\"maxLength\":200000},"

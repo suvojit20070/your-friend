@@ -12,6 +12,8 @@ import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
+import com.suvo.agent.core.util.ToastLog;
+
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -83,8 +85,22 @@ public final class AgentAccessibilityService extends AccessibilityService {
             if (pkg != null) foregroundPackage = pkg.toString();
             if (cls != null) foregroundClass = cls.toString();
             lastContentChange = System.currentTimeMillis();
+            if (cls != null && cls.toString().contains("Toast")) {
+                ToastLog.record(ToastLog.TOAST, str(pkg), joined(event), System.currentTimeMillis());
+            }
         } else if (type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
             lastContentChange = System.currentTimeMillis();
+            if ((event.getContentChangeTypes() & AccessibilityEvent.CONTENT_CHANGE_TYPE_PANE_APPEARED) != 0
+                    || String.valueOf(event.getClassName()).contains("Snackbar")) {
+                recordSnackbar(event);
+            }
+        } else if (type == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED) {
+            // A toast (system or custom) arrives here without a Notification; real notifications are skipped.
+            if (!(event.getParcelableData() instanceof android.app.Notification)) {
+                ToastLog.record(ToastLog.TOAST, str(event.getPackageName()), joined(event), System.currentTimeMillis());
+            }
+        } else if (type == AccessibilityEvent.TYPE_ANNOUNCEMENT) {
+            ToastLog.record(ToastLog.ANNOUNCEMENT, str(event.getPackageName()), joined(event), System.currentTimeMillis());
         } else if (type == AccessibilityEvent.TYPE_VIEW_CLICKED || type == AccessibilityEvent.TYPE_VIEW_LONG_CLICKED) {
             // The floating character glances at whatever the user taps (only the position is used).
             android.view.accessibility.AccessibilityNodeInfo src = event.getSource();
@@ -94,6 +110,41 @@ public final class AgentAccessibilityService extends AccessibilityService {
                 if (!r.isEmpty()) com.suvo.agent.character.FloatingCompanionService.lookAtScreen(r.centerX(), r.centerY());
             }
         }
+    }
+
+    private static String str(CharSequence c) {
+        return c == null ? "" : c.toString();
+    }
+
+    private static String joined(AccessibilityEvent e) {
+        StringBuilder sb = new StringBuilder();
+        for (CharSequence c : e.getText()) {
+            if (c == null || c.length() == 0) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(c);
+        }
+        if (sb.length() == 0 && e.getContentDescription() != null) sb.append(e.getContentDescription());
+        return sb.toString();
+    }
+
+    /** Material snackbars and other "panes" that pop in: record their visible text (not edit fields). */
+    private void recordSnackbar(AccessibilityEvent e) {
+        AccessibilityNodeInfo src = e.getSource();
+        if (src == null) return;
+        // Only snackbar-like panes; other panes (dialogs, sheets) are already in the screen tree.
+        if (!str(src.getClassName()).contains("Snackbar") && !str(e.getClassName()).contains("Snackbar")) return;
+        StringBuilder sb = new StringBuilder();
+        collectText(src, sb, 0);
+        ToastLog.record(ToastLog.SNACKBAR, str(e.getPackageName()), sb.toString(), System.currentTimeMillis());
+    }
+
+    private static void collectText(AccessibilityNodeInfo n, StringBuilder sb, int depth) {
+        if (n == null || depth > 4 || sb.length() > 300) return;
+        if (!n.isEditable() && !n.isPassword() && n.getText() != null && n.getText().length() > 0) {
+            if (sb.length() > 0) sb.append(" · ");
+            sb.append(n.getText());
+        }
+        for (int i = 0; i < n.getChildCount(); i++) collectText(n.getChild(i), sb, depth + 1);
     }
 
     @Override

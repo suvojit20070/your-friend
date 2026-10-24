@@ -30,6 +30,13 @@ public final class ToolExecutor {
     private final ExecutorService pool;
     public long approvalTimeoutMs = 5 * 60_000L;
 
+    /** Adds what the device reported while a tool ran (e.g. toasts after a screen tap) to its result. */
+    public interface ResultDecorator {
+        ToolResult decorate(String toolName, JSONObject args, long startedAtMs, ToolResult result);
+    }
+
+    public volatile ResultDecorator decorator;
+
     public ToolExecutor(ToolRegistry registry, CapabilityProvider capabilities, ApprovalPolicy policy,
                         Approver approver, ToolEvent.Sink sink) {
         this.registry = registry;
@@ -119,6 +126,7 @@ public final class ToolExecutor {
         emit(taskId, call.id, name, ToolEvent.Phase.EXECUTING, "", "");
         CancellationToken child = cancel.child();
         final ToolInvocation inv = new ToolInvocation(call.id, taskId, args, child, progress);
+        final long started = System.currentTimeMillis();
         Future<ToolResult> future = pool.submit(() -> tool.execute(inv));
         ToolResult result;
         try {
@@ -141,6 +149,14 @@ public final class ToolExecutor {
             child.cancel("interrupted");
             future.cancel(true);
             result = ToolResult.of(ToolResult.Status.CANCELLED, "Interrupted");
+        }
+        ResultDecorator d = decorator;
+        if (d != null && result.status != ToolResult.Status.CANCELLED) {
+            try {
+                result = d.decorate(name, args, started, result);
+            } catch (RuntimeException ignored) {
+                // Extra context never breaks a tool result.
+            }
         }
         return finish(taskId, call, result);
     }

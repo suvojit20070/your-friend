@@ -185,7 +185,7 @@ public final class AgentRuntime {
         activeConversation = conversationId;
         ConversationRepo.Conversation conv = g.conversations.get(conversationId);
         if (conv != null && (conv.title == null || conv.title.isEmpty())) {
-            String t = text.replace('\n', ' ').trim();
+            String t = com.suvo.agent.core.util.Attachments.forDisplay(text, "📎 %s", "📁 %s").replace('\n', ' ').trim();
             g.conversations.rename(conversationId, t.length() > 48 ? t.substring(0, 48) + "…" : t);
         }
         g.speech.stop();

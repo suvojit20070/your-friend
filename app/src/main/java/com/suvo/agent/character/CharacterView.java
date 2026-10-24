@@ -227,6 +227,11 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
         if (vrm != null) vrm.setSitting(s);
     }
 
+    /** Held in the air or falling (floating mode, 3D only): the legs hang and the limbs swing freely. */
+    public void setAirborne(boolean a) {
+        if (vrm != null) vrm.setAirborne(a);
+    }
+
     /** Hair/cloth force while the window is dragged (screen axes). */
     public void setWind(float x, float y) {
         if (vrm != null) vrm.setWind(x, y);

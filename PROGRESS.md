@@ -118,6 +118,27 @@ Your Friend — Original project by Suvo.
       signed release job
 - [x] DebugActivity also reports native crashes and ANRs (Android 11+)
 
+## Phase 2.6 (this update)
+
+- [x] Fixed: after pressing a top-bar or composer button the chat list could draw over the top bar (the press
+      effect un-clipped parents up to the window root). It now un-clips at most two parents and never a
+      container that holds a list / scroll view or a screen's root column
+- [x] Toast capture: the accessibility service records toasts (system and custom), Material snackbars and
+      status announcements (in memory only, 2 min, text capped; real notifications ignored). Screen tools
+      (`screen_operation_*`, `screenshot`, `launch_app`, `open_uri`, `device_admin`) add "After this action the
+      screen showed: toast …" to their result; a toast that comes late is reported with the next screen tool
+- [x] Attachments: Photos opens the system photo picker with images **and videos** (multi-select); File allows
+      multi-select. Attachments show as removable chips above the composer and go natively into the request:
+      images as images, videos as 4 frames + note, PDFs as first 3 pages + note, text/code files inline
+      (≤ 60k chars, marked as untrusted data), other files as an exact workspace-path note
+      (`uploads/…`, "starts at your workspace root", Termux cannot see it); folders as `ext:<name>/` plus the
+      real `/storage/emulated/0/...` path. The chat bubble shows only "📎 name"; memory extraction and titles
+      never see file contents. New prompt rule 12 explains attachment notes and toasts
+- [x] Floating 3D: when carried or falling the legs hang and arms/legs swing and trail the motion (two-stage
+      damped oscillators per limb, unit-tested), then settle after letting go
+- [x] Sitting styles chosen by mood and changed every 9–19 s with smooth blending: swinging legs, legs
+      crossed, leaning back on the hands, hugging the knees (sad / shy / sleepy), chin in hand (thoughtful)
+
 ## Planned
 
 - Spring-bone physics (hair/clothes) and MToon outlines for the 3D character

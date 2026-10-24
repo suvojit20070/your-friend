@@ -810,6 +810,8 @@ S = {
 "settings_vrm_use_builtin": "内蔵キャラクターに戻す",
 "character_model_note": "3D モデルは 設定 → 外観 で設定します",
 "chat_follow_through": "宣言した作業を実際に行うようエージェントに促しました",
+"chat_remove_attachment": "%1$s を外す",
+"chat_check_attachment": "添付したものを見てください。",
 }
 
 P = {

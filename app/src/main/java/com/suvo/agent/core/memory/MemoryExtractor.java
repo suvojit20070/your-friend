@@ -42,7 +42,8 @@ public final class MemoryExtractor {
 
     public List<Action> extract(List<ChatMessage> recent, MemoryStore store, LlmClient llm, String source, CancellationToken cancel) {
         List<Action> actions = new ArrayList<>();
-        String transcript = ContextCompactor.transcript(recent, 12_000);
+        // Attached file contents are not facts about the user (and may hold secrets): leave them out.
+        String transcript = com.suvo.agent.core.util.Attachments.withoutContents(ContextCompactor.transcript(recent, 12_000));
         if (transcript.trim().isEmpty()) return actions;
         ChatRequest req = new ChatRequest();
         req.forceNoStream = true;

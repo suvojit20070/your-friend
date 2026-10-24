@@ -89,6 +89,7 @@ public final class ChildAgent {
         }
         reg.setDisabledSet(g.tools.disabledNames());
         ToolExecutor exec = new ToolExecutor(reg, g.capabilities, g.policy, g.approvals, g.audit);
+        exec.decorator = g.executor.decorator;
 
         AgentTree.Node node = AgentTree.startChild(parentNode, e.name, e.role.isEmpty() ? "Employee" : e.role, brief);
         CancellationToken cancel = parentCancel.child();

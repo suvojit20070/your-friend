@@ -270,11 +270,17 @@ public final class Fx {
      * clipping their children (up to the screen root). Glass surfaces draw their own rounded
      * shape, so they do not need outline clipping either.
      */
+    /**
+     * Lets a pressed small view grow past its own row without being cut, but only within its
+     * nearest one or two parents. Never touches the content root, nor a container that holds a
+     * scrolling list (unclipping that lets the list draw over the top bar).
+     */
     static void unclipParents(View v) {
         ViewParent p = v.getParent();
-        for (int depth = 0; p instanceof ViewGroup && depth < 8; depth++) {
+        for (int depth = 0; p instanceof ViewGroup && depth < 2; depth++) {
             ViewGroup g = (ViewGroup) p;
-            if (g instanceof AbsListView || g instanceof ScrollView) break;
+            if (g instanceof AbsListView || g instanceof ScrollView || g.getId() == android.R.id.content
+                    || !(g.getParent() instanceof ViewGroup) || holdsScroller(g)) break;
             g.setClipChildren(false);
             g.setClipToPadding(false);
             if (g.getClipToOutline() && (g.getBackground() instanceof GlassDrawable || g.getBackground() instanceof android.graphics.drawable.LayerDrawable)) {
@@ -282,6 +288,16 @@ public final class Fx {
             }
             p = g.getParent();
         }
+    }
+
+    private static boolean holdsScroller(ViewGroup g) {
+        for (int i = 0; i < g.getChildCount(); i++) {
+            View c = g.getChildAt(i);
+            if (c instanceof AbsListView || c instanceof ScrollView || c instanceof android.widget.HorizontalScrollView) return true;
+        }
+        ViewParent up = g.getParent();
+        // A screen's root column (top bar + content) must keep clipping too.
+        return up instanceof ViewGroup && ((ViewGroup) up).getId() == android.R.id.content;
     }
 
     private static int glowColor(Context c) {

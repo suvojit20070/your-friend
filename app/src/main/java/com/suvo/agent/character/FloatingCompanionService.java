@@ -260,7 +260,7 @@ public final class FloatingCompanionService extends Service {
     private final class DragTouch implements View.OnTouchListener {
         float downRawX, downRawY;
         int startX, startY;
-        boolean moved;
+        boolean moved, wasFalling;
         float lastX, lastY;
         long lastT;
         float vx, vy;
@@ -280,6 +280,7 @@ public final class FloatingCompanionService extends Service {
                     startX = lp.x;
                     startY = lp.y;
                     moved = false;
+                    wasFalling = fall != null && fall.isRunning();
                     cancelFall();
                     lastX = e.getRawX();
                     lastY = e.getRawY();
@@ -305,8 +306,9 @@ public final class FloatingCompanionService extends Service {
                     lastY = e.getRawY();
                     lastT = t;
                     if (moved) {
-                        // Picked up: stand, and let the hair and clothes trail behind the motion.
+                        // Picked up: legs dangle, and arms, legs, hair and clothes trail behind the motion.
                         character.setSitting(false);
+                        character.setAirborne(true);
                         character.setWind(-vx * 0.035f, -vy * 0.035f);
                         lp.x = startX + (int) dx;
                         lp.y = startY + (int) dy;
@@ -324,6 +326,8 @@ public final class FloatingCompanionService extends Service {
                     } else if (moved) {
                         character.setWind(0f, 0f);
                         land();
+                    } else if (wasFalling) {
+                        land(); // caught in the air by a tap: let it fall again
                     } else {
                         long now = System.currentTimeMillis();
                         if (now - lastTap < 350) {
@@ -553,6 +557,7 @@ public final class FloatingCompanionService extends Service {
         }
         float g = 3200f * dm.density / 2.75f; // px/s², similar on all screens
         long ms = (long) (Math.sqrt(2.0 * (targetY - startY) / g) * 1000);
+        character.setAirborne(true);
         fall = android.animation.ValueAnimator.ofFloat(0f, 1f);
         fall.setDuration(Math.max(120, Math.min(1400, ms)));
         fall.setInterpolator(new android.view.animation.AccelerateInterpolator(1f));
@@ -582,6 +587,7 @@ public final class FloatingCompanionService extends Service {
     }
 
     private void touchDown(boolean sit) {
+        character.setAirborne(false);
         character.setSitting(sit);
         // A small squash on landing.
         character.setPivotY(character.getHeight());

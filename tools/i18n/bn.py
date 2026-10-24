@@ -810,6 +810,8 @@ S = {
 "settings_vrm_use_builtin": "বিল্ট-ইন ক্যারেক্টারে ফিরুন",
 "character_model_note": "3D মডেল Settings → Appearance-এ সেট করা হয়",
 "chat_follow_through": "এজেন্টকে মনে করানো হলো, যা বলেছে সেটা সত্যিই করতে",
+"chat_remove_attachment": "%1$s সরান",
+"chat_check_attachment": "আমি যা যুক্ত করেছি সেটা দেখো।",
 }
 
 P = {

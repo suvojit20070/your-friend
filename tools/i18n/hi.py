@@ -810,6 +810,8 @@ S = {
 "settings_vrm_use_builtin": "बिल्ट-इन कैरेक्टर पर वापस",
 "character_model_note": "3D मॉडल Settings → Appearance में सेट होता है",
 "chat_follow_through": "एजेंट को याद दिलाया कि जो कहा वह सच में करे",
+"chat_remove_attachment": "%1$s हटाएँ",
+"chat_check_attachment": "मैंने जो जोड़ा है उसे देखो।",
 }
 
 P = {

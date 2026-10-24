@@ -174,6 +174,7 @@
     <string name="chat_add_photos">ছবি</string>
     <string name="chat_add_title">কথোপকথনে যোগ করুন</string>
     <string name="chat_attach_image">ছবি যোগ করুন</string>
+    <string name="chat_check_attachment">আমি যা যুক্ত করেছি সেটা দেখো।</string>
     <string name="chat_describe_image">এই ছবিতে কী আছে?</string>
     <string name="chat_empty_message">আগে একটা মেসেজ লিখুন</string>
     <string name="chat_error_tap_retry">আবার চেষ্টা করতে ট্যাপ করুন</string>
@@ -189,6 +190,7 @@
     <string name="chat_no_app">ফোনে এটা করার মতো কোনো অ্যাপ নেই</string>
     <string name="chat_no_provider">কোনো প্রোভাইডার নেই</string>
     <string name="chat_no_vision">সক্রিয় প্রোভাইডার ভিশন-সক্ষম হিসেবে চিহ্নিত নয়। ছবি পাঠাতে তার সেটিংসে \"Vision\" চালু করুন।</string>
+    <string name="chat_remove_attachment">%1$s সরান</string>
     <string name="chat_select_text">লেখা নির্বাচন</string>
     <string name="chat_summarized">আগের মেসেজগুলোর সারাংশ করা হয়েছে</string>
     <string name="chat_summary_hint">সারাংশ পড়তে ট্যাপ করুন</string>

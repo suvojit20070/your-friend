@@ -57,6 +57,12 @@ public final class ToolResult {
         return new ToolResult(status, message, null, null);
     }
 
+    /** Same result with an extra line appended to the message (data and images unchanged). */
+    public ToolResult withNote(String note) {
+        if (note == null || note.isEmpty()) return this;
+        return new ToolResult(status, message.isEmpty() ? note : message + "\n" + note, data, images);
+    }
+
     public boolean succeeded() {
         return status == Status.SUCCEEDED;
     }

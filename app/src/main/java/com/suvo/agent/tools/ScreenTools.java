@@ -63,7 +63,10 @@ public final class ScreenTools {
                             + "After an action the screen is re-read unless read_after=false. "
                             + "Long texts are cut to save tokens (input fields 60 chars, other text 120) and marked cut=true with their "
                             + "full len; use get_text with the element (and offset for very long text) only when you need the whole text. "
-                            + "Each read also lists previous_screens: the last few screens and what you did on them.")
+                            + "Each read also lists previous_screens: the last few screens and what you did on them. "
+                            + "Toasts, snackbars and status announcements never appear in the element list; when one pops up after "
+                            + "your action the result message says so (\"After this action the screen showed: toast ...\") — read it, it "
+                            + "often tells you whether the action worked.")
                     .schema("{\"type\":\"object\",\"properties\":{"
                             + "\"action\":{\"type\":\"string\",\"enum\":[\"read\",\"get_text\",\"find\",\"tap\",\"long_press\",\"type\",\"scroll\",\"swipe\",\"back\",\"home\",\"recents\",\"notifications\",\"quick_settings\",\"wait_for\"]},"
                             + "\"element\":{\"type\":\"string\",\"description\":\"Element id from the last read, e.g. e12\"},"

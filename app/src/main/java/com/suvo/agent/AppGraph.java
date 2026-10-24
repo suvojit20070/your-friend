@@ -109,6 +109,7 @@ public final class AppGraph {
         settings.applyTo(policy);
         approvals = new ApprovalCenter(ctx);
         executor = new ToolExecutor(tools, capabilities, policy, approvals, audit);
+        executor.decorator = new com.suvo.agent.device.accessibility.ToastAttach(ctx.getPackageName());
         skills = new SkillRepo(ctx);
         customTools = new CustomToolRepo(db, secrets);
         characters = new CharacterRepo(ctx);

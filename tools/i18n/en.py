@@ -810,6 +810,8 @@ S = {
 "settings_vrm_use_builtin": "Back to the built-in character",
 "character_model_note": "The 3D model is set in Settings → Appearance",
 "chat_follow_through": "The agent was reminded to actually do the step it announced",
+"chat_remove_attachment": "Remove %1$s",
+"chat_check_attachment": "Please take a look at what I attached.",
 }
 
 P = {

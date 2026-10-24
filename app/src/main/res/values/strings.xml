@@ -174,6 +174,7 @@
     <string name="chat_add_photos">Photos</string>
     <string name="chat_add_title">Add to conversation</string>
     <string name="chat_attach_image">Attach image</string>
+    <string name="chat_check_attachment">Please take a look at what I attached.</string>
     <string name="chat_describe_image">What is in this image?</string>
     <string name="chat_empty_message">Please enter a message</string>
     <string name="chat_error_tap_retry">Tap to retry</string>
@@ -189,6 +190,7 @@
     <string name="chat_no_app">No app on this phone can do that</string>
     <string name="chat_no_provider">No provider</string>
     <string name="chat_no_vision">The active provider is not marked as vision-capable. Enable \"Vision\" in its settings to send images.</string>
+    <string name="chat_remove_attachment">Remove %1$s</string>
     <string name="chat_select_text">Select text</string>
     <string name="chat_summarized">Earlier messages summarized</string>
     <string name="chat_summary_hint">Tap to read the summary</string>

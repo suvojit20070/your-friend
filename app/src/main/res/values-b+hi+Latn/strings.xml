@@ -174,6 +174,7 @@
     <string name="chat_add_photos">Photos</string>
     <string name="chat_add_title">Conversation mein jodo</string>
     <string name="chat_attach_image">Image lagao</string>
+    <string name="chat_check_attachment">Maine jo attach kiya hai use dekho.</string>
     <string name="chat_describe_image">Is image mein kya hai?</string>
     <string name="chat_empty_message">Pehle message likho</string>
     <string name="chat_error_tap_retry">Dobara try karne ke liye tap karo</string>
@@ -189,6 +190,7 @@
     <string name="chat_no_app">Phone mein ye karne wala koi app nahi hai</string>
     <string name="chat_no_provider">Koi provider nahi</string>
     <string name="chat_no_vision">Active provider vision-capable mark nahi hai. Images bhejne ke liye uski settings mein \"Vision\" on karo.</string>
+    <string name="chat_remove_attachment">%1$s hatao</string>
     <string name="chat_select_text">Text select karo</string>
     <string name="chat_summarized">Purane messages ka summary bana</string>
     <string name="chat_summary_hint">Summary padhne ke liye tap karo</string>
