@@ -40,7 +40,7 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
 
     public static final String LIB_DIR = "omnivoice/lib";
     public static final String MAIN_LIB = "libaudiocpp.so";
-    private static final long CONNECT_MS = 15_000, LOAD_MS = 6 * 60_000L, SYNTH_MS = 4 * 60_000L;
+    private static final long CONNECT_MS = 45_000, LOAD_MS = 6 * 60_000L, SYNTH_MS = 4 * 60_000L;
 
     private final Context ctx;
     private final Settings settings;
@@ -176,7 +176,7 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
         try {
             m.send(msg);
         } catch (RemoteException e) {
-            throw new IllegalStateException(crashReport());
+            throw new IllegalStateException(crashReport(boundAt - 1000));
         }
         long deadline = System.currentTimeMillis() + timeoutMs;
         while (!latch.await(250, TimeUnit.MILLISECONDS)) {
@@ -197,7 +197,7 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
         }
         if (r == null) {
             loadedKey = "";
-            String report = crashReport();
+            String report = crashReport(boundAt - 1000);
             status = report;
             throw new IllegalStateException(report);
         }
@@ -223,7 +223,6 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
         final Messenger[] got = new Messenger[1];
         died = false;
         boundAt = System.currentTimeMillis();
-        clearStage();
         ServiceConnection c = new ServiceConnection() {
             @Override
             public void onServiceConnected(ComponentName name, IBinder service) {
@@ -243,14 +242,29 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
                 onDied();
             }
         };
-        if (!ctx.bindService(new Intent(ctx, OmniVoiceService.class), c, Context.BIND_AUTO_CREATE)) {
-            throw new IllegalStateException("Could not start the voice engine process");
+        // BIND_IMPORTANT: the engine process gets the app's priority, so Android is less quick to kill
+        // it for memory while it loads a large model.
+        int flags = Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT;
+        Intent intent = new Intent(ctx, OmniVoiceService.class);
+        boolean bound;
+        if (Build.VERSION.SDK_INT >= 29) {
+            // Callbacks on our own thread: they must not wait for a busy main thread.
+            Handler h = new Handler(replyThread.getLooper());
+            bound = ctx.bindService(intent, flags, h::post, c);
+        } else {
+            bound = ctx.bindService(intent, c, flags);
         }
+        if (!bound) throw new IllegalStateException("Could not start the voice engine process");
         connection = c;
         if (!ready.await(CONNECT_MS, TimeUnit.MILLISECONDS) || got[0] == null) {
             unbind();
-            throw new IllegalStateException("The voice engine process did not start");
+            // Usually the engine process keeps dying while it starts (Android then waits longer and
+            // longer before restarting it): report the last recorded reason.
+            String why = crashReport(System.currentTimeMillis() - 15 * 60_000L);
+            status = why;
+            throw new IllegalStateException("The voice engine process did not start.\n" + why);
         }
+        clearStage(); // kept until now: if the start fails, the report still knows the last stage
         synchronized (lock) {
             remote = got[0];
             return remote;
@@ -312,14 +326,14 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
     }
 
     /** Why the engine process ended: stage + Android's exit record (signal, memory, crash lines) + a hint. */
-    private String crashReport() {
+    private String crashReport(long since) {
         String stage = readStage();
         StringBuilder sb = new StringBuilder("The voice engine (audio.cpp) crashed");
         if (!stage.isEmpty() && !"idle".equals(stage)) sb.append(" while ").append(stage);
         sb.append(". The app itself kept running.");
         String hint = null;
         if (Build.VERSION.SDK_INT >= 30) {
-            android.app.ApplicationExitInfo e = findExit();
+            android.app.ApplicationExitInfo e = findExit(since);
             if (e != null) {
                 int reason = e.getReason();
                 int sig = e.getStatus();
@@ -352,10 +366,18 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
                     + "enough for the free memory.";
         }
         if (hint != null) sb.append("\nTip: ").append(hint);
+        android.app.ActivityManager am = ctx.getSystemService(android.app.ActivityManager.class);
+        if (am != null) {
+            android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+            am.getMemoryInfo(mi);
+            File model = new File(settings.str(Settings.OMNI_MODEL_PATH, ""));
+            sb.append(String.format(Locale.ROOT, "\nMemory now: %.1f GB free of %.1f GB; model file %.2f GB.",
+                    mi.availMem / 1073741824.0, mi.totalMem / 1073741824.0, model.length() / 1073741824.0));
+        }
         return sb.toString();
     }
 
-    private android.app.ApplicationExitInfo findExit() {
+    private android.app.ApplicationExitInfo findExit(long since) {
         if (Build.VERSION.SDK_INT < 30) return null;
         android.app.ActivityManager am = ctx.getSystemService(android.app.ActivityManager.class);
         if (am == null) return null;
@@ -365,7 +387,7 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
             try {
                 List<android.app.ApplicationExitInfo> list = am.getHistoricalProcessExitReasons(ctx.getPackageName(), 0, 10);
                 for (android.app.ApplicationExitInfo e : list) {
-                    if (proc.equals(e.getProcessName()) && e.getTimestamp() >= boundAt - 1000) return e;
+                    if (proc.equals(e.getProcessName()) && e.getTimestamp() >= since) return e;
                 }
             } catch (RuntimeException ignored) {
                 return null;
