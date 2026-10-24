@@ -49,7 +49,9 @@ public final class OmniVoiceNative implements AutoCloseable {
         if (!main.isFile()) throw new IllegalStateException("Library not found: " + main.getName());
         List<File> deps = new ArrayList<>();
         File[] all = libDir.listFiles((d, n) -> n.endsWith(".so") || n.contains(".so."));
-        if (all != null) for (File f : all) if (!f.equals(main)) deps.add(f);
+        // The app's own libc++_shared.so (same NDK) is already loaded with libyourfriend.so; loading the
+        // imported copy as well would put two C++ runtimes in one process, which can crash.
+        if (all != null) for (File f : all) if (!f.equals(main) && !f.getName().equals("libc++_shared.so")) deps.add(f);
         for (int round = 0; round < 4 && !deps.isEmpty(); round++) {
             List<File> next = new ArrayList<>();
             for (File f : deps) if (nativePreload(f.getAbsolutePath()) != null) next.add(f);

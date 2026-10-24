@@ -177,6 +177,13 @@
                 android:value="Shows the user-enabled floating assistant character overlay; it can be dismissed from its notification." />
         </service>
 
+        <!-- Runs the user-supplied audio.cpp library apart from the app, so a native crash or an
+             out-of-memory kill there cannot close the app. -->
+        <service
+            android:name=".voice.OmniVoiceService"
+            android:exported="false"
+            android:process=":tts" />
+
         <service
             android:name=".voice.HandsFreeService"
             android:exported="false"

@@ -138,6 +138,11 @@ Your Friend — Original project by Suvo.
       damped oscillators per limb, unit-tested), then settle after letting go
 - [x] Sitting styles chosen by mood and changed every 9–19 s with smooth blending: swinging legs, legs
       crossed, leaning back on the hands, hugging the knees (sad / shy / sleepy), chin in hand (thoughtful)
+- [x] OmniVoice (audio.cpp) now runs in its own `:tts` process (`OmniVoiceService`): a native crash or an
+      out-of-memory kill there no longer closes the app. Voice settings show why it died (stage: loading
+      library / loading model / speaking, signal, abort lines from Android's crash record) with a tip
+      (wrong GGUF format, missing CPU instructions, low memory). The imported libc++_shared.so is no
+      longer loaded next to the app's own copy
 
 ## Planned
 

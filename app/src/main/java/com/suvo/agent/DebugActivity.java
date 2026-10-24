@@ -75,6 +75,8 @@ public final class DebugActivity extends Activity {
             for (android.app.ApplicationExitInfo e : exits) {
                 if (e.getTimestamp() <= seen) continue;
                 if (e.getProcessName() != null && e.getProcessName().endsWith(":debug")) continue;
+                // The voice engine process: its crashes are reported in Voice settings, not here.
+                if (e.getProcessName() != null && e.getProcessName().endsWith(":tts")) continue;
                 int r = e.getReason();
                 if (r == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE || r == android.app.ApplicationExitInfo.REASON_ANR) {
                     hit = e;
@@ -108,7 +110,7 @@ public final class DebugActivity extends Activity {
      * ANR traces are text. Native tombstones are a binary (protobuf) record; the readable parts —
      * signal, abort message, library and function names of the backtrace — are pulled out as text.
      */
-    private static String readTrace(android.app.ApplicationExitInfo e) {
+    public static String readTrace(android.app.ApplicationExitInfo e) {
         if (Build.VERSION.SDK_INT < 30) return "";
         try (InputStream in = e.getTraceInputStream()) {
             if (in == null) return "";

@@ -46,7 +46,7 @@ public final class App extends Application {
     private void installCrashHandler(Context base) {
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
             Log.e("YF.Crash", "Uncaught exception in " + thread.getName(), throwable);
-            if (!isDebugProcess()) {
+            if (!isDebugProcess() && !isEngineProcess()) {
                 Context ctx = getBaseContext() != null ? this : base;
                 DebugActivity.handleCrash(ctx, thread, throwable);
             }
@@ -58,6 +58,11 @@ public final class App extends Application {
     /** True in the separate ":debug" process that only hosts DebugActivity. */
     private static boolean isDebugProcess() {
         return processName().endsWith(":debug");
+    }
+
+    /** True in the ":tts" process that runs the user's audio.cpp library (see OmniVoiceService). */
+    private static boolean isEngineProcess() {
+        return processName().endsWith(":tts");
     }
 
     private static String processName() {
@@ -81,7 +86,7 @@ public final class App extends Application {
         super.onCreate();
         // The crash screen's process must not run any app setup: if that setup is what crashed,
         // DebugActivity would crash too.
-        if (isDebugProcess()) return;
+        if (isDebugProcess() || isEngineProcess()) return;
 
         Notifications.createChannels(this);
         // A native crash or freeze last time is shown now (the Java handler cannot catch those).
