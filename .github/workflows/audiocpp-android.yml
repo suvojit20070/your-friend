@@ -19,6 +19,15 @@ on:
         default: "arm64-v8a"
         type: choice
         options: [ "arm64-v8a", "x86_64" ]
+      cpu_arch:
+        description: "ARM CPU features (arm64 only). Faster needs a newer phone; a phone without them crashes with SIGILL"
+        required: true
+        default: "armv8.2-a+dotprod+fp16"
+        type: choice
+        options:
+          - "armv8.2-a+dotprod+fp16"        # most phones from 2018 on (Snapdragon 845+, Dimensity, Helio G-series): 3-5x faster
+          - "armv8.6-a+dotprod+fp16+i8mm"   # newest chips (Snapdragon 8 Gen 1+, Dimensity 9000+): fastest
+          - "armv8-a"                       # any 64-bit phone: slowest, always works
 
 jobs:
   build-audiocpp:
@@ -49,7 +58,11 @@ jobs:
       - name: Configure
         run: |
           NDK="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
-          cmake -S audiocpp -B build -G Ninja \
+          ARCH_ARG=""
+          # Without this ggml is built for plain ARMv8.0: no int8 dot product and no fp16 math, which makes
+          # the quantized model several times slower on a phone that has them.
+          if [ "${{ inputs.abi }}" = "arm64-v8a" ]; then ARCH_ARG="-DGGML_CPU_ARM_ARCH=${{ inputs.cpu_arch }}"; fi
+          cmake -S audiocpp -B build -G Ninja $ARCH_ARG \
             -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=${{ inputs.abi }} \
             -DANDROID_PLATFORM=android-28 \
@@ -84,5 +97,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: libaudiocpp-${{ inputs.abi }}
+          name: libaudiocpp-${{ inputs.abi }}-${{ inputs.abi == 'arm64-v8a' && inputs.cpu_arch || 'x86' }}
           path: out/

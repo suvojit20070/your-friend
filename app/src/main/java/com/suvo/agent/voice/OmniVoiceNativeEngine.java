@@ -40,7 +40,7 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
 
     public static final String LIB_DIR = "omnivoice/lib";
     public static final String MAIN_LIB = "libaudiocpp.so";
-    private static final long CONNECT_MS = 45_000, LOAD_MS = 6 * 60_000L, SYNTH_MS = 4 * 60_000L;
+    private static final long CONNECT_MS = 45_000, LOAD_MS = 6 * 60_000L, SYNTH_MS = 15 * 60_000L;
 
     private final Context ctx;
     private final Settings settings;
@@ -146,13 +146,29 @@ public final class OmniVoiceNativeEngine implements TtsEngine {
         args.putFloat("speed", v.speed);
         args.putInt("steps", v.steps);
         args.putString("outPath", out.getAbsolutePath());
-        Bundle r = call(OmniVoiceService.MSG_SYNTH, args, SYNTH_MS, cancel);
+        long t0 = System.currentTimeMillis();
+        Bundle r;
+        try {
+            r = call(OmniVoiceService.MSG_SYNTH, args, SYNTH_MS, cancel);
+        } catch (IllegalStateException e) {
+            if (e.getMessage() != null && e.getMessage().startsWith("The voice engine did not answer")) {
+                throw new IllegalStateException(e.getMessage() + ". Speaking is too slow on this phone with the current "
+                        + "settings: lower Quality steps (16), use a shorter reference clip (3–6 s), and build "
+                        + "libaudiocpp.so with the cpu_arch option armv8.2-a+dotprod+fp16 (the plain armv8-a build is "
+                        + "several times slower).");
+            }
+            throw e;
+        }
         cancel.throwIfCancelled();
         float[] samples = OmniVoiceService.readFloats(out);
         //noinspection ResultOfMethodCallIgnored
         out.delete();
         int rate = r.getInt("rate", 0);
-        return new Pcm(samples, rate > 0 ? rate : 24000);
+        Pcm pcm = new Pcm(samples, rate > 0 ? rate : 24000);
+        double took = (System.currentTimeMillis() - t0) / 1000.0;
+        status = status.replaceAll(" · last: .*$", "") + String.format(Locale.ROOT, " · last: %.0f s to make %.1f s of speech (%d steps)",
+                took, pcm.durationSeconds(), v.steps);
+        return pcm;
     }
 
     // ------------------------------------------------------------------------------ process link

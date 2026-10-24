@@ -35,10 +35,16 @@ loads it at runtime with `dlopen` and checks the ABI version before calling anyt
 
 1. Build `libaudiocpp.so` for your phone's ABI (almost always `arm64-v8a`):
    - GitHub → Actions → **Build audio.cpp for Android (experimental)** → Run workflow. It cross-compiles
-     audio.cpp with the NDK and uploads the `.so` as an artifact. This workflow has not been
-     run yet and may need fixes when audio.cpp changes.
+     audio.cpp with the NDK and uploads the `.so` files as an artifact (tested: builds in ~15 min).
+     Pick **cpu_arch** `armv8.2-a+dotprod+fp16` for almost every phone from 2018 on — the plain
+     `armv8-a` build has no int8 dot product / fp16 math and speaks several times slower. Use
+     `armv8.6-a+dotprod+fp16+i8mm` only on the newest chips; a phone without a feature crashes with
+     SIGILL (the app then says so).
    - Or build it yourself with the NDK's CMake toolchain:
-     `-DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-26 -DAUDIOCPP_BUILD_C_API=ON`.
+     `-DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 -DAUDIOCPP_BUILD_C_API=ON -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16`.
+   - The engine runs in its own process: if it crashes or runs out of memory the app keeps running
+     and Voice settings show the reason. On a phone, 16 quality steps and a 3–6 s reference clip
+     keep speaking reasonably fast.
 2. Get an OmniVoice GGUF model (convert it with audio.cpp's tools, or download one that is
    already converted). **The OmniVoice weights are CC BY-NC 4.0, non-commercial only.**
 3. Settings → Voice → OmniVoice on device → **Import libraries** (`libaudiocpp.so` plus any
