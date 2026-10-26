@@ -204,7 +204,7 @@ public final class MemoryActivity extends BaseActivity {
         TextView impLabel = new TextView(this, null, 0, R.style.YF_Label);
         impLabel.setText(getString(R.string.memory_importance, e.importance));
         form.addView(impLabel);
-        com.google.android.material.slider.Slider imp = Widgets.newSlider(this, 1, 5, e.importance);
+        LiquidSlider imp = Widgets.newSlider(this, 1, 5, e.importance);
         imp.addOnChangeListener((s, v, u) -> impLabel.setText(getString(R.string.memory_importance, Math.round(v))));
         form.addView(imp);
 
@@ -231,7 +231,7 @@ public final class MemoryActivity extends BaseActivity {
 
         android.widget.ScrollView sv = new android.widget.ScrollView(this);
         sv.addView(form);
-        android.app.AlertDialog.Builder b = Ui.dialog(this)
+        GlassDialog.Builder b = Ui.dialog(this)
                 .setTitle(existing == null ? R.string.memory_add : R.string.memory_edit)
                 .setView(sv)
                 .setPositiveButton(R.string.save, (d, w) -> {

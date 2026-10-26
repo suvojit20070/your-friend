@@ -114,7 +114,7 @@ public final class Nav {
     public static void showMore(Activity a) {
         GridLayout grid = new GridLayout(a);
         grid.setColumnCount(3);
-        final Dialog[] sheet = new Dialog[1];
+        final Overlay[] sheet = new Overlay[1];
         for (Object[] m : MORE) {
             View tile = Fx.tile(a, (Integer) m[0], a.getString((Integer) m[1]), v -> {
                 if (sheet[0] != null) sheet[0].dismiss();

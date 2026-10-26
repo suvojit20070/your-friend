@@ -15,58 +15,69 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.view.View;
 
 /**
  * Your Friend — Original project by Suvo.
  *
- * Liquid-glass surface in squircle (G2) shape. On its own it is the tonal fallback (a stronger
- * surface tint, so text stays readable without blur); {@link BackdropDrawable} draws the live
- * blur of what is behind first and then this lighter tint on top.
+ * Liquid-glass surface in squircle (G2) shape, drawn in the order of the glass recipe:
+ * (blurred, 1.5x saturated backdrop — by {@link BackdropDrawable}) → primary-container tint with
+ * the HUE blend mode → the preset's surface fill → a thin ambient rim light, brighter at the top.
+ * Without a live blur it is the fallback: the same surface 20% more opaque plus a 1px top inner
+ * highlight, so text stays readable and the shape still reads as glass.
  *
- * Each {@link Preset} carries the values of the Zafiro glass spec: shape radius, how much the
- * background is blurred (light / dark), the surface tint, an optional primary-container tint
- * blended by hue (gives the glass a faint colour of the theme without darkening it), and a thin
- * specular rim that is brighter along the top edge.
+ * {@link Preset} holds the spec's values per component; {@link #shadow} gives a host view the
+ * preset's soft outer shadow.
  */
 public class GlassDrawable extends Drawable {
 
-    /** Glass looks from the design spec. Radii in dp (CAPSULE = half the short side). */
+    /** Glass presets. Radii in dp (-1 = capsule / circle). */
     public enum Preset {
-        BUTTON(-1, 4, 4, 0f),
-        POPOVER(20, 24, 20, 0f),
-        COMPOSER(36, 16, 12, 0.32f),
-        PILL(-1, 16, 12, 0.32f),
-        DIALOG(48, 12, 8, 0.18f),
-        SHEET(32, 24, 20, 0.18f),
-        TOPBAR(0, 16, 16, 0f),
-        TILE(20, 6, 6, 0f);
+        //        radius blurL blurD  hue   rimL  rimD  shadowR shadowL shadowD
+        BUTTON(-1, 4, 4, 0f, 0f, 1f, 12, 0.20f, 0.08f),
+        POPOVER(20, 24, 20, 0f, 0.4f, 1f, 20, 0.20f, 0.08f),
+        COMPOSER(36, 16, 12, 0.32f, 0.15f, 0.3f, 20, 0.12f, 0.06f),
+        SCROLL(-1, 16, 12, 0f, 0.15f, 0.3f, 20, 0.12f, 0.06f),
+        PILL(-1, 16, 12, 0.32f, 0.15f, 0.3f, 20, 0.12f, 0.06f),
+        TEXTFIELD(36, 2, 2, 0.32f, 0.5f, 0.5f, 0, 0f, 0f),
+        CAPSULE(-1, 2, 2, 0f, 0.4f, 0.6f, 0, 0f, 0f),
+        DIALOG(48, 12, 8, 0.18f, 0f, 0f, 16, 0.24f, 0.16f),
+        SHEET(32, 12, 8, 0.18f, 0f, 0f, 24, 0.20f, 0.14f),
+        TOPBAR(0, 16, 16, 0f, 0f, 0f, 0, 0f, 0f),
+        TILE(20, 6, 6, 0f, 0.3f, 0.5f, 0, 0f, 0f);
 
-        final float radiusDp;
-        final float blurLightDp, blurDarkDp;
-        final float hueTint;
+        final float radiusDp, blurLightDp, blurDarkDp, hueTint, rimLight, rimDark, shadowDp, shadowLight, shadowDark;
 
-        Preset(float radiusDp, float blurLightDp, float blurDarkDp, float hueTint) {
+        Preset(float radiusDp, float blurLightDp, float blurDarkDp, float hueTint, float rimLight, float rimDark,
+               float shadowDp, float shadowLight, float shadowDark) {
             this.radiusDp = radiusDp;
             this.blurLightDp = blurLightDp;
             this.blurDarkDp = blurDarkDp;
             this.hueTint = hueTint;
+            this.rimLight = rimLight;
+            this.rimDark = rimDark;
+            this.shadowDp = shadowDp;
+            this.shadowLight = shadowLight;
+            this.shadowDark = shadowDark;
         }
     }
 
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint tint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint rim = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint topLine = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rect = new RectF();
     private final Path path = new Path();
     private final float density;
-    private final float radius;
+    private float radius;
     protected final Preset preset;
     protected final Palette pal;
-    private int fillColor;
+    private int fixedFill;
     private final int tintColor;
     private int alpha = 255;
     private boolean topOnly;
-    protected boolean live; // set by BackdropDrawable when a real blur is drawn underneath
+    private boolean disabled;
+    protected boolean live; // a real blur is drawn underneath (by BackdropDrawable or the window)
 
     public GlassDrawable(Context ctx, Preset preset) {
         this(ctx, preset, -2);
@@ -78,48 +89,91 @@ public class GlassDrawable extends Drawable {
         this.pal = Palette.of(ctx);
         this.density = ctx.getResources().getDisplayMetrics().density;
         this.radius = radiusPx == -2 ? (preset.radiusDp < 0 ? -1 : preset.radiusDp * density) : radiusPx;
-        this.fillColor = surface(false);
         this.tintColor = Palette.alpha(pal.primaryContainer, preset.hueTint);
         fill.setStyle(Paint.Style.FILL);
         tint.setStyle(Paint.Style.FILL);
         if (Build.VERSION.SDK_INT >= 29) tint.setBlendMode(BlendMode.HUE);
         rim.setStyle(Paint.Style.STROKE);
         rim.setStrokeWidth(Math.max(1f, 0.5f * density));
+        topLine.setStyle(Paint.Style.STROKE);
+        topLine.setStrokeWidth(Math.max(1f, density));
     }
 
-    /** Legacy: tonal glass with a fixed radius (popover look). */
+    /** Legacy: popover glass with a fixed radius. */
     public GlassDrawable(Context ctx, float radiusPx) {
         this(ctx, Preset.POPOVER, radiusPx);
     }
 
-    /** Legacy: tonal glass with a fixed radius and fill colour. */
+    /** Legacy: popover glass with a fixed radius and fill colour. */
     public GlassDrawable(Context ctx, float radiusPx, int fillColor) {
         this(ctx, Preset.POPOVER, radiusPx);
-        this.fillColor = fillColor;
+        this.fixedFill = fillColor;
     }
 
-    /** Surface tint: light over a live blur, stronger when it has to work alone. */
-    protected int surface(boolean overBlur) {
+    /** The preset's surface over a live blur. */
+    protected int surface() {
         switch (preset) {
             case BUTTON:
-            case TILE:
-                return overBlur ? pal.glassButton() : Palette.alpha(pal.surfaceHigh, pal.dark ? 0.78f : 0.86f);
             case POPOVER:
-                return overBlur ? Palette.alpha(pal.surfaceHigh, pal.dark ? 0.62f : 0.55f) : Palette.alpha(pal.surfaceHigh, 0.96f);
+            case TILE:
+                return pal.glassButton();
             case COMPOSER:
+            case SCROLL:
             case PILL:
-                return overBlur ? Palette.alpha(pal.surfaceHigh, pal.dark ? 0.72f : 0.64f) : Palette.alpha(pal.surfaceHigh, 0.94f);
+                return Palette.alpha(pal.surfaceHigh, pal.dark ? 0.72f : 0.64f);
+            case TEXTFIELD:
+                return Palette.alpha(pal.surfaceHigh, 0.64f);
+            case CAPSULE:
+                return Palette.alpha(pal.primary, 0.18f);
             case DIALOG:
             case SHEET:
-                return overBlur ? Palette.alpha(pal.surfaceHigh, 0.76f) : Palette.alpha(pal.surfaceHigh, 0.97f);
+                return Palette.alpha(pal.surfaceHigh, 0.76f);
             case TOPBAR:
             default:
                 return Palette.alpha(pal.surfaceHigh, pal.dark ? 0.72f : 0.65f);
         }
     }
 
+    /** Without blur: surfaceContainerHigh at the preset alpha + 20%. */
+    protected int fallbackSurface() {
+        float a;
+        switch (preset) {
+            case BUTTON:
+            case POPOVER:
+            case TILE:
+                a = pal.dark ? 0.72f : 0.78f;
+                break;
+            case CAPSULE:
+                return Palette.alpha(pal.primary, 0.26f);
+            case DIALOG:
+            case SHEET:
+                a = 0.96f;
+                break;
+            case TEXTFIELD:
+                a = 0.84f;
+                break;
+            default:
+                a = pal.dark ? 0.92f : 0.84f;
+        }
+        return Palette.alpha(pal.surfaceHigh, a);
+    }
+
     float blurPx() {
         return (pal.dark ? preset.blurDarkDp : preset.blurLightDp) * density;
+    }
+
+    /** Disabled glass: surfaceContainer 42%, no hue tint. */
+    public GlassDrawable setDisabled(boolean d) {
+        disabled = d;
+        invalidateSelf();
+        return this;
+    }
+
+    /** Draw the lighter "over blur" surface (a real blur is underneath, e.g. a window blur). */
+    public GlassDrawable setLive(boolean on) {
+        live = on;
+        invalidateSelf();
+        return this;
     }
 
     /** Only round the top corners (bottom sheets). */
@@ -129,48 +183,72 @@ public class GlassDrawable extends Drawable {
         return this;
     }
 
-    /** Draw the lighter "over blur" tint (a real blur is underneath, e.g. a window background blur). */
-    public GlassDrawable setLive(boolean on) {
-        live = on;
-        invalidateSelf();
-        return this;
-    }
-
     public float radius() {
         return radius;
+    }
+
+    /** Changes the corner radius (popover morph). */
+    public void setRadius(float px) {
+        radius = px;
+        onBoundsChange(getBounds());
+        invalidateSelf();
     }
 
     Path path() {
         return path;
     }
 
+    /** Soft outer shadow of the preset on {@code host} (spot + ambient colour carry the alpha). */
+    public static void shadow(View host, Preset p) {
+        if (p.shadowDp <= 0) return;
+        Palette pal = Palette.of(host.getContext());
+        float a = pal.dark ? p.shadowDark : p.shadowLight;
+        float d = host.getResources().getDisplayMetrics().density;
+        host.setElevation(p.shadowDp * d * 0.5f);
+        if (Build.VERSION.SDK_INT >= 28) {
+            host.setOutlineSpotShadowColor(Palette.alpha(Color.BLACK, Math.min(1f, a * 1.6f)));
+            host.setOutlineAmbientShadowColor(Palette.alpha(Color.BLACK, a));
+        }
+    }
+
     @Override
     protected void onBoundsChange(Rect b) {
         super.onBoundsChange(b);
         rect.set(b);
-        float r = radius < 0 ? Math.min(rect.width(), rect.height()) / 2f : radius;
+        float r = radius < 0 ? Math.min(rect.width(), rect.height()) / 2f : Math.min(radius, Math.min(rect.width(), rect.height()) / 2f);
         float[] radii = topOnly ? new float[]{r, r, 0, 0} : new float[]{r, r, r, r};
         Squircle.build(path, rect, radii, Squircle.SMOOTHING);
         int h = Math.max(1, b.height());
-        int top = pal.dark ? Palette.alpha(Color.WHITE, 0.22f) : Palette.alpha(Color.WHITE, 0.70f);
-        int bottom = pal.dark ? Palette.alpha(Color.WHITE, 0.05f) : Palette.alpha(Color.WHITE, 0.18f);
+        float rimA = pal.dark ? preset.rimDark : preset.rimLight;
+        int top = Palette.alpha(Color.WHITE, Math.max(0.08f, 0.6f * rimA + (pal.dark ? 0.06f : 0.25f)));
+        int bottom = Palette.alpha(Color.WHITE, 0.15f * rimA);
         rim.setShader(new LinearGradient(0, b.top, 0, b.top + Math.min(h, 64 * density), top, bottom, Shader.TileMode.CLAMP));
+        int hl = Palette.alpha(Color.WHITE, pal.dark ? 0.08f : 0.15f);
+        topLine.setShader(new LinearGradient(b.left, 0, b.right, 0, new int[]{0, hl, hl, 0}, new float[]{0f, 0.2f, 0.8f, 1f}, Shader.TileMode.CLAMP));
     }
 
     @Override
     public void draw(Canvas c) {
-        int f = live ? surface(true) : fillColor;
-        fill.setColor(f);
-        fill.setAlpha(Math.round(Color.alpha(f) * alpha / 255f));
-        c.drawPath(path, fill);
-        if (preset.hueTint > 0 && Build.VERSION.SDK_INT >= 29) {
+        int f = fixedFill != 0 ? fixedFill : disabled ? Palette.alpha(pal.surfaceHigh, 0.42f) : live ? surface() : fallbackSurface();
+        if (preset.hueTint > 0 && !disabled && Build.VERSION.SDK_INT >= 29) {
             tint.setColor(tintColor);
             tint.setAlpha(Math.round(Color.alpha(tintColor) * alpha / 255f));
             c.drawPath(path, tint);
         }
+        fill.setColor(f);
+        fill.setAlpha(Math.round(Color.alpha(f) * alpha / 255f));
+        c.drawPath(path, fill);
         if (preset != Preset.TOPBAR) {
             rim.setAlpha(alpha);
             c.drawPath(path, rim);
+            if (!live) {
+                // Fallback: a 1px inner highlight along the top edge.
+                Rect b = getBounds();
+                float r = radius < 0 ? b.height() / 2f : Math.min(radius, b.height() / 2f);
+                float y = b.top + density;
+                topLine.setAlpha(alpha);
+                c.drawLine(b.left + r * 0.6f, y, b.right - r * 0.6f, y, topLine);
+            }
         }
     }
 
@@ -180,6 +258,8 @@ public class GlassDrawable extends Drawable {
         float r = radius < 0 ? Math.min(b.width(), b.height()) / 2f : Math.min(radius, Math.min(b.width(), b.height()) / 2f);
         if (topOnly) outline.setRoundRect(b.left, b.top, b.right, b.bottom + (int) r, r);
         else outline.setRoundRect(b, r);
+        // Translucent glass: a lighter outline keeps the shadow from darkening the glass itself.
+        outline.setAlpha(0.6f);
     }
 
     @Override

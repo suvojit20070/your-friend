@@ -387,7 +387,7 @@ public final class TerminalActivity extends BaseActivity {
         int p = Ui.dp(this, 20);
         body.setPadding(p, Ui.dp(this, 8), p, 0);
         body.setText(R.string.terminal_checking);
-        android.app.AlertDialog dlg = Ui.show(Ui.dialog(this).setTitle(R.string.terminal_runtimes).setView(body)
+        Overlay dlg = Ui.show(Ui.dialog(this).setTitle(R.string.terminal_runtimes).setView(body)
                 .setPositiveButton(R.string.close, null)
                 .setNeutralButton(R.string.terminal_install, (d, w) -> installPrompt()));
         g.io.execute(() -> {
@@ -457,7 +457,7 @@ public final class TerminalActivity extends BaseActivity {
         form.addView(fp);
         android.widget.ScrollView sv = new android.widget.ScrollView(this);
         sv.addView(form);
-        android.app.AlertDialog.Builder b = Ui.dialog(this).setTitle(existing == null ? R.string.terminal_ssh_add : R.string.terminal_ssh_edit)
+        GlassDialog.Builder b = Ui.dialog(this).setTitle(existing == null ? R.string.terminal_ssh_add : R.string.terminal_ssh_edit)
                 .setView(sv)
                 .setPositiveButton(R.string.save, (d, w) -> {
                     h.name = name.getText().toString().trim();

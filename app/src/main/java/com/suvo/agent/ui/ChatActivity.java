@@ -181,6 +181,17 @@ public final class ChatActivity extends BaseActivity {
         // Liquid glass composer over the scrolling conversation.
         View composer = findViewById(R.id.chat_composer);
         BackdropDrawable.apply(composer, list, GlassDrawable.Preset.COMPOSER);
+        GlassDrawable.shadow(composer, GlassDrawable.Preset.COMPOSER);
+        LiquidPress.attach(composer, LiquidPress.COMPOSER);
+        // Attach and send are glass action buttons with primary icons (no solid fill).
+        for (int id : new int[]{R.id.chat_plus, R.id.chat_send}) {
+            View b = findViewById(id);
+            b.setTag(null);
+            Shell.cornerButton(b, list);
+            ((android.widget.ImageButton) b).setImageTintList(android.content.res.ColorStateList.valueOf(Ui.accent(this)));
+            LiquidPress.attach(b, LiquidPress.CORNER);
+        }
+        setUpScrollToBottom();
         View bottom = findViewById(R.id.chat_bottom);
         bottom.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             int pad = (b - t) + Ui.dp(this, 8);
@@ -248,6 +259,55 @@ public final class ChatActivity extends BaseActivity {
     }
 
     /** Chips above the composer show what goes with the next message; tap one to remove it. */
+    /** Glass 40dp circle above the composer while the chat is not at the bottom. */
+    private void setUpScrollToBottom() {
+        android.widget.ImageButton down = new android.widget.ImageButton(this);
+        down.setImageResource(R.drawable.ic_expand);
+        down.setImageTintList(android.content.res.ColorStateList.valueOf(Palette.of(this).onSurface));
+        down.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        int p = Ui.dp(this, 9);
+        down.setPadding(p, p, p, p);
+        down.setContentDescription(getString(R.string.chat_scroll_bottom));
+        BackdropDrawable.apply(down, list, GlassDrawable.Preset.SCROLL);
+        GlassDrawable.shadow(down, GlassDrawable.Preset.SCROLL);
+        LiquidPress.attach(down, LiquidPress.CAPSULE);
+        down.setAlpha(0f);
+        down.setVisibility(View.GONE);
+        down.setOnClickListener(v -> list.smoothScrollToPosition(Math.max(0, adapter.getCount() - 1)));
+        android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40),
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        ViewGroup frame = (ViewGroup) list.getParent();
+        frame.addView(down, lp);
+        View bottom = findViewById(R.id.chat_bottom);
+        bottom.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            android.widget.FrameLayout.LayoutParams dl = (android.widget.FrameLayout.LayoutParams) down.getLayoutParams();
+            int m = (b - t) + Ui.dp(this, 8);
+            if (dl.bottomMargin != m) {
+                dl.bottomMargin = m;
+                down.setLayoutParams(dl);
+            }
+        });
+        final boolean[] shown = {false};
+        list.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(android.widget.AbsListView view, int state) {
+            }
+
+            @Override
+            public void onScroll(android.widget.AbsListView view, int first, int visible, int total) {
+                boolean away = list.canScrollVertically(1);
+                if (away == shown[0]) return;
+                shown[0] = away;
+                if (away) {
+                    down.setVisibility(View.VISIBLE);
+                    down.animate().alpha(1f).setDuration(160).start();
+                } else {
+                    down.animate().alpha(0f).setDuration(100).withEndAction(() -> down.setVisibility(View.GONE)).start();
+                }
+            }
+        });
+    }
+
     private void updateAttachmentHint() {
         int imgs = pendingImageCount();
         input.setHint(imgs == 0 ? getString(R.string.chat_input_hint)
@@ -314,7 +374,7 @@ public final class ChatActivity extends BaseActivity {
     private void showAttachSheet() {
         android.widget.GridLayout grid = new android.widget.GridLayout(this);
         grid.setColumnCount(4);
-        final android.app.Dialog[] sheet = new android.app.Dialog[1];
+        final Overlay[] sheet = new Overlay[1];
         int[][] tiles = {
                 {R.drawable.ic_eye, R.string.chat_add_photos},
                 {R.drawable.ic_camera, R.string.chat_add_camera},
@@ -935,7 +995,7 @@ public final class ChatActivity extends BaseActivity {
         };
         load.run();
         search.addTextChangedListener(new SimpleWatcher(load));
-        android.app.AlertDialog d = Ui.show(Ui.dialog(this).setTitle(R.string.chat_history).setView(box).setNegativeButton(android.R.string.cancel, null));
+        Overlay d = Ui.show(Ui.dialog(this).setTitle(R.string.chat_history).setView(box).setNegativeButton(android.R.string.cancel, null));
         lv.setOnItemClickListener((p, v, pos, id) -> {
             conversationId = convs.get(pos).id;
             g.agent.setActiveConversation(conversationId);
@@ -1256,6 +1316,19 @@ public final class ChatActivity extends BaseActivity {
             time.setText(it.time == 0 ? "" : DateFormat.getTimeFormat(ChatActivity.this).format(new Date(it.time))
                     + (it.dim ? " · " + getString(R.string.chat_summarized) : ""));
             time.setGravity(it.type == USER ? Gravity.END : Gravity.START);
+            time.setTextColor(Palette.of(ChatActivity.this).tertiary);
+            // Copy / more icons under your messages and finished answers (28dp, squish 0.88).
+            LinearLayout acts = v.findViewById(R.id.msg_actions);
+            boolean showActs = it.type == USER || it.type == ASSISTANT;
+            acts.setVisibility(showActs ? View.VISIBLE : View.GONE);
+            if (showActs) {
+                ((LinearLayout.LayoutParams) acts.getLayoutParams()).gravity = it.type == USER ? Gravity.END : Gravity.START;
+                View copy = v.findViewById(R.id.msg_copy), more = v.findViewById(R.id.msg_more);
+                copy.setOnClickListener(x -> Ui.copy(ChatActivity.this, it.text));
+                more.setOnClickListener(x -> itemMenu(it));
+                LiquidPress.attach(copy, LiquidPress.ICON);
+                LiquidPress.attach(more, LiquidPress.ICON);
+            }
             return v;
         }
 

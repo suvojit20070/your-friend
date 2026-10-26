@@ -16,6 +16,7 @@
         android:fadingEdgeLength="24dp"
         android:fillViewport="true"
         android:overScrollMode="ifContentScrolls"
+        
         android:scrollbars="none">
 
         <LinearLayout

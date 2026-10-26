@@ -200,6 +200,7 @@
     <string name="chat_no_provider">কোনো প্রোভাইডার নেই</string>
     <string name="chat_no_vision">সক্রিয় প্রোভাইডার ভিশন-সক্ষম হিসেবে চিহ্নিত নয়। ছবি পাঠাতে তার সেটিংসে \"Vision\" চালু করুন।</string>
     <string name="chat_remove_attachment">%1$s সরান</string>
+    <string name="chat_scroll_bottom">সর্বশেষ মেসেজে যাও</string>
     <string name="chat_select_text">লেখা নির্বাচন</string>
     <string name="chat_summarized">আগের মেসেজগুলোর সারাংশ করা হয়েছে</string>
     <string name="chat_summary_hint">সারাংশ পড়তে ট্যাপ করুন</string>

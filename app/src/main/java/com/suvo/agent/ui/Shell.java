@@ -113,6 +113,7 @@ final class Shell {
             gl.height = top + barH + Ui.dp(a, 8);
             barBg.setLayoutParams(gl);
             pb.setSolidUntil(top + barH / 2f);
+            pb.setStatus(top);
             scroller.setPadding(scroller.getPaddingLeft(), scT + top + barH, scroller.getPaddingRight(), scroller.getPaddingBottom());
             return insets;
         });
@@ -157,7 +158,11 @@ final class Shell {
     }
 
     static void cornerButton(View b, View source) {
+        if (b == null) return;
+        b.setBackgroundTintList(null);
         BackdropDrawable.apply(b, source, GlassDrawable.Preset.BUTTON);
+        GlassDrawable.shadow(b, GlassDrawable.Preset.BUTTON);
+        LiquidPress.attach(b, LiquidPress.CORNER);
         b.setTag("corner");
         if (b instanceof ImageButton) {
             ((ImageButton) b).setImageTintList(android.content.res.ColorStateList.valueOf(Palette.of(b.getContext()).onSurface));
@@ -198,6 +203,14 @@ final class Shell {
                     ready = false;
                 }
             });
+        }
+
+        private float statusH;
+        private final Paint solid = new Paint();
+
+        void setStatus(float h) {
+            statusH = h;
+            invalidateSelf();
         }
 
         void setSolidUntil(float y) {
@@ -276,6 +289,12 @@ final class Shell {
                 Paint p = new Paint();
                 p.setColor(Palette.alpha(pal.surfaceHigh, 0.94f));
                 c.drawRect(b, p);
+            }
+            // Fully solid inside the status bar, easing into the glass tint below it.
+            if (statusH > 0) {
+                solid.setShader(new LinearGradient(0, b.top, 0, b.top + statusH * 1.6f, pal.surfaceHigh,
+                        Palette.alpha(pal.surfaceHigh, 0f), Shader.TileMode.CLAMP));
+                c.drawRect(b.left, b.top, b.right, b.top + statusH * 1.6f, solid);
             }
             c.drawRect(b, mask);
             c.restoreToCount(save);

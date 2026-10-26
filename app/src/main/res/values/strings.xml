@@ -200,6 +200,7 @@
     <string name="chat_no_provider">No provider</string>
     <string name="chat_no_vision">The active provider is not marked as vision-capable. Enable \"Vision\" in its settings to send images.</string>
     <string name="chat_remove_attachment">Remove %1$s</string>
+    <string name="chat_scroll_bottom">Scroll to the latest message</string>
     <string name="chat_select_text">Select text</string>
     <string name="chat_summarized">Earlier messages summarized</string>
     <string name="chat_summary_hint">Tap to read the summary</string>

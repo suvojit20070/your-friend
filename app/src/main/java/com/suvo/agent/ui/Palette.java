@@ -41,6 +41,8 @@ public final class Palette {
             {-5.4f, 0.240f, 0.098f},  // onSurface
             {-6.4f, 0.149f, 0.263f},  // onSurfaceVariant
             {-8.9f, 0.230f, 0.761f},  // outlineVariant
+            {-3.9f, 1.000f, 0.075f},  // onPrimaryContainer #261A00
+            {-12.4f, 0.560f, 0.922f}, // surfaceContainer #F5ECE1
     };
     private static final float[][] DARK = {
             {-5.4f, 0.353f, 0.067f},
@@ -55,11 +57,13 @@ public final class Palette {
             {-11.4f, 0.365f, 0.876f},
             {-8.9f, 0.230f, 0.761f},
             {-6.4f, 0.149f, 0.263f},
+            {-5.2f, 1.000f, 0.810f},
+            {-8.6f, 0.220f, 0.116f},
     };
 
     public final boolean dark;
     public final int background, surfaceLow, surfaceHigh, surfaceHighest, primary, onPrimary, primaryContainer,
-            secondaryContainer, tertiary, onSurface, onSurfaceVariant, outlineVariant;
+            secondaryContainer, tertiary, onSurface, onSurfaceVariant, outlineVariant, onPrimaryContainer, surfaceContainer, error;
 
     private static Palette cached;
     private static String cachedKey = "";
@@ -84,6 +88,9 @@ public final class Palette {
         onSurface = c[9];
         onSurfaceVariant = c[10];
         outlineVariant = c[11];
+        onPrimaryContainer = c[12];
+        surfaceContainer = c[13];
+        error = dark ? 0xFFFFB4AB : 0xFFBA1A1A;
     }
 
     /** The palette for the current seed setting and light/dark mode of {@code ctx}. */

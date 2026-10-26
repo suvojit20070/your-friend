@@ -335,7 +335,7 @@ public final class VoiceActivity extends BaseActivity {
         msg.setPadding(p, Ui.dp(this, 8), p, 0);
         msg.setText(R.string.voice_recording);
         recording = true;
-        android.app.AlertDialog dlg = Ui.show(Ui.dialog(this).setTitle(R.string.voice_ref_wav).setView(msg)
+        Overlay dlg = Ui.show(Ui.dialog(this).setTitle(R.string.voice_ref_wav).setView(msg)
                 .setPositiveButton(R.string.voice_stop_recording, (d, w) -> recording = false)
                 .setCancelable(false));
         g.io.execute(() -> {

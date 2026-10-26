@@ -174,7 +174,7 @@ public final class SettingsActivity extends BaseActivity {
         r.row(R.drawable.ic_star, getString(R.string.settings_accent), seedLabel(cur), sw, v -> {
             android.widget.GridLayout grid = new android.widget.GridLayout(this);
             grid.setColumnCount(4);
-            final android.app.Dialog[] sheet = new android.app.Dialog[1];
+            final Overlay[] sheet = new Overlay[1];
             java.util.List<String> values = new java.util.ArrayList<>();
             values.add("dynamic");
             java.util.Collections.addAll(values, Palette.SEEDS);

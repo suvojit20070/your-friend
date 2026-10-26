@@ -4,4 +4,7 @@
     <item name="fx_press" type="id" />
     <item name="fx_sheet_panel" type="id" />
     <item name="fx_height_anim" type="id" />
+    <item name="overlay_host" type="id" />
+    <item name="overlay_insets" type="id" />
+    <item name="overlay_owner" type="id" />
 </resources>

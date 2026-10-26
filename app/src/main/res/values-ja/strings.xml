@@ -200,6 +200,7 @@
     <string name="chat_no_provider">プロバイダーなし</string>
     <string name="chat_no_vision">使用中のプロバイダーは画像対応に設定されていません。画像を送るにはプロバイダー設定で「Vision」をオンにしてください。</string>
     <string name="chat_remove_attachment">%1$s を外す</string>
+    <string name="chat_scroll_bottom">最新のメッセージへ</string>
     <string name="chat_select_text">テキストを選択</string>
     <string name="chat_summarized">以前のメッセージを要約しました</string>
     <string name="chat_summary_hint">タップして要約を読む</string>

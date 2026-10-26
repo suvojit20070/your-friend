@@ -821,6 +821,7 @@ S = {
 "accent_lime": "लाइम",
 "accent_lemon": "नींबू",
 "accent_apricot": "खुबानी",
+"chat_scroll_bottom": "नवीनतम संदेश तक जाएँ",
 }
 
 P = {

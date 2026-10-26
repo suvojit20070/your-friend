@@ -821,6 +821,7 @@ S = {
 "accent_lime": "ライム",
 "accent_lemon": "レモン",
 "accent_apricot": "アプリコット",
+"chat_scroll_bottom": "最新のメッセージへ",
 }
 
 P = {

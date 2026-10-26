@@ -172,8 +172,9 @@ public final class Rows {
         return c;
     }
 
-    public com.google.android.material.materialswitch.MaterialSwitch switchRow(int iconRes, int titleRes, int subtitleRes, String key, boolean def, Change<Boolean> change) {
-        com.google.android.material.materialswitch.MaterialSwitch sw = Widgets.newSwitch(a);
+    /** On / off: title + summary + liquid toggle; tapping the row toggles too. */
+    public LiquidSwitch switchRow(int iconRes, int titleRes, int subtitleRes, String key, boolean def, Change<Boolean> change) {
+        LiquidSwitch sw = Widgets.newSwitch(a);
         sw.setChecked(settings.bool(key, def));
         sw.setOnCheckedChangeListener((b, v) -> {
             settings.put(key, v);
@@ -183,22 +184,116 @@ public final class Rows {
         return sw;
     }
 
-    /** Single choice stored as a string setting. labels and values are parallel arrays. */
+    /**
+     * Single choice stored as a string setting (labels and values are parallel arrays).
+     * 2–4 short options: an inline segmented selector. More: a row with the current value that
+     * opens a glass sheet of options. Returns the value preview (or the title for segments).
+     */
     public TextView choiceRow(int iconRes, int titleRes, String key, String def, String[] labels, String[] values, Change<String> change) {
+        boolean shortLabels = true;
+        for (String l : labels) if (l.length() > 12) shortLabels = false;
+        if (values.length >= 2 && values.length <= 4 && shortLabels) return segmentedRow(iconRes, titleRes, key, def, labels, values, change);
         final TextView[] sub = new TextView[1];
-        sub[0] = row(iconRes, a.getString(titleRes), labelFor(settings.str(key, def), labels, values), chevron(), v -> {
+        sub[0] = preview(labelFor(settings.str(key, def), labels, values));
+        LinearLayout trailing = new LinearLayout(a);
+        trailing.setGravity(Gravity.CENTER_VERTICAL);
+        trailing.addView(sub[0]);
+        ImageView chev = chevron();
+        ((LinearLayout.LayoutParams) chev.getLayoutParams()).setMarginStart(Ui.dp(a, 6));
+        trailing.addView(chev);
+        row(iconRes, a.getString(titleRes), null, trailing, v -> {
             String cur = settings.str(key, def);
-            int idx = 0;
+            int idx = -1;
             for (int i = 0; i < values.length; i++) if (values[i].equals(cur)) idx = i;
-            Ui.show(Ui.dialog(a).setTitle(titleRes).setSingleChoiceItems(labels, idx, (d, which) -> {
+            GlassSheet.options(a, a.getString(titleRes), labels, idx, null).setOnPick(which -> {
                 settings.put(key, values[which]);
                 sub[0].setText(labels[which]);
-                sub[0].setVisibility(View.VISIBLE);
-                d.dismiss();
                 if (change != null) change.onChange(values[which]);
-            }).setNegativeButton(android.R.string.cancel, null));
+            }).show();
         });
         return sub[0];
+    }
+
+    /** Segmented selector inside the card: title on top, capsules below; the selection pill slides. */
+    private TextView segmentedRow(int iconRes, int titleRes, String key, String def, String[] labels, String[] values, Change<String> change) {
+        LinearLayout box = new LinearLayout(a);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(Ui.dp(a, 20), Ui.dp(a, 16), Ui.dp(a, 16), Ui.dp(a, 16));
+        LinearLayout top = new LinearLayout(a);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        if (iconRes != 0) top.addView(icon(iconRes));
+        TextView t = new TextView(a, null, 0, R.style.YF_RowTitle);
+        t.setText(titleRes);
+        top.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        box.addView(top);
+        android.widget.FrameLayout track = new android.widget.FrameLayout(a);
+        View pill = new View(a);
+        pill.setBackground(new TonalDrawable(Palette.alpha(pal.primary, 0.12f), -1));
+        track.addView(pill, new android.widget.FrameLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT));
+        LinearLayout opts = new LinearLayout(a);
+        opts.setOrientation(LinearLayout.HORIZONTAL);
+        track.addView(opts, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(a, 40)));
+        TextView[] cells = new TextView[values.length];
+        final int[] sel = {0};
+        String cur = settings.str(key, def);
+        for (int i = 0; i < values.length; i++) if (values[i].equals(cur)) sel[0] = i;
+        final Fx.Spring[] slide = new Fx.Spring[1];
+        Runnable paint = () -> {
+            for (int i = 0; i < cells.length; i++) cells[i].setTextColor(i == sel[0] ? pal.primary : pal.onSurface);
+        };
+        for (int i = 0; i < values.length; i++) {
+            final int idx = i;
+            TextView c = new TextView(a, null, 0, R.style.YF_Body);
+            c.setText(labels[i]);
+            c.setGravity(Gravity.CENTER);
+            c.setMaxLines(1);
+            c.setEllipsize(TextUtils.TruncateAt.END);
+            c.setTextSize(14.5f);
+            c.setClickable(true);
+            c.setTag(R.id.fx_press, "row");
+            c.setOnClickListener(v -> {
+                if (sel[0] == idx) return;
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+                sel[0] = idx;
+                paint.run();
+                if (slide[0] != null) slide[0].animateTo(v.getLeft());
+                settings.put(key, values[idx]);
+                if (change != null) change.onChange(values[idx]);
+            });
+            cells[i] = c;
+            opts.addView(c, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        }
+        paint.run();
+        opts.addOnLayoutChangeListener((v, l, tp, r, b, ol, ot, or, ob) -> {
+            if (cells.length == 0) return;
+            int w = cells[0].getWidth();
+            android.widget.FrameLayout.LayoutParams pl = (android.widget.FrameLayout.LayoutParams) pill.getLayoutParams();
+            if (pl.width != w) {
+                pl.width = w;
+                pill.setLayoutParams(pl);
+            }
+            if (slide[0] == null) {
+                slide[0] = new Fx.Spring(cells[sel[0]].getLeft(), 400f, 0.8f, pill::setTranslationX);
+                slide[0].snapTo(cells[sel[0]].getLeft());
+            }
+        });
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(a, 40));
+        tp.topMargin = Ui.dp(a, 12);
+        box.addView(track, tp);
+        addToGroup(box, iconRes != 0);
+        return t;
+    }
+
+    /** Trailing value preview: 14sp, onSurfaceVariant, at most 20% of the width. */
+    private TextView preview(CharSequence text) {
+        TextView v = new TextView(a, null, 0, R.style.YF_Caption);
+        v.setText(text);
+        v.setTextSize(14f);
+        v.setTextColor(Palette.alpha(pal.onSurfaceVariant, 0.82f));
+        v.setMaxLines(1);
+        v.setEllipsize(TextUtils.TruncateAt.END);
+        v.setMaxWidth(Math.round(a.getResources().getDisplayMetrics().widthPixels * 0.22f));
+        return v;
     }
 
     static String labelFor(String value, String[] labels, String[] values) {
@@ -220,44 +315,72 @@ public final class Rows {
     }
 
     /**
-     * Integer slider stored in settings, shown inline: title and value on top, the slider below.
-     * The value is saved when the finger lifts. Returns the value label.
+     * Integer setting as an expandable slider row: collapsed it shows the value as a preview;
+     * a tap opens a liquid slider with min / max labels (chevron turns, 320 ms). The value is
+     * saved when the finger lifts. Returns the value label.
      */
     public TextView sliderRow(int iconRes, int titleRes, String key, int def, int min, int max, String unit, Change<Integer> change) {
         LinearLayout box = new LinearLayout(a);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(Ui.dp(a, 20), Ui.dp(a, 16), Ui.dp(a, 16), Ui.dp(a, 8));
         LinearLayout top = new LinearLayout(a);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setPadding(Ui.dp(a, 20), Ui.dp(a, 16), Ui.dp(a, 16), Ui.dp(a, 16));
+        top.setBackground(new TonalDrawable(0, 0).pressable(pal.pressed()));
+        top.setTag(R.id.fx_press, "row");
         if (iconRes != 0) top.addView(icon(iconRes));
         TextView t = new TextView(a, null, 0, R.style.YF_RowTitle);
         t.setText(titleRes);
         top.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView value = new TextView(a, null, 0, R.style.YF_Caption);
-        value.setTextColor(Ui.accent(a));
+        value.setTextColor(pal.primary);
         value.setTextSize(14f);
         top.addView(value);
+        ImageView chev = chevron();
+        LinearLayout.LayoutParams cl = (LinearLayout.LayoutParams) chev.getLayoutParams();
+        cl.setMarginStart(Ui.dp(a, 8));
+        top.addView(chev, cl);
         box.addView(top);
         int cur = Math.max(min, Math.min(max, settings.integer(key, def)));
-        com.google.android.material.slider.Slider sb = Widgets.newSlider(a, min, max, cur);
+        LiquidSlider sb = Widgets.newSlider(a, min, max, cur);
         value.setText(cur + unit);
         sb.addOnChangeListener((s, v, fromUser) -> value.setText(Math.round(v) + unit));
-        sb.addOnSliderTouchListener(new com.google.android.material.slider.Slider.OnSliderTouchListener() {
+        sb.addOnSliderTouchListener(new LiquidSlider.OnSliderTouchListener() {
             @Override
-            public void onStartTrackingTouch(com.google.android.material.slider.Slider s) {
+            public void onStartTrackingTouch(LiquidSlider s) {
             }
 
             @Override
-            public void onStopTrackingTouch(com.google.android.material.slider.Slider s) {
+            public void onStopTrackingTouch(LiquidSlider s) {
                 int val = Widgets.value(s);
                 settings.put(key, val);
                 if (change != null) change.onChange(val);
             }
         });
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        sp.setMarginStart(iconRes != 0 ? Ui.dp(a, 32) : 0);
-        box.addView(sb, sp);
+        LinearLayout panel = new LinearLayout(a);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(Ui.dp(a, 8), 0, Ui.dp(a, 8), Ui.dp(a, 12));
+        panel.addView(sb, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout ends = new LinearLayout(a);
+        ends.setPadding(Ui.dp(a, 18), 0, Ui.dp(a, 18), 0);
+        TextView lo = new TextView(a, null, 0, R.style.YF_Caption);
+        lo.setText(min + unit);
+        TextView hi = new TextView(a, null, 0, R.style.YF_Caption);
+        hi.setText(max + unit);
+        hi.setGravity(Gravity.END);
+        ends.addView(lo, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ends.addView(hi, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        panel.addView(ends);
+        panel.setVisibility(View.GONE);
+        box.addView(panel, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        top.setClickable(true);
+        top.setOnClickListener(v -> {
+            v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+            boolean open = panel.getVisibility() != View.VISIBLE;
+            Fx.chevron(chev, open);
+            if (open) Fx.expand(panel);
+            else Fx.collapse(panel);
+        });
         addToGroup(box, iconRes != 0);
         return value;
     }

@@ -821,6 +821,7 @@ S = {
 "accent_lime": "Lime",
 "accent_lemon": "Lemon",
 "accent_apricot": "Apricot",
+"chat_scroll_bottom": "Latest message tak scroll karo",
 }
 
 P = {

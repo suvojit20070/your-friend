@@ -63,10 +63,13 @@ public final class Ui {
     }
 
     private static void applyTint(View v, int c) {
-        if (v instanceof com.google.android.material.materialswitch.MaterialSwitch) {
-            Widgets.styleSwitch((com.google.android.material.materialswitch.MaterialSwitch) v);
-        } else if (v instanceof com.google.android.material.slider.Slider) {
-            Widgets.styleSlider((com.google.android.material.slider.Slider) v);
+        if (v instanceof LiquidSwitch || v instanceof LiquidSlider) {
+            // Drawn from the palette already.
+        } else if (v instanceof EditText && v.getBackground() != null && v.getTag(R.id.fx_press) == null
+                && !(v.getBackground() instanceof GlassDrawable)) {
+            // Every boxed text field becomes a glass field (blurs the page when it floats over it).
+            Activity act = Overlay.activityOf(v.getContext());
+            glassField((EditText) v, act == null ? null : Overlay.contentRoot(act));
         } else if ("accent".equals(v.getTag())) {
             if (v instanceof android.widget.ImageButton && v.getBackground() != null) {
                 v.setBackgroundTintList(ColorStateList.valueOf(c));
@@ -105,79 +108,17 @@ public final class Ui {
         Toast.makeText(ctx.getApplicationContext(), text, text.length() > 60 ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT).show();
     }
 
-    public static AlertDialog.Builder dialog(Context ctx) {
-        return new AlertDialog.Builder(ctx, R.style.Theme_YourFriend_Dialog);
+    /** A glass dialog builder (same calls as AlertDialog.Builder). */
+    public static GlassDialog.Builder dialog(Context ctx) {
+        return new GlassDialog.Builder(ctx);
     }
 
     /**
-     * Shows a dialog as a 48dp glass squircle: the panel blurs what is behind it (Android 12+), a
-     * 42% scrim, a title in 24sp, and equal-width capsule buttons (the positive one is the single
-     * solid primary). It settles in with a fade and a 1.04 → 1 scale instead of popping up.
+     * Shows it inside the screen's overlay host: a 48dp glass panel that blurs the page, 42% scrim,
+     * equal-width liquid capsule buttons; plain lists open as a glass sheet.
      */
-    public static AlertDialog show(AlertDialog.Builder b) {
-        AlertDialog d = b.create();
-        Window w = d.getWindow();
-        Context ctx = d.getContext();
-        Palette pal = Palette.of(ctx);
-        if (w != null) {
-            GlassDrawable glass = new GlassDrawable(ctx, GlassDrawable.Preset.DIALOG);
-            int side = dp(ctx, 24);
-            w.setBackgroundDrawable(new android.graphics.drawable.InsetDrawable(glass, side, side, side, side));
-            w.setDimAmount(0.42f);
-            if (Build.VERSION.SDK_INT >= 31) {
-                WindowManager wm = ctx.getSystemService(WindowManager.class);
-                if (wm != null && wm.isCrossWindowBlurEnabled()) {
-                    w.setBackgroundBlurRadius(Math.round(glass.blurPx()));
-                    glass.setLive(true);
-                }
-            }
-            w.setWindowAnimations(0);
-        }
-        d.show();
-        if (w != null) {
-            int maxW = dp(ctx, 360 + 48);
-            int screenW = ctx.getResources().getDisplayMetrics().widthPixels;
-            w.setLayout(Math.min(screenW, maxW), ViewGroup.LayoutParams.WRAP_CONTENT);
-            View content = w.getDecorView();
-            content.setAlpha(0f);
-            content.setScaleX(1.04f);
-            content.setScaleY(1.04f);
-            content.animate().alpha(1f).setDuration(120).setInterpolator(new android.view.animation.LinearInterpolator()).start();
-            content.animate().scaleX(1f).scaleY(1f).setDuration(240)
-                    .setInterpolator(new android.view.animation.PathInterpolator(0.4f, 0f, 0.2f, 1f)).start();
-        }
-        tintAccent(ctx, w == null ? null : w.getDecorView());
-        styleDialogButtons(d, pal);
-        return d;
-    }
-
-    private static void styleDialogButtons(AlertDialog d, Palette pal) {
-        Context ctx = d.getContext();
-        Button pos = d.getButton(AlertDialog.BUTTON_POSITIVE);
-        ViewGroup bar = pos == null ? null : (ViewGroup) pos.getParent();
-        if (bar == null) return;
-        if (bar instanceof android.widget.LinearLayout) ((android.widget.LinearLayout) bar).setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        bar.setPadding(dp(ctx, 20), dp(ctx, 4), dp(ctx, 20), dp(ctx, 20));
-        for (int i = 0; i < bar.getChildCount(); i++) {
-            View v = bar.getChildAt(i);
-            if (!(v instanceof Button)) {
-                v.setVisibility(View.GONE); // the spacer between neutral and the others
-                continue;
-            }
-            Button btn = (Button) v;
-            if (btn.getVisibility() != View.VISIBLE || btn.getText() == null || btn.getText().length() == 0) continue;
-            boolean primary = btn == pos;
-            btn.setAllCaps(false);
-            btn.setTextSize(16f);
-            btn.setTextColor(primary ? pal.onPrimary : pal.onSurface);
-            btn.setBackground(new TonalDrawable(primary ? pal.primary : pal.surfaceHighest, -1).pressable(pal.pressed()));
-            btn.setStateListAnimator(null);
-            btn.setMinHeight(dp(ctx, 56));
-            btn.setMinimumHeight(dp(ctx, 56));
-            android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(0, dp(ctx, 56), 1f);
-            lp.setMargins(dp(ctx, 6), 0, dp(ctx, 6), 0);
-            btn.setLayoutParams(lp);
-        }
+    public static Overlay show(GlassDialog.Builder b) {
+        return b.show();
     }
 
     public interface TextCallback {
@@ -186,6 +127,7 @@ public final class Ui {
 
     public static void prompt(Activity a, int titleRes, String initial, boolean multiline, TextCallback cb) {
         EditText e = new EditText(a, null, 0, R.style.YF_Input);
+        glassField(e, Overlay.contentRoot(a));
         e.setText(initial == null ? "" : initial);
         e.setSelection(e.getText().length());
         if (multiline) {
@@ -193,12 +135,61 @@ public final class Ui {
             e.setMinLines(3);
         }
         FrameLayout box = new FrameLayout(a);
-        int pad = dp(a, 20);
-        box.setPadding(pad, dp(a, 8), pad, 0);
+        box.setPadding(0, dp(a, 4), 0, 0);
         box.addView(e);
         show(dialog(a).setTitle(titleRes).setView(box)
                 .setPositiveButton(android.R.string.ok, (d, w) -> cb.onText(e.getText().toString()))
                 .setNegativeButton(android.R.string.cancel, null));
+    }
+
+    /**
+     * Glass text field: 36dp squircle, min height 52dp, primary-container hue tint, thin rim, liquid
+     * press while unfocused. {@code source} is the page it may blur (null = tonal glass).
+     */
+    public static void glassField(EditText e, View source) {
+        if (source != null && !BackdropDrawable.isSelfOrAncestor(source, e)) BackdropDrawable.apply(e, source, GlassDrawable.Preset.TEXTFIELD);
+        else e.setBackground(new GlassDrawable(e.getContext(), GlassDrawable.Preset.TEXTFIELD));
+        int h = dp(e.getContext(), 18), v = dp(e.getContext(), 14);
+        e.setPadding(h, v, h, v);
+        e.setMinHeight(dp(e.getContext(), 52));
+        e.setMinimumHeight(dp(e.getContext(), 52));
+        e.setTextColor(Palette.of(e.getContext()).onSurface);
+        e.setHintTextColor(Palette.alpha(Palette.of(e.getContext()).onSurfaceVariant, 0.72f));
+        e.setTag(R.id.fx_press, Boolean.TRUE);
+        if (e.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
+            ((ViewGroup.MarginLayoutParams) e.getLayoutParams()).topMargin = dp(e.getContext(), 8);
+        }
+        int cls = e.getInputType() & android.text.InputType.TYPE_MASK_VARIATION;
+        if (cls == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD || cls == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD) {
+            secretToggle(e);
+        }
+    }
+
+    /** Secret field: an eye at the end shows / hides the value. */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private static void secretToggle(EditText e) {
+        Context c = e.getContext();
+        Drawable eye = c.getDrawable(R.drawable.ic_eye);
+        if (eye == null) return;
+        eye = eye.mutate();
+        eye.setTint(Palette.alpha(Palette.of(c).onSurfaceVariant, 0.8f));
+        int sz = dp(c, 22);
+        eye.setBounds(0, 0, sz, sz);
+        e.setCompoundDrawablesRelative(null, null, eye, null);
+        e.setCompoundDrawablePadding(dp(c, 8));
+        final int hidden = e.getInputType();
+        final int shown = android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD;
+        e.setOnTouchListener((v, ev) -> {
+            if (ev.getAction() == android.view.MotionEvent.ACTION_UP && ev.getX() > v.getWidth() - v.getPaddingEnd() - sz - dp(c, 8)) {
+                int sel = e.getSelectionEnd();
+                boolean isHidden = e.getInputType() == hidden;
+                e.setInputType(isHidden ? shown : hidden);
+                e.setSelection(Math.max(0, Math.min(sel, e.length())));
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+                return true;
+            }
+            return false;
+        });
     }
 
     public static void confirm(Activity a, int titleRes, CharSequence message, Runnable onYes) {

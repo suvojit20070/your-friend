@@ -166,6 +166,33 @@ Your Friend — Original project by Suvo.
 - [x] Motion: squish 0.92 (0.985 large) springs, haptic on every press, menus condense out of the button
       in 240 ms FastOutSlowIn, direction-aware page slides (360 ms), reduced motion → fades
 
+## Phase 2.8 (this update) — Suvo Liquid UI v2 (`docs/design/suvo-liquid-ui.md`)
+
+- [x] Overlays live INSIDE the screen (overlay host, z4): `GlassDialog` (48dp glass, blurs the real page,
+      42% scrim, max 2 equal 64dp liquid capsule buttons, a 3rd action as quiet text; fade 120 ms +
+      scale 1.04 → 1, out 180 ms), `GlassPopover` (morphs out of its button: size + radius → 20dp in
+      240 ms, rows fade in after 25%, BottomEnd / BottomStart / centre), `GlassSheet` (32dp top, handle,
+      rubber-band drag, close below 30% or fling, 300 / 220 ms, scrim 32%). Back closes the newest one.
+      `Ui.dialog()` keeps the AlertDialog.Builder calls; plain item lists open as a sheet
+- [x] Liquid press (`LiquidPress`, a foreground drawable so it never steals touches): spring 0.5 / 300
+      swell, lean toward the finger (tanh), stretch along the drag, wobble back, white wash + radial
+      glow (PLUS blend), inner shadow on corner buttons. Per component: corner 24dp, capsules 4dp,
+      composer / fields 3dp, popover 6dp; squish 0.92 / 0.95 / 0.88; rows 8% / 500 ms; haptics
+- [x] Glass presets with the spec values incl. hue tint, rim light, soft shadows, +20% fallback with a
+      top inner highlight, disabled glass; new TEXTFIELD, SCROLL, CAPSULE presets
+- [x] Liquid toggle (64 x 28 track, 39 x 24 pill thumb that swells 1.5x and turns to glass with a
+      magnified track, drag with overshoot + tick) and liquid slider (6dp track, 40 x 24 thumb, 1.35x
+      glass while held, velocity squash / stretch, step ticks) replace the Material widgets
+- [x] Settings: segmented selector for 2–4 short choices, value preview + glass option sheet for more,
+      expandable slider rows with min / max labels, row tap toggles switches
+- [x] Glass text fields (36dp, 52dp min, hue tint, eye toggle on secret fields); dropdowns open a sheet
+- [x] Top bar: exactly two slots — a second action turns the right button into "more" (popover);
+      progressive glass is solid inside the status bar and melts to nothing
+- [x] Chat: glass attach / send action buttons (primary icons), glass scroll-to-bottom circle above the
+      composer, copy / more icons under messages (no long-press needed), tertiary timestamps
+- [ ] Not yet: iOS-style scrollbar and rigid rubber-band overscroll, swipe-to-delete rows, multi-select
+      collections, direction-aware "push from left" for history, 96sp onboarding hero
+
 ## Planned
 
 - Spring-bone physics (hair/clothes) and MToon outlines for the 3D character

@@ -200,6 +200,7 @@
     <string name="chat_no_provider">कोई प्रोवाइडर नहीं</string>
     <string name="chat_no_vision">सक्रिय प्रदाता विज़न-सक्षम चिह्नित नहीं है। छवियाँ भेजने के लिए उसकी सेटिंग्स में \"Vision\" चालू करें।</string>
     <string name="chat_remove_attachment">%1$s हटाएँ</string>
+    <string name="chat_scroll_bottom">नवीनतम संदेश तक जाएँ</string>
     <string name="chat_select_text">टेक्स्ट चुनें</string>
     <string name="chat_summarized">पुराने संदेशों का सारांश बना</string>
     <string name="chat_summary_hint">सारांश पढ़ने के लिए टैप करें</string>

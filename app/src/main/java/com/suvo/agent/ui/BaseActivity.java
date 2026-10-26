@@ -81,17 +81,48 @@ public abstract class BaseActivity extends Activity {
         if (t != null) t.setText(title);
     }
 
+    private final java.util.List<Object[]> actions = new java.util.ArrayList<>();
+    private ImageButton actionButton;
+
+    /**
+     * Adds a top-bar action. The top bar has exactly two slots (back on the left, one action on the
+     * right): a second action turns the right button into "more", which opens a glass popover
+     * with all of them.
+     */
     protected ImageButton topAction(int iconRes, int descRes, View.OnClickListener l) {
-        ViewGroup actions = findViewById(R.id.top_actions);
-        if (actions == null) return null;
-        ImageButton b = (ImageButton) getLayoutInflater().inflate(R.layout.top_action, actions, false);
-        b.setImageResource(iconRes);
-        b.setContentDescription(getString(descRes));
-        b.setOnClickListener(l);
-        actions.addView(b);
-        Shell.cornerButton(b, glassSource);
-        Fx.press(b);
-        return b;
+        ViewGroup bar = findViewById(R.id.top_actions);
+        if (bar == null) return null;
+        actions.add(new Object[]{iconRes, descRes, l});
+        if (actionButton == null) {
+            actionButton = (ImageButton) getLayoutInflater().inflate(R.layout.top_action, bar, false);
+            bar.addView(actionButton);
+            Shell.cornerButton(actionButton, glassSource);
+            Fx.press(actionButton);
+        }
+        if (actions.size() == 1) {
+            actionButton.setImageResource(iconRes);
+            actionButton.setContentDescription(getString(descRes));
+            actionButton.setOnClickListener(l);
+        } else {
+            actionButton.setImageResource(R.drawable.ic_more);
+            actionButton.setContentDescription(getString(R.string.more));
+            actionButton.setOnClickListener(v -> {
+                java.util.List<Fx.Item> items = new java.util.ArrayList<>();
+                for (Object[] o : actions) items.add(new Fx.Item(getString((Integer) o[1]), (Integer) o[0], false));
+                Fx.menu(this, actionButton, null, items, which -> ((View.OnClickListener) actions.get(which)[2]).onClick(actionButton));
+            });
+        }
+        return actionButton;
+    }
+
+    /** Back closes the newest dialog / popover / sheet first. */
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent e) {
+        if (e.getKeyCode() == android.view.KeyEvent.KEYCODE_BACK && Overlay.anyOpen(this)) {
+            if (e.getAction() == android.view.KeyEvent.ACTION_UP) Overlay.back(this);
+            return true;
+        }
+        return super.dispatchKeyEvent(e);
     }
 
     protected void open(Class<? extends Activity> cls) {
