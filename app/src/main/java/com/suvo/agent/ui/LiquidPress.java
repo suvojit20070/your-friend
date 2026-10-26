@@ -148,7 +148,7 @@ public final class LiquidPress extends Drawable {
             if (backY != null) backY.cancel();
             startX = curX = hotX;
             startY = curY = hotY;
-            if (style.mode == 0) Fx.unclipParents(view);
+            if (style.mode == 0) Fx.unclipParents(view, 3);
             press.animateTo(1f);
         } else {
             press.animateTo(0f);

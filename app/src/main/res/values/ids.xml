@@ -7,4 +7,5 @@
     <item name="overlay_host" type="id" />
     <item name="overlay_insets" type="id" />
     <item name="overlay_owner" type="id" />
+    <item name="theme_list" type="id" />
 </resources>

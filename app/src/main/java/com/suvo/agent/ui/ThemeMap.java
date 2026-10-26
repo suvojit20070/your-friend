@@ -142,6 +142,26 @@ final class ThemeMap {
                 }
             }
         }
+        if (v instanceof android.widget.AbsListView && v.getTag(R.id.theme_list) == null) {
+            // Lists: no dividers, and the pressed row gets the 8% tonal highlight instead of a ripple.
+            android.widget.AbsListView lv = (android.widget.AbsListView) v;
+            lv.setTag(R.id.theme_list, Boolean.TRUE);
+            lv.setSelector(new TonalDrawable(0, 20 * v.getResources().getDisplayMetrics().density).pressable(c.pal.pressed()));
+            if (lv instanceof android.widget.ListView) {
+                ((android.widget.ListView) lv).setDivider(null);
+                ((android.widget.ListView) lv).setDividerHeight(0);
+            }
+        }
+        Drawable bgNow = v.getBackground();
+        if (bgNow instanceof android.graphics.drawable.RippleDrawable) {
+            android.graphics.drawable.RippleDrawable rd = (android.graphics.drawable.RippleDrawable) bgNow;
+            if (rd.getNumberOfLayers() == 0 && v.isClickable()) {
+                // A bare system ripple (selectableItemBackground): the 8% row press instead.
+                v.setBackground(new TonalDrawable(0, 16 * v.getResources().getDisplayMetrics().density).pressable(c.pal.pressed()));
+            } else {
+                rd.setColor(ColorStateList.valueOf(c.pal.pressed()));
+            }
+        }
         if (v instanceof ViewGroup) {
             ViewGroup g = (ViewGroup) v;
             for (int i = 0; i < g.getChildCount(); i++) walk(g.getChildAt(i), c);

@@ -134,6 +134,8 @@ public final class Ui {
         if (multiline) {
             e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
             e.setMinLines(3);
+            e.setMaxLines(8); // longer text scrolls inside the field; the buttons stay on screen
+            e.setVerticalScrollBarEnabled(true);
         }
         FrameLayout box = new FrameLayout(a);
         box.setPadding(0, dp(a, 4), 0, 0);

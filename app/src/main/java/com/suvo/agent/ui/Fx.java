@@ -170,8 +170,12 @@ public final class Fx {
      * scrolling list (unclipping that lets the list draw over the top bar).
      */
     static void unclipParents(View v) {
+        unclipParents(v, 2);
+    }
+
+    static void unclipParents(View v, int levels) {
         ViewParent p = v.getParent();
-        for (int depth = 0; p instanceof ViewGroup && depth < 2; depth++) {
+        for (int depth = 0; p instanceof ViewGroup && depth < levels; depth++) {
             ViewGroup g = (ViewGroup) p;
             if (g instanceof AbsListView || g instanceof ScrollView || g.getId() == android.R.id.content
                     || !(g.getParent() instanceof ViewGroup) || holdsScroller(g)) break;

@@ -78,7 +78,10 @@ public final class GlassSheet extends Overlay {
         int max = Math.round(a.getResources().getDisplayMetrics().heightPixels * 0.78f);
         panel.addView(new GlassDialog.MaxHeightFrame(a, max, scroll),
                 new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        layer.addView(panel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
+        // The panel reaches 40dp below the screen, so pulling it up never shows a gap under it.
+        FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
+        plp.bottomMargin = -dp(40);
+        layer.addView(panel, plp);
         panel.setVisibility(View.INVISIBLE);
         installDrag();
     }
@@ -94,8 +97,8 @@ public final class GlassSheet extends Overlay {
             boolean sel = i == selected;
             LinearLayout row = new LinearLayout(a);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setMinimumHeight(Ui.dp(a, 64));
-            row.setPadding(Ui.dp(a, 16), Ui.dp(a, 12), Ui.dp(a, 16), Ui.dp(a, 12));
+            row.setMinimumHeight(Ui.dp(a, 52));
+            row.setPadding(Ui.dp(a, 16), Ui.dp(a, 10), Ui.dp(a, 16), Ui.dp(a, 10));
             row.setBackground(new TonalDrawable(sel ? pal.primaryContainer : 0, Ui.dp(a, 20)).pressable(pal.pressed()));
             row.setTag(R.id.fx_press, "row");
             if (icons != null && i < icons.length && icons[i] != 0) {
@@ -121,7 +124,7 @@ public final class GlassSheet extends Overlay {
                 s.pick(idx);
             });
             LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.setMargins(Ui.dp(a, -4), Ui.dp(a, 4), Ui.dp(a, -4), 0);
+            rp.setMargins(Ui.dp(a, -4), Ui.dp(a, 2), Ui.dp(a, -4), 0);
             list.addView(row, rp);
         }
         return s;
@@ -147,7 +150,7 @@ public final class GlassSheet extends Overlay {
     @Override
     protected void onInsets(int left, int top, int right, int bottom) {
         navInset = bottom;
-        panel.setPadding(left, 0, right, bottom + dp(24));
+        panel.setPadding(left, 0, right, bottom + dp(24) + dp(40));
     }
 
     @Override
@@ -182,9 +185,9 @@ public final class GlassSheet extends Overlay {
                     if (vt[0] != null) vt[0].addMovement(e);
                     float d = start[1] + e.getRawY() - start[0];
                     if (d < 0) {
-                        // Resistance 0.52, decreasing as you pull further.
-                        float h = Math.max(1, panel.getHeight());
-                        d = -(float) (h * 0.52f * (1 - Math.exp(-(-d) / h)));
+                        // Only a small rubber band upward (at most 16dp), strongly resisted.
+                        float max = dp(16);
+                        d = -(float) (max * (1 - Math.exp(-(-d) * 0.52f / max)));
                     }
                     panel.setTranslationY(d);
                     scrim.setAlpha(Math.max(0f, 1f - Math.max(0, d) / Math.max(1, panel.getHeight())));

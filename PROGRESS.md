@@ -197,6 +197,13 @@ Your Friend — Original project by Suvo.
       toggle / slider get room for their swelling thumbs and the toggle no longer flickers after a
       change; the seed palette now also reaches XML-built views and views added later (text colours,
       icon tints, tonal / glass backgrounds, press) on every layout pass (`ui/ThemeMap`)
+- [x] 2.8.2: sheet only rubber-bands 16dp upward and reaches below the screen (no gap), tighter options;
+      dialog body is height-limited so its buttons always stay on screen (multi-line prompt max 8 lines);
+      dialog buttons and other swelling elements are not cut; theme + press applied right before each
+      frame (no flash of old colours after a rebuild, e.g. after a switch); dialogs start invisible (no
+      first-frame flash); lists lose dividers and system ripples become the 8% press; home mic / send are
+      glass action buttons; new Settings → Storage screen (app / data / cache from Android, bar, breakdown,
+      clear cache, empty trash)
 
 ## Planned
 

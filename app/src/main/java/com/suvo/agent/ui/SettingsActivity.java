@@ -141,6 +141,7 @@ public final class SettingsActivity extends BaseActivity {
             Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json");
             startActivityForResult(i, REQ_IMPORT);
         });
+        r.link(R.drawable.ic_files, R.string.storage_title, R.string.settings_storage_desc, StorageActivity.class);
         r.link(R.drawable.ic_info, R.string.section_about, 0, AboutActivity.class);
         Ui.tintAccent(this, box);
     }

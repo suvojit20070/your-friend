@@ -47,6 +47,9 @@ public final class GlassDialog extends Overlay {
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(24), dp(24), dp(24), dp(20));
         panel.setClickable(true); // taps on the panel do not reach the scrim
+        panel.setClipChildren(false);
+        panel.setClipToPadding(false);
+        panel.setAlpha(0f); // nothing shows until the enter animation runs (no first-frame flash)
         BackdropDrawable.apply(panel, contentRoot(a), GlassDrawable.Preset.DIALOG);
         GlassDrawable.shadow(panel, GlassDrawable.Preset.DIALOG);
         int w = Math.min(a.getResources().getDisplayMetrics().widthPixels - dp(48), dp(360));
@@ -266,7 +269,7 @@ public final class GlassDialog extends Overlay {
             LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             sp.topMargin = b.title != null ? dp(12) : 0;
             int maxBody = activity.getResources().getDisplayMetrics().heightPixels - dp(48 + 24 + 24 + 64 + 120);
-            panel.addView(new MaxHeightFrame(activity, maxBody, body), sp);
+            panel.addView(new MaxHeightFrame(activity, maxBody, body, reserve(b)), sp);
         } else if (body.getChildCount() > 0) {
             // Long content scrolls inside the panel (max height = screen - 48dp, minus title and buttons).
             ScrollView sv = new ScrollView(activity);
@@ -276,12 +279,14 @@ public final class GlassDialog extends Overlay {
             LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             sp.topMargin = b.title != null ? dp(12) : 0;
             int maxBody = activity.getResources().getDisplayMetrics().heightPixels - dp(48 + 24 + 24 + 64 + 120);
-            panel.addView(new MaxHeightFrame(activity, maxBody, sv), sp);
+            panel.addView(new MaxHeightFrame(activity, maxBody, sv, reserve(b)), sp);
         }
         int count = (b.posText != null ? 1 : 0) + (b.negText != null ? 1 : 0);
         if (count > 0) {
             LinearLayout row = new LinearLayout(activity);
             row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setClipChildren(false);
+            row.setClipToPadding(false);
             LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(16);
             if (b.negText != null) row.addView(button(b.negText, false, DialogInterface.BUTTON_NEGATIVE, b.neg, pal), weight(row.getChildCount() > 0));
@@ -306,6 +311,14 @@ public final class GlassDialog extends Overlay {
             np.topMargin = dp(count > 0 ? 6 : 16);
             panel.addView(n, np);
         }
+    }
+
+    /** Height kept free below the body for the buttons, so they never leave the screen. */
+    private int reserve(Builder b) {
+        int r = dp(20); // panel bottom padding
+        if (b.posText != null || b.negText != null) r += dp(16 + 64);
+        if (b.neuText != null) r += dp(6 + 48);
+        return r;
     }
 
     private static boolean hasScroller(View v) {
@@ -390,10 +403,17 @@ public final class GlassDialog extends Overlay {
     /** A frame that never grows taller than {@code max} px. */
     static final class MaxHeightFrame extends FrameLayout {
         private final int max;
+        private final int reserve;
 
         MaxHeightFrame(Context c, int max, View child) {
+            this(c, max, child, 0);
+        }
+
+        /** @param reserve space that must stay free for views below this one (dialog buttons) */
+        MaxHeightFrame(Context c, int max, View child, int reserve) {
             super(c);
             this.max = Math.max(1, max);
+            this.reserve = reserve;
             addView(child);
         }
 
@@ -401,7 +421,7 @@ public final class GlassDialog extends Overlay {
         protected void onMeasure(int w, int h) {
             int mode = MeasureSpec.getMode(h);
             int size = MeasureSpec.getSize(h);
-            int limit = mode == MeasureSpec.UNSPECIFIED ? max : Math.min(size, max);
+            int limit = mode == MeasureSpec.UNSPECIFIED ? max : Math.max(Math.min(size, max) - reserve, (int) (48 * getResources().getDisplayMetrics().density));
             super.onMeasure(w, MeasureSpec.makeMeasureSpec(limit, MeasureSpec.AT_MOST));
         }
     }

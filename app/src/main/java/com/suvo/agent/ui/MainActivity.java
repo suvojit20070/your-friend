@@ -105,6 +105,15 @@ public final class MainActivity extends BaseActivity {
         View homeComposer = findViewById(R.id.home_composer);
         if (homeComposer != null) homeComposer.setBackground(new GlassDrawable(this, GlassDrawable.Preset.COMPOSER));
         Shell.cornerButton(findViewById(R.id.home_settings), null);
+        if (homeComposer != null) LiquidPress.attach(homeComposer, LiquidPress.COMPOSER);
+        // Mic and send: glass action buttons (liquid swell + glow), icons in the theme colours.
+        for (int id : new int[]{R.id.home_mic, R.id.home_send}) {
+            View b = findViewById(id);
+            b.setTag(null);
+            Shell.cornerButton(b, null);
+            ((android.widget.ImageButton) b).setImageTintList(android.content.res.ColorStateList.valueOf(
+                    id == R.id.home_send ? Ui.accent(this) : Palette.of(this).onSurface));
+        }
 
         findViewById(R.id.home_settings).setOnClickListener(v -> open(SettingsActivity.class));
         findViewById(R.id.setup_banner_button).setOnClickListener(v -> open(ProvidersActivity.class));

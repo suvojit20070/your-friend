@@ -50,15 +50,15 @@ public abstract class BaseActivity extends Activity {
         if (back != null) back.setOnClickListener(v -> onBackPressed());
         View content = findViewById(android.R.id.content);
         Ui.tintAccent(this, content);
-        // Views added later (list rows, cards built in code) get the theme and the press too.
-        final Runnable retint = () -> {
-            retintPending = false;
-            if (!isFinishing()) Ui.tintAccent(this, content);
-        };
-        content.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
-            if (retintPending) return;
-            retintPending = true;
-            content.post(retint);
+        // Views added later (list rows, cards built in code) get the theme and the press too —
+        // right before the frame that would show them, so they never flash in the old colours.
+        content.getViewTreeObserver().addOnGlobalLayoutListener(() -> retintPending = true);
+        content.getViewTreeObserver().addOnPreDrawListener(() -> {
+            if (retintPending && !isFinishing()) {
+                retintPending = false;
+                Ui.tintAccent(this, content);
+            }
+            return true;
         });
     }
 
