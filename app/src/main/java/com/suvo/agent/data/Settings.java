@@ -37,6 +37,8 @@ public final class Settings {
     public static final String CHARACTER_MODE = "character_mode";     // 2d (default) | 3d
     public static final String VRM_PATH = "vrm_path";                 // imported .vrm in app storage
     public static final String VRM_FRAMING = "vrm_framing";           // full | upper
+    
+    public static final String KEEP_SCREEN_ON = "keep_screen_on";
 
     // Personality / agent
     public static final String ACTIVE_CHARACTER = "active_character";
