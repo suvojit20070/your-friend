@@ -101,6 +101,10 @@ public final class MainActivity extends BaseActivity {
         binder = new CompanionBinder(g, character);
         speechInput = new SpeechInput(this);
         Nav.build(this, findViewById(R.id.nav), 0);
+        // Zafiro chrome: tonal glass composer (Field-36) and a round glass settings button.
+        View homeComposer = findViewById(R.id.home_composer);
+        if (homeComposer != null) homeComposer.setBackground(new GlassDrawable(this, GlassDrawable.Preset.COMPOSER));
+        Shell.cornerButton(findViewById(R.id.home_settings), null);
 
         findViewById(R.id.home_settings).setOnClickListener(v -> open(SettingsActivity.class));
         findViewById(R.id.setup_banner_button).setOnClickListener(v -> open(ProvidersActivity.class));

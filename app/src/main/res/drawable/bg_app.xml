@@ -1,14 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <gradient android:angle="270" android:startColor="@color/bg_top" android:endColor="@color/bg_bottom"/>
-        </shape>
-    </item>
-    <!-- One soft glow at the top; the rest stays calm and flat. -->
-    <item android:width="520dp" android:height="420dp" android:gravity="top|center_horizontal" android:top="-220dp">
-        <shape android:shape="oval">
-            <gradient android:type="radial" android:gradientRadius="260dp" android:startColor="@color/bg_glow" android:endColor="#00000000"/>
-        </shape>
-    </item>
-</layer-list>
+<!-- Calm, flat, warm tonal page background (no glows): content sits on paper. -->
+<color xmlns:android="http://schemas.android.com/apk/res/android" android:color="@color/bg_top"/>

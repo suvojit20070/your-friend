@@ -41,19 +41,14 @@ public final class Ui {
         }
         w.setStatusBarColor(Color.TRANSPARENT);
         w.setNavigationBarColor(Color.TRANSPARENT);
+        // The warm tonal page colour of the current seed, painted on the window itself.
+        w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Palette.of(w.getContext()).background));
         if (Build.VERSION.SDK_INT >= 29) w.setNavigationBarContrastEnforced(false);
     }
 
-    /** The accent colour: Material You dynamic colour (Android 12+) or the user's choice. */
+    /** The primary colour of the tonal palette made from the chosen seed (or the wallpaper on Android 12+). */
     public static int accent(Context ctx) {
-        String a = Settings.get(ctx).str(Settings.ACCENT, "dynamic");
-        if (!"dynamic".equals(a)) {
-            try {
-                return Color.parseColor(a);
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-        return ctx.getColor(R.color.accent);
+        return Palette.of(ctx).primary;
     }
 
     /**
@@ -73,13 +68,17 @@ public final class Ui {
         } else if (v instanceof com.google.android.material.slider.Slider) {
             Widgets.styleSlider((com.google.android.material.slider.Slider) v);
         } else if ("accent".equals(v.getTag())) {
-            if (v instanceof CompoundButton) {
+            if (v instanceof android.widget.ImageButton && v.getBackground() != null) {
+                v.setBackgroundTintList(ColorStateList.valueOf(c));
+                ((android.widget.ImageButton) v).setImageTintList(ColorStateList.valueOf(Palette.of(v.getContext()).onPrimary));
+            } else if (v instanceof CompoundButton) {
                 ((CompoundButton) v).setButtonTintList(ColorStateList.valueOf(c));
             } else if (v instanceof ProgressBar) {
                 ((ProgressBar) v).setIndeterminateTintList(ColorStateList.valueOf(c));
                 ((ProgressBar) v).setProgressTintList(ColorStateList.valueOf(c));
             } else {
                 v.setBackgroundTintList(ColorStateList.valueOf(c));
+                if (v instanceof android.widget.TextView) ((android.widget.TextView) v).setTextColor(Palette.of(v.getContext()).onPrimary);
             }
         }
         if (v instanceof ViewGroup) {
@@ -110,40 +109,75 @@ public final class Ui {
         return new AlertDialog.Builder(ctx, R.style.Theme_YourFriend_Dialog);
     }
 
-    /** Shows a dialog with background blur where the device supports cross-window blur. */
+    /**
+     * Shows a dialog as a 48dp glass squircle: the panel blurs what is behind it (Android 12+), a
+     * 42% scrim, a title in 24sp, and equal-width capsule buttons (the positive one is the single
+     * solid primary). It settles in with a fade and a 1.04 → 1 scale instead of popping up.
+     */
     public static AlertDialog show(AlertDialog.Builder b) {
         AlertDialog d = b.create();
         Window w = d.getWindow();
+        Context ctx = d.getContext();
+        Palette pal = Palette.of(ctx);
         if (w != null) {
-            w.setBackgroundDrawableResource(R.drawable.glass_dialog);
+            GlassDrawable glass = new GlassDrawable(ctx, GlassDrawable.Preset.DIALOG);
+            int side = dp(ctx, 24);
+            w.setBackgroundDrawable(new android.graphics.drawable.InsetDrawable(glass, side, side, side, side));
+            w.setDimAmount(0.42f);
             if (Build.VERSION.SDK_INT >= 31) {
-                w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
-                w.getAttributes().setBlurBehindRadius(48);
+                WindowManager wm = ctx.getSystemService(WindowManager.class);
+                if (wm != null && wm.isCrossWindowBlurEnabled()) {
+                    w.setBackgroundBlurRadius(Math.round(glass.blurPx()));
+                    glass.setLive(true);
+                }
             }
+            w.setWindowAnimations(0);
         }
         d.show();
         if (w != null) {
-            // Dialogs pop in with a soft spring instead of the stock fade.
+            int maxW = dp(ctx, 360 + 48);
+            int screenW = ctx.getResources().getDisplayMetrics().widthPixels;
+            w.setLayout(Math.min(screenW, maxW), ViewGroup.LayoutParams.WRAP_CONTENT);
             View content = w.getDecorView();
-            content.setScaleX(0.9f);
-            content.setScaleY(0.9f);
             content.setAlpha(0f);
-            new Fx.Spring(0.9f, 480f, 0.7f, v -> {
-                content.setScaleX(v);
-                content.setScaleY(v);
-                content.setAlpha(Math.max(0f, Math.min(1f, (v - 0.9f) / 0.08f)));
-            }).animateTo(1f);
+            content.setScaleX(1.04f);
+            content.setScaleY(1.04f);
+            content.animate().alpha(1f).setDuration(120).setInterpolator(new android.view.animation.LinearInterpolator()).start();
+            content.animate().scaleX(1f).scaleY(1f).setDuration(240)
+                    .setInterpolator(new android.view.animation.PathInterpolator(0.4f, 0f, 0.2f, 1f)).start();
         }
-        tintAccent(d.getContext(), w == null ? null : w.getDecorView());
-        int c = accent(d.getContext());
-        for (int which : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL}) {
-            Button btn = d.getButton(which);
-            if (btn != null) {
-                btn.setTextColor(which == AlertDialog.BUTTON_POSITIVE ? c : d.getContext().getColor(R.color.text_secondary));
-                btn.setAllCaps(false);
-            }
-        }
+        tintAccent(ctx, w == null ? null : w.getDecorView());
+        styleDialogButtons(d, pal);
         return d;
+    }
+
+    private static void styleDialogButtons(AlertDialog d, Palette pal) {
+        Context ctx = d.getContext();
+        Button pos = d.getButton(AlertDialog.BUTTON_POSITIVE);
+        ViewGroup bar = pos == null ? null : (ViewGroup) pos.getParent();
+        if (bar == null) return;
+        if (bar instanceof android.widget.LinearLayout) ((android.widget.LinearLayout) bar).setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        bar.setPadding(dp(ctx, 20), dp(ctx, 4), dp(ctx, 20), dp(ctx, 20));
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View v = bar.getChildAt(i);
+            if (!(v instanceof Button)) {
+                v.setVisibility(View.GONE); // the spacer between neutral and the others
+                continue;
+            }
+            Button btn = (Button) v;
+            if (btn.getVisibility() != View.VISIBLE || btn.getText() == null || btn.getText().length() == 0) continue;
+            boolean primary = btn == pos;
+            btn.setAllCaps(false);
+            btn.setTextSize(16f);
+            btn.setTextColor(primary ? pal.onPrimary : pal.onSurface);
+            btn.setBackground(new TonalDrawable(primary ? pal.primary : pal.surfaceHighest, -1).pressable(pal.pressed()));
+            btn.setStateListAnimator(null);
+            btn.setMinHeight(dp(ctx, 56));
+            btn.setMinimumHeight(dp(ctx, 56));
+            android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(0, dp(ctx, 56), 1f);
+            lp.setMargins(dp(ctx, 6), 0, dp(ctx, 6), 0);
+            btn.setLayoutParams(lp);
+        }
     }
 
     public interface TextCallback {

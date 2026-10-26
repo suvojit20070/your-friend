@@ -30,7 +30,7 @@
         android:ellipsize="end"
         android:gravity="center"
         android:maxLines="1"
-        android:textSize="21sp" />
+        android:textSize="20sp" />
 
     <LinearLayout
         android:id="@+id/top_actions"

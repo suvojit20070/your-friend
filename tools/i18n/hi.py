@@ -11,7 +11,7 @@ S = {
 "about_version": "संस्करण",
 "accent_amber": "एम्बर",
 "accent_blue": "नीला",
-"accent_dynamic": "डायनामिक (Material You)",
+"accent_dynamic": "वॉलपेपर (डायनामिक)",
 "accent_rose": "गुलाबी",
 "accent_teal": "टील",
 "accent_violet": "बैंगनी",
@@ -812,6 +812,15 @@ S = {
 "chat_follow_through": "एजेंट को याद दिलाया कि जो कहा वह सच में करे",
 "chat_remove_attachment": "%1$s हटाएँ",
 "chat_check_attachment": "मैंने जो जोड़ा है उसे देखो।",
+"accent_blossom": "ब्लॉसम",
+"accent_lavender": "लैवेंडर",
+"accent_sky": "आसमानी",
+"accent_cyan": "सियान",
+"accent_mint": "मिंट",
+"accent_green": "हरा",
+"accent_lime": "लाइम",
+"accent_lemon": "नींबू",
+"accent_apricot": "खुबानी",
 }
 
 P = {

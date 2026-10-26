@@ -3,6 +3,7 @@ package com.suvo.agent.ui;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.LinearLayout;
 
 import com.suvo.agent.R;
@@ -80,10 +81,7 @@ public final class SettingsActivity extends BaseActivity {
         r.choiceRow(R.drawable.ic_eye, R.string.settings_theme, Settings.THEME, "dark",
                 new String[]{getString(R.string.theme_system), getString(R.string.theme_dark), getString(R.string.theme_light)},
                 new String[]{"system", "dark", "light"}, v -> restartApp());
-        r.choiceRow(R.drawable.ic_star, R.string.settings_accent, Settings.ACCENT, "dynamic",
-                new String[]{getString(R.string.accent_dynamic), getString(R.string.accent_violet), getString(R.string.accent_teal),
-                        getString(R.string.accent_rose), getString(R.string.accent_amber), getString(R.string.accent_blue)},
-                new String[]{"dynamic", "#7C6CFF", "#1FA796", "#E5486B", "#E29A1F", "#3B82F6"}, v -> restartApp());
+        seedRow(r);
         r.choiceRow(R.drawable.ic_chat, R.string.settings_language, Settings.UI_LANGUAGE, "",
                 new String[]{getString(R.string.lang_system), "English", "Hinglish", "বাংলা", "हिन्दी", "日本語"},
                 LocaleHelper.TAGS, v -> {
@@ -167,6 +165,72 @@ public final class SettingsActivity extends BaseActivity {
         //noinspection ResultOfMethodCallIgnored
         dir.mkdirs();
         return new java.io.File(dir, "avatar.vrm");
+    }
+
+    /** Seed colour: one colour makes the whole tonal palette. Shown as swatches in a sheet. */
+    private void seedRow(Rows r) {
+        String cur = g.settings.str(Settings.ACCENT, "dynamic");
+        View sw = swatch(Palette.seedColor(this, cur), Ui.dp(this, 28));
+        r.row(R.drawable.ic_star, getString(R.string.settings_accent), seedLabel(cur), sw, v -> {
+            android.widget.GridLayout grid = new android.widget.GridLayout(this);
+            grid.setColumnCount(4);
+            final android.app.Dialog[] sheet = new android.app.Dialog[1];
+            java.util.List<String> values = new java.util.ArrayList<>();
+            values.add("dynamic");
+            java.util.Collections.addAll(values, Palette.SEEDS);
+            for (String val : values) {
+                android.widget.LinearLayout cell = new android.widget.LinearLayout(this);
+                cell.setOrientation(android.widget.LinearLayout.VERTICAL);
+                cell.setGravity(android.view.Gravity.CENTER);
+                int pad = Ui.dp(this, 6);
+                cell.setPadding(pad, Ui.dp(this, 10), pad, Ui.dp(this, 8));
+                boolean selected = val.equalsIgnoreCase(cur);
+                View dot = swatch(Palette.seedColor(this, val), Ui.dp(this, 44));
+                if (selected) {
+                    dot.setForeground(getDrawable(R.drawable.ic_check));
+                    dot.setForegroundTintList(android.content.res.ColorStateList.valueOf(0xFF1F1B13));
+                }
+                cell.addView(dot, new android.widget.LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44)));
+                android.widget.TextView t = new android.widget.TextView(this, null, 0, R.style.YF_Caption);
+                t.setText(seedLabel(val));
+                t.setGravity(android.view.Gravity.CENTER);
+                t.setMaxLines(1);
+                t.setPadding(0, Ui.dp(this, 6), 0, 0);
+                cell.addView(t);
+                cell.setClickable(true);
+                cell.setOnClickListener(x -> {
+                    if (sheet[0] != null) sheet[0].dismiss();
+                    g.settings.put(Settings.ACCENT, val);
+                    Fx.later(this::restartApp, 260);
+                });
+                android.widget.GridLayout.LayoutParams lp = new android.widget.GridLayout.LayoutParams();
+                lp.width = 0;
+                lp.columnSpec = android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f);
+                grid.addView(cell, lp);
+            }
+            sheet[0] = Fx.sheet(this, getString(R.string.settings_accent), grid);
+        });
+    }
+
+    private View swatch(int color, int size) {
+        View v = new View(this);
+        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+        d.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        d.setColor(color);
+        v.setBackground(d);
+        v.setLayoutParams(new android.widget.LinearLayout.LayoutParams(size, size));
+        return v;
+    }
+
+    private String seedLabel(String value) {
+        if ("dynamic".equals(value)) return getString(R.string.accent_dynamic);
+        for (int i = 0; i < Palette.SEEDS.length; i++) {
+            if (Palette.SEEDS[i].equalsIgnoreCase(value)) {
+                int id = getResources().getIdentifier("accent_" + Palette.SEED_NAMES[i], "string", getPackageName());
+                return id == 0 ? Palette.SEED_NAMES[i] : getString(id);
+            }
+        }
+        return value;
     }
 
     private void characterStyle(Rows r) {

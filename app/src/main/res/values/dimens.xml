@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="screen_padding">16dp</dimen>
-    <dimen name="corner">24dp</dimen>
-    <dimen name="corner_small">16dp</dimen>
-    <dimen name="corner_dialog">28dp</dimen>
-    <dimen name="top_bar_height">64dp</dimen>
+    <dimen name="corner">28dp</dimen>
+    <dimen name="corner_small">20dp</dimen>
+    <dimen name="corner_dialog">48dp</dimen>
+    <dimen name="top_bar_height">72dp</dimen>
     <dimen name="nav_height">64dp</dimen>
     <dimen name="icon_button">48dp</dimen>
-    <dimen name="row_min_height">60dp</dimen>
+    <dimen name="row_min_height">64dp</dimen>
     <dimen name="editor_preview_height">260dp</dimen>
 </resources>

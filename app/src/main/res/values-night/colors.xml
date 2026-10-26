@@ -1,36 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Your Friend design tokens, dark theme (the default look). -->
 <resources>
-    <color name="bg_top">#FF0E131A</color>
-    <color name="bg_bottom">#FF0B0F14</color>
-    <color name="bg_glow">#1A8AB4F8</color>
-    <color name="surface">#FF181D24</color>
-    <color name="surface_2">#FF20262F</color>
-    <color name="surface_3">#FF2A313C</color>
-    <color name="stroke">#FF2A313B</color>
-    <color name="divider">#FF242A33</color>
+    <color name="bg_top">#FF17130B</color>
+    <color name="bg_bottom">#FF17130B</color>
+    <color name="bg_glow">#00EAC16C</color>
+    <color name="surface">#FF201B13</color>
+    <color name="surface_2">#FF2F2A21</color>
+    <color name="surface_3">#FF3A342B</color>
+    <color name="stroke">#594D4639</color>
+    <color name="divider">#594D4639</color>
 
-    <color name="text_primary">#FFE7EBF1</color>
-    <color name="text_secondary">#FF8E98A7</color>
-    <color name="text_on_accent">#FF0A1A33</color>
+    <color name="text_primary">#FFEBE1D4</color>
+    <color name="text_secondary">#FFD0C5B4</color>
+    <color name="text_on_accent">#FF3F2E00</color>
 
-    <color name="accent">#FF8AB4F8</color>
-    <color name="accent_soft">#2E8AB4F8</color>
-    <color name="accent_2">#FF5FD3C0</color>
-    <color name="danger">#FFF2777A</color>
-    <color name="warning">#FFF2C66D</color>
-    <color name="success">#FF6CD6A0</color>
+    <color name="accent">#FFEAC16C</color>
+    <color name="accent_soft">#2EEAC16C</color>
+    <color name="accent_2">#FFB4CEA5</color>
+    <color name="danger">#FFFFB4AB</color>
+    <color name="warning">#FFFFB870</color>
+    <color name="success">#FF95D68C</color>
 
-    <color name="code_bg">#FF0D1116</color>
+    <color name="code_bg">#FF2F2A21</color>
 
     <!-- Liquid glass: rgba(25,30,40,0.65) tint, rgba(255,255,255,0.14) rim -->
-    <color name="glass_fill">#A6191E28</color>
-    <color name="glass_fill_strong">#E6161B24</color>
-    <color name="glass_fill_menu">#C7181D27</color>
-    <color name="glass_tile">#8C232A36</color>
+    <color name="glass_fill">#B82F2A21</color>
+    <color name="glass_fill_strong">#D12F2A21</color>
+    <color name="glass_fill_menu">#C22F2A21</color>
+    <color name="glass_tile">#26AFAFAF</color>
     <color name="glass_stroke">#14FFFFFF</color>
-    <color name="glass_rim_top">#3DFFFFFF</color>
-    <color name="glass_sheen">#14FFFFFF</color>
-    <color name="switch_track_off">#FF262D37</color>
-    <color name="switch_thumb_off">#FF8E98A7</color>
+    <color name="glass_rim_top">#33FFFFFF</color>
+    <color name="glass_sheen">#0FFFFFFF</color>
+    <color name="switch_track_off">#FF3A342B</color>
+    <color name="switch_thumb_off">#FF998F80</color>
+    <color name="bubble_user">#2EEAC16C</color>
+    <color name="bubble_tool">#FF201B13</color>
+    <color name="code_text">#FFEBE1D4</color>
+    <color name="primary_container">#FF5B4300</color>
+    <color name="secondary_container">#FF53452A</color>
+    <color name="tertiary">#FFB4CEA5</color>
+    <color name="outline_variant">#FF4D4639</color>
+    <color name="surface_high">#FF2F2A21</color>
+    <color name="surface_highest">#FF3A342B</color>
+    <color name="section_text">#CCD0C5B4</color>
 </resources>

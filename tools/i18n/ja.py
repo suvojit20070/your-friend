@@ -11,7 +11,7 @@ S = {
 "about_version": "バージョン",
 "accent_amber": "アンバー",
 "accent_blue": "ブルー",
-"accent_dynamic": "ダイナミック（Material You）",
+"accent_dynamic": "壁紙 (ダイナミック)",
 "accent_rose": "ローズ",
 "accent_teal": "ティール",
 "accent_violet": "バイオレット",
@@ -812,6 +812,15 @@ S = {
 "chat_follow_through": "宣言した作業を実際に行うようエージェントに促しました",
 "chat_remove_attachment": "%1$s を外す",
 "chat_check_attachment": "添付したものを見てください。",
+"accent_blossom": "ブロッサム",
+"accent_lavender": "ラベンダー",
+"accent_sky": "スカイ",
+"accent_cyan": "シアン",
+"accent_mint": "ミント",
+"accent_green": "グリーン",
+"accent_lime": "ライム",
+"accent_lemon": "レモン",
+"accent_apricot": "アプリコット",
 }
 
 P = {

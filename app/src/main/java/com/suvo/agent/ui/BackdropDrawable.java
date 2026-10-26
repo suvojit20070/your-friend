@@ -30,6 +30,7 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
         View.OnAttachStateChangeListener {
 
     private boolean capturing;
+    private Object effect; // RenderEffect, created once
     private static final float SCALE = 0.25f;
 
     private final View host;
@@ -43,13 +44,28 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
 
     /** @param source the view whose content shows through (usually the activity's content root). */
     public static void apply(View host, View source, float radiusPx) {
+        apply(host, source, GlassDrawable.Preset.COMPOSER, radiusPx);
+    }
+
+    public static GlassDrawable apply(View host, View source, GlassDrawable.Preset preset) {
+        return apply(host, source, preset, -2);
+    }
+
+    /**
+     * Live-blur glass on API 31+, tonal glass otherwise (and whenever the source would contain the
+     * host). Returns the drawable set as background.
+     */
+    public static GlassDrawable apply(View host, View source, GlassDrawable.Preset preset, float radiusPx) {
         Context c = host.getContext();
+        GlassDrawable d;
         if (Build.VERSION.SDK_INT >= 31 && source != null && !isSelfOrAncestor(source, host)) {
-            host.setBackground(new BackdropDrawable(c, host, source, radiusPx));
+            d = new BackdropDrawable(c, host, source, preset, radiusPx);
         } else {
-            host.setBackground(new GlassDrawable(c, radiusPx, c.getColor(R.color.glass_fill_strong)));
+            d = new GlassDrawable(c, preset, radiusPx);
         }
+        host.setBackground(d);
         // No outline clipping: buttons inside may pop out past the edge when pressed.
+        return d;
     }
 
     /** True if {@code v} is {@code host} or contains it. */
@@ -60,12 +76,13 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
         return false;
     }
 
-    private BackdropDrawable(Context ctx, View host, View source, float radiusPx) {
-        super(ctx, radiusPx);
+    private BackdropDrawable(Context ctx, View host, View source, GlassDrawable.Preset preset, float radiusPx) {
+        super(ctx, preset, radiusPx);
         this.host = host;
         this.source = source;
-        this.blurPx = 26f * ctx.getResources().getDisplayMetrics().density * SCALE;
-        this.bgColor = ctx.getColor(R.color.bg_bottom);
+        // The spec's blur radii are for full resolution; the content is recorded at SCALE.
+        this.blurPx = Math.max(1f, blurPx() * SCALE * 1.6f);
+        this.bgColor = pal.background;
         host.addOnAttachStateChangeListener(this);
         if (host.isAttachedToWindow()) onViewAttachedToWindow(host);
     }
@@ -80,6 +97,7 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
         v.getViewTreeObserver().removeOnPreDrawListener(this);
         if (Build.VERSION.SDK_INT >= 29 && node != null) ((RenderNode) node).discardDisplayList();
         ready = false;
+        live = false;
     }
 
     @Override
@@ -109,8 +127,16 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
             capturing = false;
             n.endRecording();
         }
-        n.setRenderEffect(RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP));
+        if (effect == null) {
+            // Blur, then "vibrancy": colours behind the glass get 1.5x saturation, like real glass.
+            android.graphics.ColorMatrix sat = new android.graphics.ColorMatrix();
+            sat.setSaturation(1.5f);
+            effect = RenderEffect.createColorFilterEffect(new android.graphics.ColorMatrixColorFilter(sat),
+                    RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP));
+        }
+        n.setRenderEffect((RenderEffect) effect);
         ready = true;
+        live = true;
         host.invalidate();
         return true;
     }

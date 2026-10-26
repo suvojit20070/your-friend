@@ -30,11 +30,13 @@ public final class Widgets {
 
     public static MaterialSwitch styleSwitch(MaterialSwitch s) {
         Context c = s.getContext();
-        int accent = Ui.accent(c);
-        int onAccent = c.getColor(R.color.text_on_accent);
-        int trackOff = c.getColor(R.color.switch_track_off);
-        int outline = c.getColor(R.color.switch_thumb_off);
-        int disabled = c.getColor(R.color.surface_3);
+        // On = primary track with an onPrimary thumb; off = tonal surface track, muted thumb.
+        Palette p = Palette.of(c);
+        int accent = p.primary;
+        int onAccent = p.onPrimary;
+        int trackOff = p.surfaceHighest;
+        int outline = Palette.alpha(p.onSurfaceVariant, 0.7f);
+        int disabled = Palette.alpha(p.onSurface, 0.12f);
         s.setTrackTintList(new ColorStateList(CHECK_STATES, new int[]{disabled, accent, trackOff}));
         s.setThumbTintList(new ColorStateList(CHECK_STATES, new int[]{outline, onAccent, outline}));
         s.setTrackDecorationTintList(new ColorStateList(CHECK_STATES, new int[]{disabled, Color.TRANSPARENT, outline}));
@@ -62,7 +64,7 @@ public final class Widgets {
         Context c = s.getContext();
         int accent = Ui.accent(c);
         s.setTrackActiveTintList(ColorStateList.valueOf(accent));
-        s.setTrackInactiveTintList(ColorStateList.valueOf(c.getColor(R.color.surface_3)));
+        s.setTrackInactiveTintList(ColorStateList.valueOf(Palette.of(c).surfaceHighest));
         s.setThumbTintList(ColorStateList.valueOf(accent));
         s.setHaloTintList(ColorStateList.valueOf((accent & 0x00FFFFFF) | 0x33000000));
         // Steps are 1; the tick marks would just be noise on long ranges.
@@ -80,7 +82,7 @@ public final class Widgets {
     public static android.widget.Spinner styleSpinner(android.widget.Spinner sp) {
         Context c = sp.getContext();
         sp.setBackgroundResource(R.drawable.spinner_bg);
-        sp.setPopupBackgroundDrawable(new GlassDrawable(c, Ui.dp(c, 18), c.getColor(R.color.glass_fill_menu)));
+        sp.setPopupBackgroundDrawable(new GlassDrawable(c, GlassDrawable.Preset.POPOVER));
         sp.setPadding(Ui.dp(c, 4), Ui.dp(c, 6), Ui.dp(c, 40), Ui.dp(c, 6));
         sp.setMinimumHeight(Ui.dp(c, 52));
         return sp;

@@ -180,7 +180,7 @@ public final class ChatActivity extends BaseActivity {
         setUpChips();
         // Liquid glass composer over the scrolling conversation.
         View composer = findViewById(R.id.chat_composer);
-        BackdropDrawable.apply(composer, list, Ui.dp(this, 30));
+        BackdropDrawable.apply(composer, list, GlassDrawable.Preset.COMPOSER);
         View bottom = findViewById(R.id.chat_bottom);
         bottom.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             int pad = (b - t) + Ui.dp(this, 8);
@@ -1164,25 +1164,31 @@ public final class ChatActivity extends BaseActivity {
             text.setVisibility(View.VISIBLE);
             text.setTextColor(getColor(R.color.text_primary));
             text.setTextSize(16f);
+            text.setLineSpacing(Ui.dp(ChatActivity.this, 5), 1f);
             row.setGravity(Gravity.START);
+            // Spacing: 24dp between turns (before your message), 12dp between blocks.
+            row.setPadding(0, Ui.dp(ChatActivity.this, it.type == USER ? 18 : 6), 0, Ui.dp(ChatActivity.this, 6));
             int padH = Ui.dp(ChatActivity.this, 16), padV = Ui.dp(ChatActivity.this, 11);
             bubble.setPadding(padH, padV, padH, padV);
+            bubble.setBackgroundTintList(null);
+            Palette pal = Palette.of(ChatActivity.this);
             switch (it.type) {
                 case USER:
+                    // Soft primary-tinted bubble on the right with a small tail at the bottom-end.
                     row.setGravity(Gravity.END);
-                    bubble.setBackgroundResource(R.drawable.bubble_user);
-                    bubble.setBackgroundTintList(null);
+                    bubble.setBackground(TonalDrawable.userBubble(ChatActivity.this));
+                    bubble.setPadding(Ui.dp(ChatActivity.this, 18), Ui.dp(ChatActivity.this, 12), Ui.dp(ChatActivity.this, 23), Ui.dp(ChatActivity.this, 12));
                     break;
                 case ASSISTANT:
                 case STREAM:
-                    // Answers read like a document: full width, no bubble.
-                    bubble.setBackgroundResource(R.drawable.bubble_assistant);
-                    bubble.setBackgroundTintList(null);
+                    // Answers are plain text on the page: full width, no bubble, 17sp / 26sp.
+                    bubble.setBackground(null);
                     bubble.setPadding(Ui.dp(ChatActivity.this, 2), Ui.dp(ChatActivity.this, 6), Ui.dp(ChatActivity.this, 2), Ui.dp(ChatActivity.this, 2));
+                    text.setTextSize(17f);
+                    text.setLineSpacing(Ui.dp(ChatActivity.this, 6.5f), 1f);
                     break;
                 case TOOL:
-                    bubble.setBackgroundResource(R.drawable.bubble_tool);
-                    bubble.setBackgroundTintList(null);
+                    bubble.setBackground(new TonalDrawable(pal.surfaceLow, Ui.dp(ChatActivity.this, 20)));
                     bubble.setPadding(Ui.dp(ChatActivity.this, 14), Ui.dp(ChatActivity.this, 8), Ui.dp(ChatActivity.this, 14), Ui.dp(ChatActivity.this, 8));
                     text.setTextSize(13.5f);
                     text.setTextColor(getColor(R.color.text_secondary));
@@ -1198,8 +1204,7 @@ public final class ChatActivity extends BaseActivity {
                     bindTools(it, bubble, title, text, chevron, toolsBox);
                     break;
                 case SUMMARY:
-                    bubble.setBackgroundResource(R.drawable.bubble_tool);
-                    bubble.setBackgroundTintList(null);
+                    bubble.setBackground(new TonalDrawable(pal.surfaceLow, Ui.dp(ChatActivity.this, 20)));
                     title.setVisibility(View.VISIBLE);
                     title.setText(it.title);
                     title.setTextColor(getColor(R.color.text_secondary));
@@ -1209,16 +1214,16 @@ public final class ChatActivity extends BaseActivity {
                     }
                     break;
                 case ERROR:
-                    bubble.setBackgroundResource(R.drawable.bubble_tool);
-                    bubble.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.danger)));
+                    bubble.setBackground(new TonalDrawable(Palette.alpha(getColor(R.color.danger), 0.12f), Ui.dp(ChatActivity.this, 20)));
                     title.setVisibility(View.VISIBLE);
                     title.setText(R.string.chat_error_tap_retry);
                     title.setTextColor(getColor(R.color.danger));
                     break;
                 default: // NOTICE
                     row.setGravity(Gravity.CENTER_HORIZONTAL);
-                    bubble.setBackgroundResource(R.drawable.chip);
-                    bubble.setBackgroundTintList(null);
+                    bubble.setBackground(new TonalDrawable(Palette.alpha(pal.primary, 0.12f), -1));
+                    text.setTextSize(13.5f);
+                    text.setTextColor(pal.onSurfaceVariant);
                     break;
             }
             boolean prose = it.type == ASSISTANT || it.type == STREAM;
@@ -1256,9 +1261,10 @@ public final class ChatActivity extends BaseActivity {
 
         /** "N tools" accordion: the header opens the list; each tool opens its own code box. */
         private void bindTools(Item it, LinearLayout bubble, TextView title, TextView text, ImageView chevron, LinearLayout box) {
-            bubble.setBackgroundResource(R.drawable.bubble_tool);
-            bubble.setBackgroundTintList(null);
-            bubble.setPadding(Ui.dp(ChatActivity.this, 16), Ui.dp(ChatActivity.this, 12), Ui.dp(ChatActivity.this, 14), Ui.dp(ChatActivity.this, 12));
+            // Thinking / tool block: tonal container; "breathes" (16dp collapsed, 12dp open).
+            bubble.setBackground(new TonalDrawable(Palette.of(ChatActivity.this).surfaceLow, Ui.dp(ChatActivity.this, 24)));
+            int inset = Ui.dp(ChatActivity.this, it.expanded ? 12 : 16);
+            bubble.setPadding(inset, Ui.dp(ChatActivity.this, 12), inset, Ui.dp(ChatActivity.this, 12));
             int running = 0, failed = 0;
             for (Item c : it.children) {
                 if ("…".equals(c.status) || c.status.isEmpty()) running++;

@@ -202,17 +202,21 @@ public final class Fx {
             if (!enabled) p = false;
             if (p == pressed) return false;
             pressed = p;
+            // Corner glass buttons swell (liquid glass); every other control squishes:
+            // 0.92 for buttons, 0.985 for large surfaces. Springs: damping 0.5, stiffness 200 / 300.
+            boolean corner = "corner".equals(view.getTag());
+            boolean small = small();
             if (scale == null) {
-                scale = new Spring(1f, 400f, 0.55f, v -> {
+                scale = new Spring(1f, corner ? 300f : 200f, 0.5f, v -> {
                     view.setScaleX(v);
                     view.setScaleY(v);
                 });
             }
-            boolean small = small();
-            if (p && small) unclipParents(view);
+            if (p && corner) unclipParents(view);
             if (p) {
-                scale.animateTo(small ? 1.15f : 0.975f);
-                burst(small);
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+                scale.animateTo(corner ? 1.15f : small ? 0.92f : 0.985f);
+                burst(small || corner);
             } else {
                 scale.animateTo(1f);
             }
@@ -233,7 +237,7 @@ public final class Fx {
             glowAnim.addUpdateListener(a -> {
                 float t = (float) a.getAnimatedValue();
                 glowRadius = Math.max(1f, max * (0.25f + 0.75f * t));
-                glowAlpha = (1f - t) * (small ? 0.55f : 0.30f);
+                glowAlpha = (1f - t) * (small ? 0.30f : 0.15f);
                 hx = fx;
                 hy = fy;
                 invalidateSelf();
@@ -301,9 +305,9 @@ public final class Fx {
     }
 
     private static int glowColor(Context c) {
-        // A cool white-blue light, slightly tinted with the accent.
+        // A soft white light (white 15% under the finger in the spec), faintly warmed by the primary.
         int acc = Ui.accent(c);
-        int r = (Color.red(acc) + 255 * 2) / 3, g = (Color.green(acc) + 255 * 2) / 3, b = (Color.blue(acc) + 255 * 2) / 3;
+        int r = (Color.red(acc) + 255 * 4) / 5, g = (Color.green(acc) + 255 * 4) / 5, b = (Color.blue(acc) + 255 * 4) / 5;
         return Color.rgb(r, g, b);
     }
 
@@ -356,7 +360,7 @@ public final class Fx {
         int ph = Ui.dp(a, 20), pv = Ui.dp(a, 11);
         t.setPadding(ph, pv, ph, pv);
         View content = a.findViewById(android.R.id.content);
-        BackdropDrawable.apply(t, content, Ui.dp(a, 24));
+        BackdropDrawable.apply(t, content, GlassDrawable.Preset.PILL);
         t.setElevation(0f);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
@@ -432,9 +436,13 @@ public final class Fx {
         Dialog d = new Dialog(a, R.style.Theme_YourFriend_Dialog);
         LinearLayout box = new LinearLayout(a);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setBackground(new GlassDrawable(a, Ui.dp(a, 22), a.getColor(R.color.glass_fill_menu)));
+        GlassDrawable glass = new GlassDrawable(a, GlassDrawable.Preset.POPOVER);
+        // The screen behind is blurred by the window (Android 12+), so the panel can be light glass.
+        if (Build.VERSION.SDK_INT >= 31) glass.setLive(true);
+        box.setBackground(glass);
         box.setClipToOutline(true);
-        box.setPadding(0, Ui.dp(a, 6), 0, Ui.dp(a, 6));
+        box.setPadding(0, Ui.dp(a, 4), 0, Ui.dp(a, 4));
+        Palette pal = Palette.of(a);
         box.setElevation(0f);
         if (title != null) {
             TextView t = new TextView(a, null, 0, R.style.YF_Caption);
@@ -447,19 +455,24 @@ public final class Fx {
             Item it = items.get(i);
             LinearLayout row = new LinearLayout(a);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setMinimumHeight(Ui.dp(a, 48));
-            row.setPadding(Ui.dp(a, 18), Ui.dp(a, 8), Ui.dp(a, 18), Ui.dp(a, 8));
+            row.setMinimumHeight(Ui.dp(a, 44));
+            row.setPadding(Ui.dp(a, 14), Ui.dp(a, 10), Ui.dp(a, 14), Ui.dp(a, 10));
+            // Field-16 highlight inset 4 x 2 dp: pressed 8%, checked 12%.
+            int base = it.checked ? Palette.alpha(pal.dark ? Color.WHITE : Color.BLACK, 0.12f) : 0;
+            row.setBackground(new TonalDrawable(base, Ui.dp(a, 16)).pressable(pal.pressed()));
+            row.setTag(R.id.fx_press, "row");
             if (it.icon != 0) {
                 ImageView iv = new ImageView(a);
                 iv.setImageResource(it.icon);
-                iv.setImageTintList(ColorStateList.valueOf(it.checked ? accent : a.getColor(R.color.text_secondary)));
+                iv.setImageTintList(ColorStateList.valueOf(pal.onSurfaceVariant));
                 LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Ui.dp(a, 20), Ui.dp(a, 20));
                 ip.setMarginEnd(Ui.dp(a, 14));
                 row.addView(iv, ip);
             }
             TextView t = new TextView(a, null, 0, R.style.YF_Body);
             t.setText(it.label);
-            t.setTextColor(it.checked ? accent : a.getColor(R.color.text_primary));
+            t.setTextColor(pal.onSurface);
+            t.setTextSize(15f);
             t.setMaxLines(2);
             row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             if (it.checked) {
@@ -471,12 +484,15 @@ public final class Fx {
             final int idx = i;
             row.setClickable(true);
             row.setOnClickListener(v -> {
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
                 d.dismiss();
                 // Not v.postDelayed: the row is detached once the menu closes, and a detached view
                 // never runs its queued callbacks.
                 MAIN.postDelayed(() -> pick.onPick(idx), 60);
             });
-            box.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rl.setMargins(Ui.dp(a, 4), Ui.dp(a, 2), Ui.dp(a, 4), Ui.dp(a, 2));
+            box.addView(row, rl);
         }
         attachAll(box);
         FrameLayout wrap = new FrameLayout(a);
@@ -516,13 +532,22 @@ public final class Fx {
         box.setAlpha(0f);
         box.setScaleX(0.35f);
         box.setScaleY(0.35f);
+        // Condenses out of the button: 240 ms FastOutSlowIn, rows fade in after the first quarter.
+        for (int i = 0; i < box.getChildCount(); i++) box.getChildAt(i).setAlpha(0f);
         d.setOnShowListener(di -> {
-            Spring s = new Spring(0.35f, 520f, 0.62f, v -> {
-                box.setScaleX(v);
-                box.setScaleY(v);
-                box.setAlpha(Math.max(0f, Math.min(1f, (v - 0.35f) / 0.45f)));
+            ValueAnimator va = ValueAnimator.ofFloat(0f, 1f);
+            va.setDuration(240);
+            va.setInterpolator(new PathInterpolator(0.4f, 0f, 0.2f, 1f));
+            va.addUpdateListener(an -> {
+                float v = (float) an.getAnimatedValue();
+                float sc = 0.35f + 0.65f * v;
+                box.setScaleX(sc);
+                box.setScaleY(sc);
+                box.setAlpha(Math.min(1f, v * 2.5f));
+                float rowsA = Math.max(0f, (v - 0.25f) / 0.75f);
+                for (int i = 0; i < box.getChildCount(); i++) box.getChildAt(i).setAlpha(rowsA);
             });
-            s.animateTo(1f);
+            va.start();
         });
         d.show();
         return d;
@@ -553,7 +578,8 @@ public final class Fx {
         holder[0] = d;
         LinearLayout panel = new LinearLayout(a);
         panel.setOrientation(LinearLayout.VERTICAL);
-        GlassDrawable bg = new GlassDrawable(a, Ui.dp(a, 30), a.getColor(R.color.glass_fill_menu)).topOnly();
+        GlassDrawable bg = new GlassDrawable(a, GlassDrawable.Preset.SHEET).topOnly();
+        if (Build.VERSION.SDK_INT >= 31) bg.setLive(true); // the window blurs the screen behind
         panel.setBackground(bg);
         panel.setClipToOutline(true);
         panel.setPadding(Ui.dp(a, 18), Ui.dp(a, 10), Ui.dp(a, 18), Ui.dp(a, 28));
@@ -564,9 +590,12 @@ public final class Fx {
         hp.bottomMargin = Ui.dp(a, 14);
         panel.addView(handle, hp);
         if (title != null) {
+            // Sheet title: 18sp SemiBold in primary.
             TextView t = new TextView(a, null, 0, R.style.YF_Title);
             t.setText(title);
-            t.setPadding(Ui.dp(a, 4), 0, 0, Ui.dp(a, 12));
+            t.setTextSize(18f);
+            t.setTextColor(Ui.accent(a));
+            t.setPadding(Ui.dp(a, 6), 0, 0, Ui.dp(a, 12));
             panel.addView(t);
         }
         panel.addView(content, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -580,7 +609,7 @@ public final class Fx {
             w.setGravity(Gravity.BOTTOM);
             WindowManager.LayoutParams lp = w.getAttributes();
             lp.windowAnimations = 0;
-            lp.dimAmount = 0.45f;
+            lp.dimAmount = 0.42f;
             w.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
             if (Build.VERSION.SDK_INT >= 31) {
                 w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
@@ -632,7 +661,7 @@ public final class Fx {
         LinearLayout tile = new LinearLayout(a);
         tile.setOrientation(LinearLayout.VERTICAL);
         tile.setGravity(Gravity.CENTER);
-        tile.setBackground(new GlassDrawable(a, Ui.dp(a, 20), a.getColor(R.color.glass_tile)));
+        tile.setBackground(new TonalDrawable(Palette.alpha(Palette.of(a).surfaceHighest, 0.85f), Ui.dp(a, 20)));
         tile.setClipToOutline(true);
         tile.setPadding(Ui.dp(a, 6), Ui.dp(a, 16), Ui.dp(a, 6), Ui.dp(a, 14));
         ImageView iv = new ImageView(a);

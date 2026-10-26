@@ -11,7 +11,7 @@ S = {
 "about_version": "Version",
 "accent_amber": "Amber",
 "accent_blue": "Blue",
-"accent_dynamic": "Dynamic (Material You)",
+"accent_dynamic": "Wallpaper (dynamic)",
 "accent_rose": "Rose",
 "accent_teal": "Teal",
 "accent_violet": "Violet",
@@ -812,6 +812,15 @@ S = {
 "chat_follow_through": "The agent was reminded to actually do the step it announced",
 "chat_remove_attachment": "Remove %1$s",
 "chat_check_attachment": "Please take a look at what I attached.",
+"accent_blossom": "Blossom",
+"accent_lavender": "Lavender",
+"accent_sky": "Sky",
+"accent_cyan": "Cyan",
+"accent_mint": "Mint",
+"accent_green": "Green",
+"accent_lime": "Lime",
+"accent_lemon": "Lemon",
+"accent_apricot": "Apricot",
 }
 
 P = {

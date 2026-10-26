@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- User bubble: primary at 18%, 24dp with the bottom-end corner tucked in (code adds the tail). -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <solid android:color="@color/bubble_user"/>
-    <corners android:topLeftRadius="22dp" android:topRightRadius="22dp" android:bottomLeftRadius="22dp" android:bottomRightRadius="6dp"/>
+    <corners android:topLeftRadius="24dp" android:topRightRadius="24dp" android:bottomLeftRadius="24dp" android:bottomRightRadius="4dp"/>
 </shape>

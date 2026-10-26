@@ -20,6 +20,8 @@ import com.suvo.agent.R;
 public abstract class BaseActivity extends Activity {
 
     protected AppGraph g;
+    /** The scrolling content the top-bar glass blurs (null when the screen keeps its own layout). */
+    protected View glassSource;
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -38,10 +40,14 @@ public abstract class BaseActivity extends Activity {
     public void setContentView(int layoutResID) {
         super.setContentView(layoutResID);
         View root = ((ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
-        if (root != null) applyInsets(root);
+        if (root != null) {
+            // Content scrolls under a floating glass top bar where the layout allows it.
+            glassSource = Shell.install(this, root);
+            if (glassSource == null) applyInsets(root);
+        }
         View back = findViewById(R.id.top_back);
         if (back != null) back.setOnClickListener(v -> onBackPressed());
-        Ui.tintAccent(this, root);
+        Ui.tintAccent(this, findViewById(android.R.id.content));
     }
 
     protected void applyInsets(View root) {
@@ -83,11 +89,38 @@ public abstract class BaseActivity extends Activity {
         b.setContentDescription(getString(descRes));
         b.setOnClickListener(l);
         actions.addView(b);
+        Shell.cornerButton(b, glassSource);
+        Fx.press(b);
         return b;
     }
 
     protected void open(Class<? extends Activity> cls) {
         startActivity(new Intent(this, cls));
+    }
+
+    private boolean reducedMotion() {
+        return g != null && g.settings.bool(com.suvo.agent.data.Settings.REDUCED_MOTION, false);
+    }
+
+    /** Direction-aware navigation: forward pushes slide in from the right (360 ms, FastOutSlowIn). */
+    @Override
+    public void startActivity(Intent intent, Bundle options) {
+        super.startActivity(intent, options);
+        if (isOwn(intent)) {
+            if (reducedMotion()) overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+            else overridePendingTransition(R.anim.yf_push_in, R.anim.yf_push_out);
+        }
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        if (reducedMotion()) overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+        else overridePendingTransition(R.anim.yf_pop_in, R.anim.yf_pop_out);
+    }
+
+    private boolean isOwn(Intent i) {
+        return i != null && i.getComponent() != null && getPackageName().equals(i.getComponent().getPackageName());
     }
 
     /** Re-creates the screen after a language or theme change. */

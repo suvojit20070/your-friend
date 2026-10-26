@@ -31,12 +31,14 @@ public final class Rows {
     private final Activity a;
     private final LinearLayout parent;
     private final Settings settings;
+    private final Palette pal;
     private LinearLayout group;
 
     public Rows(Activity a, LinearLayout parent) {
         this.a = a;
         this.parent = parent;
         this.settings = Settings.get(a);
+        this.pal = Palette.of(a);
     }
 
     /** The container; the current group is closed so views added next appear after it. */
@@ -50,10 +52,12 @@ public final class Rows {
         if (stale) {
             group = new LinearLayout(a);
             group.setOrientation(LinearLayout.VERTICAL);
-            group.setBackgroundResource(R.drawable.group_card);
+            // Card-28: tonal surfaceContainerLow squircle, no border, no shadow.
+            group.setBackground(new TonalDrawable(pal.surfaceLow, Ui.dp(a, 28)));
             group.setClipToOutline(true);
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            p.topMargin = Ui.dp(a, 10);
+            p.topMargin = Ui.dp(a, 8);
+            p.bottomMargin = Ui.dp(a, 4);
             parent.addView(group, p);
         }
         return group;
@@ -62,10 +66,12 @@ public final class Rows {
     private void addToGroup(View row, boolean insetDivider) {
         LinearLayout g = group();
         if (g.getChildCount() > 0) {
+            // Ultra-subtle separation: 0.5dp outlineVariant at 35%, inset to where the text starts.
             View div = new View(a);
-            div.setBackgroundColor(a.getColor(R.color.divider));
-            LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, Ui.dp(a, 1)));
-            dp.setMarginStart(Ui.dp(a, insetDivider ? 56 : 16));
+            div.setBackgroundColor(Palette.alpha(pal.outlineVariant, 0.35f));
+            LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                    Math.max(1, Math.round(0.5f * a.getResources().getDisplayMetrics().density)));
+            dp.setMarginStart(Ui.dp(a, insetDivider ? 60 : 20));
             dp.setMarginEnd(Ui.dp(a, 16));
             g.addView(div, dp);
         }
@@ -81,8 +87,10 @@ public final class Rows {
         TextView t = new TextView(a, null, 0, R.style.YF_Section);
         t.setText(title);
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        p.topMargin = Ui.dp(a, 22);
-        p.setMarginStart(Ui.dp(a, 8));
+        p.topMargin = Ui.dp(a, 24);
+        p.bottomMargin = Ui.dp(a, 0);
+        p.setMarginStart(Ui.dp(a, 20));
+        p.setMarginEnd(Ui.dp(a, 20));
         parent.addView(t, p);
         return t;
     }
@@ -91,8 +99,9 @@ public final class Rows {
         group = null;
         TextView t = new TextView(a, null, 0, R.style.YF_Caption);
         t.setText(text);
-        t.setPadding(Ui.dp(a, 8), Ui.dp(a, 8), Ui.dp(a, 8), Ui.dp(a, 2));
-        t.setLineSpacing(Ui.dp(a, 2), 1f);
+        t.setPadding(Ui.dp(a, 20), Ui.dp(a, 8), Ui.dp(a, 20), Ui.dp(a, 4));
+        t.setTextSize(14f);
+        t.setLineSpacing(Ui.dp(a, 4), 1f);
         parent.addView(t, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return t;
     }
@@ -100,9 +109,9 @@ public final class Rows {
     private ImageView icon(int iconRes) {
         ImageView iv = new ImageView(a);
         iv.setImageResource(iconRes);
-        iv.setImageTintList(ColorStateList.valueOf(a.getColor(R.color.text_secondary)));
-        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Ui.dp(a, 22), Ui.dp(a, 22));
-        ip.setMarginEnd(Ui.dp(a, 18));
+        iv.setImageTintList(ColorStateList.valueOf(pal.onSurfaceVariant));
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Ui.dp(a, 24), Ui.dp(a, 24));
+        ip.setMarginEnd(Ui.dp(a, 16));
         iv.setLayoutParams(ip);
         return iv;
     }
@@ -112,8 +121,10 @@ public final class Rows {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setMinimumHeight(a.getResources().getDimensionPixelSize(R.dimen.row_min_height));
-        row.setPadding(Ui.dp(a, 18), Ui.dp(a, 12), Ui.dp(a, 14), Ui.dp(a, 12));
-        row.setBackgroundResource(R.drawable.row_bg);
+        row.setPadding(Ui.dp(a, 20), Ui.dp(a, 16), Ui.dp(a, 16), Ui.dp(a, 16));
+        // Press = the whole row fades to onSurface 8% (no ripple, no squish) + a light haptic.
+        row.setBackground(new TonalDrawable(0, 0).pressable(pal.pressed()));
+        row.setTag(R.id.fx_press, "row");
         if (iconRes != 0) row.addView(icon(iconRes));
         return row;
     }
@@ -131,15 +142,20 @@ public final class Rows {
         s.setVisibility(TextUtils.isEmpty(subtitle) ? View.GONE : View.VISIBLE);
         s.setMaxLines(4);
         s.setEllipsize(TextUtils.TruncateAt.END);
-        s.setPadding(0, Ui.dp(a, 2), 0, 0);
+        s.setPadding(Ui.dp(a, 2), Ui.dp(a, 2), 0, 0);
+        s.setTextSize(13f);
+        s.setTextColor(Palette.alpha(pal.onSurfaceVariant, 0.82f));
         texts.addView(s);
         row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         if (trailing != null) {
             LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            tp.setMarginStart(Ui.dp(a, 10));
+            tp.setMarginStart(Ui.dp(a, 12));
             row.addView(trailing, tp);
         }
-        if (click != null) row.setOnClickListener(click);
+        if (click != null) row.setOnClickListener(v -> {
+            v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+            click.onClick(v);
+        });
         else {
             row.setClickable(false);
             row.setBackground(null);
@@ -150,10 +166,9 @@ public final class Rows {
 
     private ImageView chevron() {
         ImageView c = new ImageView(a);
-        c.setImageResource(R.drawable.ic_back);
-        c.setRotation(180);
-        c.setImageTintList(ColorStateList.valueOf(a.getColor(R.color.text_secondary)));
-        c.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(a, 18), Ui.dp(a, 18)));
+        c.setImageResource(R.drawable.ic_chevron);
+        c.setImageTintList(ColorStateList.valueOf(pal.onSurfaceVariant));
+        c.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(a, 24), Ui.dp(a, 24)));
         return c;
     }
 
@@ -211,7 +226,7 @@ public final class Rows {
     public TextView sliderRow(int iconRes, int titleRes, String key, int def, int min, int max, String unit, Change<Integer> change) {
         LinearLayout box = new LinearLayout(a);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(Ui.dp(a, 18), Ui.dp(a, 14), Ui.dp(a, 14), Ui.dp(a, 8));
+        box.setPadding(Ui.dp(a, 20), Ui.dp(a, 16), Ui.dp(a, 16), Ui.dp(a, 8));
         LinearLayout top = new LinearLayout(a);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
@@ -241,7 +256,7 @@ public final class Rows {
             }
         });
         LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        sp.setMarginStart(iconRes != 0 ? Ui.dp(a, 34) : 0);
+        sp.setMarginStart(iconRes != 0 ? Ui.dp(a, 32) : 0);
         box.addView(sb, sp);
         addToGroup(box, iconRes != 0);
         return value;
@@ -256,12 +271,11 @@ public final class Rows {
         group = null;
         Button b = new Button(a, null, 0, primary ? R.style.YF_Button : R.style.YF_Button_Ghost);
         b.setText(textRes);
-        if (primary) {
-            b.setTag("accent");
-            b.setBackgroundTintList(ColorStateList.valueOf(Ui.accent(a)));
-        }
+        // Capsules: the one solid primary action, or a quiet surfaceContainerHighest one.
+        b.setBackground(new TonalDrawable(primary ? pal.primary : pal.surfaceHighest, -1));
+        b.setTextColor(primary ? pal.onPrimary : pal.onSurface);
         b.setOnClickListener(l);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(a, 54));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(a, 56));
         p.topMargin = Ui.dp(a, 12);
         parent.addView(b, p);
         return b;
@@ -271,8 +285,7 @@ public final class Rows {
     public TextView chip(CharSequence text, int color) {
         TextView c = new TextView(a, null, 0, R.style.YF_Chip);
         c.setText(text);
-        c.setBackgroundResource(R.drawable.chip);
-        c.setBackgroundTintList(ColorStateList.valueOf(com.suvo.agent.core.character.Appearance.alpha(color, 0.18f)));
+        c.setBackground(new TonalDrawable(Palette.alpha(color, 0.14f), -1));
         c.setTextColor(color);
         return c;
     }

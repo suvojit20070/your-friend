@@ -144,6 +144,28 @@ Your Friend — Original project by Suvo.
       (wrong GGUF format, missing CPU instructions, low memory). The imported libc++_shared.so is no
       longer loaded next to the app's own copy
 
+## Phase 2.7 (this update) — "Zafiro" Liquid UI
+
+- [x] One seed colour → whole tonal palette (`ui/Palette`): warm cream / deep warm grey pages, tonal
+      surface containers, muted primary used at low alpha. 12 pastel seed presets + wallpaper colour
+      (Android 12+) in Settings → Appearance (swatch sheet). Static colour tokens = the amber scheme
+- [x] G2 squircle shapes everywhere (`ui/Squircle`, corner smoothing 0.6): cards 28dp, composer 36dp,
+      dialogs 48dp, sheets 32dp top, popovers 20dp, menu highlights 16dp, capsules for buttons/chips
+- [x] Liquid glass presets (`GlassDrawable.Preset`): BUTTON / POPOVER / COMPOSER / PILL / DIALOG / SHEET with
+      the spec's blur radii (light/dark), surface tints, primary-container hue tint, thin specular rim.
+      Live blur + 1.5x vibrancy (RenderEffect) on Android 12+, tonal fallback below
+- [x] Screen shell (`ui/Shell`): content scrolls under a floating top bar; at the top only round glass
+      buttons float; when content is under the bar a progressive blur + tint fades in (280 ms) with no
+      hard edge. Corner buttons are live-blur glass that swell when pressed
+- [x] Dialogs: 48dp glass panel with window background blur, 42% scrim, 24sp title, equal-width capsule
+      buttons (one solid primary), fade 120 ms + scale 1.04 → 1 in 240 ms
+- [x] Settings rows: Card-28 surfaceContainerLow groups, 18sp titles / 13sp summaries, 24dp icons and
+      chevrons, 0.5dp inset dividers at 35%, press = tonal 8% fade (no ripple) + haptic
+- [x] Chat: user bubble primary 18% with tail, assistant answers plain text 17sp/26sp, tonal tool blocks,
+      24dp between turns; 72dp glass composer
+- [x] Motion: squish 0.92 (0.985 large) springs, haptic on every press, menus condense out of the button
+      in 240 ms FastOutSlowIn, direction-aware page slides (360 ms), reduced motion → fades
+
 ## Planned
 
 - Spring-bone physics (hair/clothes) and MToon outlines for the 3D character

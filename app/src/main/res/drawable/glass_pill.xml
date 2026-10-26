@@ -1,28 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pill. Liquid glass: translucent tint, faint top sheen, 1px light rim. Press feedback comes from ui/Fx (spring + glow), not a ripple. -->
+<!-- Floating glass capsule (fallback tint; live blur is added in code). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item>
-        <shape android:shape="rectangle">
-            <solid android:color="@color/glass_fill"/>
-            <corners android:radius="32dp"/>
-        </shape>
-    </item>
-    <item>
-        <shape android:shape="rectangle">
-            <gradient android:angle="270" android:startColor="@color/glass_sheen" android:centerColor="#00FFFFFF" android:endColor="#00FFFFFF"/>
-            <corners android:radius="32dp"/>
-        </shape>
-    </item>
-    <item>
-        <shape android:shape="rectangle">
-            <stroke android:width="1dp" android:color="@color/glass_stroke"/>
-            <corners android:radius="32dp"/>
-        </shape>
-    </item>
-    <!-- Specular highlight where light catches the top edge -->
-    <item android:gravity="top|fill_horizontal" android:height="1dp" android:left="32dp" android:right="32dp">
-        <shape android:shape="rectangle">
-            <gradient android:angle="0" android:startColor="#00FFFFFF" android:centerColor="@color/glass_rim_top" android:endColor="#00FFFFFF"/>
-        </shape>
-    </item>
+    <item><shape android:shape="rectangle"><solid android:color="@color/glass_fill"/><corners android:radius="100dp"/></shape></item>
+    <item><shape android:shape="rectangle"><stroke android:width="0.5dp" android:color="@color/glass_rim_top"/><corners android:radius="100dp"/></shape></item>
 </layer-list>

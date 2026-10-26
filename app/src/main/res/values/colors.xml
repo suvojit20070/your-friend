@@ -2,52 +2,52 @@
 <!-- Your Friend design tokens, light theme. Dark theme values are in values-night/colors.xml. -->
 <resources>
     <!-- Surfaces -->
-    <color name="bg_top">#FFF3F5F9</color>
-    <color name="bg_bottom">#FFEDF0F5</color>
-    <color name="bg_glow">#1F3D6FE0</color>
-    <color name="surface">#FFFFFFFF</color>
-    <color name="surface_2">#FFF0F2F7</color>
-    <color name="surface_3">#FFE5E9F0</color>
-    <color name="stroke">#FFE0E5ED</color>
-    <color name="scrim">#66000000</color>
+    <color name="bg_top">#FFFFF8F2</color>
+    <color name="bg_bottom">#FFFFF8F2</color>
+    <color name="bg_glow">#00FABD00</color>
+    <color name="surface">#FFFBF2E7</color>
+    <color name="surface_2">#FFEFE6DB</color>
+    <color name="surface_3">#FFE9E1D5</color>
+    <color name="stroke">#59D0C5B4</color>
+    <color name="scrim">#6B000000</color>
 
     <!-- Legacy names, mapped onto the tokens above -->
     <color name="blob_1">#00000000</color>
     <color name="blob_2">#00000000</color>
     <color name="blob_3">#00000000</color>
     <!-- Liquid glass -->
-    <color name="glass_fill">#B8FFFFFF</color>
-    <color name="glass_fill_strong">#E6FFFFFF</color>
-    <color name="glass_fill_menu">#E0FFFFFF</color>
-    <color name="glass_tile">#99FFFFFF</color>
-    <color name="glass_stroke">#14000000</color>
-    <color name="glass_rim_top">#33FFFFFF</color>
-    <color name="glass_sheen">#40FFFFFF</color>
+    <color name="glass_fill">#A3EFE6DB</color>
+    <color name="glass_fill_strong">#C2EFE6DB</color>
+    <color name="glass_fill_menu">#C7EFE6DB</color>
+    <color name="glass_tile">#38FFFFFF</color>
+    <color name="glass_stroke">#0F000000</color>
+    <color name="glass_rim_top">#59FFFFFF</color>
+    <color name="glass_sheen">#26FFFFFF</color>
     <color name="glass_stroke_dark">@color/stroke</color>
     <color name="nav_pill">@color/surface</color>
-    <color name="divider">#FFE9EDF3</color>
+    <color name="divider">#59D0C5B4</color>
 
     <!-- Text -->
-    <color name="text_primary">#FF12161C</color>
-    <color name="text_secondary">#FF5E6878</color>
+    <color name="text_primary">#FF1F1B13</color>
+    <color name="text_secondary">#FF4D4639</color>
     <color name="text_on_accent">#FFFFFFFF</color>
 
     <!-- Accent and states -->
-    <color name="accent">#FF3D6FE0</color>
-    <color name="accent_soft">#263D6FE0</color>
-    <color name="accent_2">#FF1E9E8C</color>
-    <color name="danger">#FFD93B41</color>
-    <color name="warning">#FFC98515</color>
-    <color name="success">#FF22915A</color>
+    <color name="accent">#FF785A0B</color>
+    <color name="accent_soft">#2E785A0B</color>
+    <color name="accent_2">#FF4E6542</color>
+    <color name="danger">#FFBA1A1A</color>
+    <color name="warning">#FF8A5100</color>
+    <color name="success">#FF2E6B30</color>
 
     <!-- Chat -->
-    <color name="bubble_user">@color/surface_3</color>
+    <color name="bubble_user">#2E785A0B</color>
     <color name="bubble_assistant">#00000000</color>
-    <color name="bubble_tool">@color/surface_2</color>
+    <color name="bubble_tool">#FFFBF2E7</color>
 
     <!-- Code and terminal -->
-    <color name="code_bg">#FF151A21</color>
-    <color name="code_text">#FFE6EAF0</color>
+    <color name="code_bg">#FFE9E1D5</color>
+    <color name="code_text">#FF1F1B13</color>
     <color name="term_bg">#FF0B0E12</color>
     <color name="term_text">#FFD7DEE7</color>
     <color name="term_dim">#FF7D8794</color>
@@ -58,6 +58,13 @@
     <color name="term_agent">#FFC3A6FF</color>
 
     <!-- Switch / slider -->
-    <color name="switch_track_off">#FFE3E7EE</color>
-    <color name="switch_thumb_off">#FF7A8494</color>
+    <color name="switch_track_off">#FFE9E1D5</color>
+    <color name="switch_thumb_off">#FF7F7667</color>
+    <color name="primary_container">#FFFFDF9E</color>
+    <color name="secondary_container">#FFF4E0BB</color>
+    <color name="tertiary">#FF4E6542</color>
+    <color name="outline_variant">#FFD0C5B4</color>
+    <color name="surface_high">#FFEFE6DB</color>
+    <color name="surface_highest">#FFE9E1D5</color>
+    <color name="section_text">#CC4D4639</color>
 </resources>
