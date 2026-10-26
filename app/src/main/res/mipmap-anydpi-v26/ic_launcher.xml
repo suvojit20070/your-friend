@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  App icon. Picture: artwork from the film "Your Name" (Kimi no Na wa, 2016),
+  © 2016 "Your Name." Production Committee / CoMix Wave Films, dir. Makoto Shinkai.
+  Used for a personal, non-commercial build only; replace it before publishing the app.
+  The monochrome layer (Android 13+ themed icons) keeps the app's own logo.
+-->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background"/>
+    <background android:drawable="@drawable/ic_launcher_art"/>
     <foreground android:drawable="@drawable/ic_launcher_foreground"/>
     <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>
 </adaptive-icon>
