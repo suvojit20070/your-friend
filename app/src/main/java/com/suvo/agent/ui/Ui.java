@@ -64,7 +64,9 @@ public final class Ui {
     }
 
     private static void applyTint(View v, int c) {
-        if (v instanceof LiquidSwitch || v instanceof LiquidSlider) {
+        if (v instanceof com.google.android.material.materialswitch.MaterialSwitch) {
+            Widgets.styleSwitch((com.google.android.material.materialswitch.MaterialSwitch) v);
+        } else if (v instanceof LiquidSlider) {
             // Drawn from the palette already.
         } else if (v instanceof EditText && v.getBackground() != null && v.getTag(R.id.fx_press) == null
                 && !(v.getBackground() instanceof GlassDrawable)) {
@@ -135,7 +137,7 @@ public final class Ui {
             e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
             e.setMinLines(3);
             e.setMaxLines(8); // longer text scrolls inside the field; the buttons stay on screen
-            e.setVerticalScrollBarEnabled(true);
+            e.setVerticalScrollBarEnabled(false);
         }
         FrameLayout box = new FrameLayout(a);
         box.setPadding(0, dp(a, 4), 0, 0);

@@ -563,6 +563,11 @@ public final class FloatingCompanionService extends Service {
         fall.setInterpolator(new android.view.animation.AccelerateInterpolator(1f));
         final boolean sitAtEnd = canSit;
         fall.addUpdateListener(a -> {
+            // The service may have been stopped mid-fall: the window and character are gone then.
+            if (character == null || container == null) {
+                a.cancel();
+                return;
+            }
             float t = (float) a.getAnimatedValue();
             lp.y = startY + Math.round((targetY - startY) * t);
             // Falling: hair and skirt lift up.
@@ -579,6 +584,7 @@ public final class FloatingCompanionService extends Service {
 
             @Override
             public void onAnimationEnd(android.animation.Animator animation) {
+                if (character == null) return;
                 character.setWind(0f, 0f);
                 if (!cancelled) touchDown(sitAtEnd);
             }
@@ -587,6 +593,7 @@ public final class FloatingCompanionService extends Service {
     }
 
     private void touchDown(boolean sit) {
+        if (character == null) return;
         character.setAirborne(false);
         character.setSitting(sit);
         // A small squash on landing.
@@ -708,6 +715,7 @@ public final class FloatingCompanionService extends Service {
     public void onDestroy() {
         running = false;
         instance = null;
+        cancelFall();
         if (ptt != null) ptt.cancel();
         removePointOverlay();
         try {

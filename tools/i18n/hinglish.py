@@ -841,6 +841,8 @@ S = {
 "storage_confirm_cache": "Temporary files delete kare? Aapka save kiya kuch nahi hatega.",
 "storage_confirm_trash": "Trash ki sab cheezein hamesha ke liye delete kare?",
 "storage_cleared": "%1$s khali hua",
+"settings_wallpaper_colors": "Wallpaper ke colours",
+"settings_wallpaper_colors_desc": "Phone ke wallpaper ke colours use karo (Material You)",
 }
 
 P = {

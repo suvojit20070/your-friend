@@ -841,6 +841,8 @@ S = {
 "storage_confirm_cache": "Delete temporary files? Nothing you saved is removed.",
 "storage_confirm_trash": "Delete everything in the trash for good?",
 "storage_cleared": "Freed %1$s",
+"settings_wallpaper_colors": "Wallpaper colours",
+"settings_wallpaper_colors_desc": "Use the colours of your phone's wallpaper (Material You)",
 }
 
 P = {

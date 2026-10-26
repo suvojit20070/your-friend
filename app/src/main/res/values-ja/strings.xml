@@ -570,6 +570,8 @@
     <string name="settings_vrm_remove">3D モデルを削除</string>
     <string name="settings_vrm_remove_confirm">取り込んだモデルを削除しますか？</string>
     <string name="settings_vrm_use_builtin">内蔵キャラクターに戻す</string>
+    <string name="settings_wallpaper_colors">壁紙の色</string>
+    <string name="settings_wallpaper_colors_desc">端末の壁紙の色を使う（Material You）</string>
     <string name="settings_web">Web</string>
     <string name="settings_workspace">ワークスペース</string>
     <string name="setup_banner_action">設定する</string>

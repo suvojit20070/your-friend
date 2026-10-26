@@ -570,6 +570,8 @@
     <string name="settings_vrm_remove">3D मॉडल हटाएँ</string>
     <string name="settings_vrm_remove_confirm">इम्पोर्ट किया मॉडल ऐप से हटाएँ?</string>
     <string name="settings_vrm_use_builtin">बिल्ट-इन कैरेक्टर पर वापस</string>
+    <string name="settings_wallpaper_colors">वॉलपेपर के रंग</string>
+    <string name="settings_wallpaper_colors_desc">फ़ोन के वॉलपेपर के रंग इस्तेमाल करें (Material You)</string>
     <string name="settings_web">वेब</string>
     <string name="settings_workspace">वर्कस्पेस</string>
     <string name="setup_banner_action">सेटअप करें</string>

@@ -204,6 +204,11 @@ Your Friend — Original project by Suvo.
       first-frame flash); lists lose dividers and system ripples become the 8% press; home mic / send are
       glass action buttons; new Settings → Storage screen (app / data / cache from Android, bar, breakdown,
       clear cache, empty trash)
+- [x] 2.8.3: dialog actions always in one horizontal row of equal capsules (neutral included); no
+      scrollbar in the input dialog field; smaller corner-button swell (never cut); Material 3 switch
+      again (palette colours); sheet options 24dp from the edges; fixed the accent row (swatch filled
+      the row); "Wallpaper colours" switch (Material You); crash fix when the floating window stops
+      while the character is falling
 
 ## Planned
 

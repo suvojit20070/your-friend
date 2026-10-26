@@ -111,7 +111,7 @@ public final class CharacterEditorActivity extends BaseActivity {
         slider(box, R.string.character_idle_intensity, spec.idleIntensity, 0.2f, 1.5f, v -> spec.idleIntensity = v);
         slider(box, R.string.character_blink_rate, spec.blinkRate, 0.3f, 2.0f, v -> spec.blinkRate = v);
         slider(box, R.string.character_expressiveness, spec.expressiveness, 0.3f, 1.5f, v -> spec.expressiveness = v);
-        LiquidSwitch wander = Widgets.newSwitch(this);
+        com.google.android.material.materialswitch.MaterialSwitch wander = Widgets.newSwitch(this);
         wander.setTextColor(getColor(R.color.text_primary));
         wander.setTextSize(15f);
         wander.setText(R.string.character_wander);

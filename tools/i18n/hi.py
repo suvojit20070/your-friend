@@ -841,6 +841,8 @@ S = {
 "storage_confirm_cache": "अस्थायी फ़ाइलें हटाएँ? आपका सेव किया कुछ नहीं हटेगा।",
 "storage_confirm_trash": "ट्रैश की सब चीज़ें हमेशा के लिए हटाएँ?",
 "storage_cleared": "%1$s खाली हुआ",
+"settings_wallpaper_colors": "वॉलपेपर के रंग",
+"settings_wallpaper_colors_desc": "फ़ोन के वॉलपेपर के रंग इस्तेमाल करें (Material You)",
 }
 
 P = {

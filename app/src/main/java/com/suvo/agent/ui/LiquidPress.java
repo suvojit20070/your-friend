@@ -55,7 +55,8 @@ public final class LiquidPress extends Drawable {
         }
     }
 
-    public static final Style CORNER = new Style(0, 24, 4.8f, 0.05f, true, true, 1);
+    // A gentle swell (48dp → ~56dp) that fits in the space around the buttons, so it is never cut.
+    public static final Style CORNER = new Style(0, 8, 3f, 0.03f, true, true, 1);
     public static final Style CAPSULE = new Style(0, 4, 4, 0.05f, true, false, 1);
     public static final Style COMPOSER = new Style(0, 3, 3, 0.05f, true, false, 1);
     public static final Style FIELD = new Style(0, 3, 3, 0.05f, true, false, 1);

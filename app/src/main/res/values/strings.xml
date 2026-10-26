@@ -570,6 +570,8 @@
     <string name="settings_vrm_remove">Remove 3D model</string>
     <string name="settings_vrm_remove_confirm">Delete your imported model from the app?</string>
     <string name="settings_vrm_use_builtin">Back to the built-in character</string>
+    <string name="settings_wallpaper_colors">Wallpaper colours</string>
+    <string name="settings_wallpaper_colors_desc">Use the colours of your phone\'s wallpaper (Material You)</string>
     <string name="settings_web">Web</string>
     <string name="settings_workspace">Workspace</string>
     <string name="setup_banner_action">Set up</string>

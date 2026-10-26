@@ -148,7 +148,11 @@ public final class Rows {
         texts.addView(s);
         row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         if (trailing != null) {
-            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            // Keep a size the trailing view already has (e.g. a colour swatch); a bare View would
+            // otherwise grow to fill the row.
+            ViewGroup.LayoutParams own = trailing.getLayoutParams();
+            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(own != null ? own.width : ViewGroup.LayoutParams.WRAP_CONTENT,
+                    own != null ? own.height : ViewGroup.LayoutParams.WRAP_CONTENT);
             tp.setMarginStart(Ui.dp(a, 12));
             row.addView(trailing, tp);
         }
@@ -173,8 +177,8 @@ public final class Rows {
     }
 
     /** On / off: title + summary + liquid toggle; tapping the row toggles too. */
-    public LiquidSwitch switchRow(int iconRes, int titleRes, int subtitleRes, String key, boolean def, Change<Boolean> change) {
-        LiquidSwitch sw = Widgets.newSwitch(a);
+    public com.google.android.material.materialswitch.MaterialSwitch switchRow(int iconRes, int titleRes, int subtitleRes, String key, boolean def, Change<Boolean> change) {
+        com.google.android.material.materialswitch.MaterialSwitch sw = Widgets.newSwitch(a);
         sw.setChecked(settings.bool(key, def));
         sw.setOnCheckedChangeListener((b, v) -> {
             settings.put(key, v);

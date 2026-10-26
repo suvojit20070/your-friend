@@ -841,6 +841,8 @@ S = {
 "storage_confirm_cache": "অস্থায়ী ফাইল মুছবে? তোমার সেভ করা কিছু মুছবে না।",
 "storage_confirm_trash": "ট্র্যাশের সব চিরতরে মুছবে?",
 "storage_cleared": "%1$s খালি হলো",
+"settings_wallpaper_colors": "ওয়ালপেপারের রং",
+"settings_wallpaper_colors_desc": "ফোনের ওয়ালপেপারের রং ব্যবহার করো (Material You)",
 }
 
 P = {

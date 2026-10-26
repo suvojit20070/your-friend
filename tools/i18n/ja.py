@@ -841,6 +841,8 @@ S = {
 "storage_confirm_cache": "一時ファイルを削除しますか？保存したものは消えません。",
 "storage_confirm_trash": "ゴミ箱の中身を完全に削除しますか？",
 "storage_cleared": "%1$s を解放しました",
+"settings_wallpaper_colors": "壁紙の色",
+"settings_wallpaper_colors_desc": "端末の壁紙の色を使う（Material You）",
 }
 
 P = {

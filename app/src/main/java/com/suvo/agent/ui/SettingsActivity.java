@@ -171,6 +171,17 @@ public final class SettingsActivity extends BaseActivity {
     /** Seed colour: one colour makes the whole tonal palette. Shown as swatches in a sheet. */
     private void seedRow(Rows r) {
         String cur = g.settings.str(Settings.ACCENT, "dynamic");
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            // Material You: the whole palette from the device wallpaper.
+            com.google.android.material.materialswitch.MaterialSwitch wall = Widgets.newSwitch(this);
+            wall.setChecked("dynamic".equals(cur));
+            wall.setOnCheckedChangeListener((btn, on) -> {
+                g.settings.put(Settings.ACCENT, on ? "dynamic" : Palette.DEFAULT_SEED);
+                Fx.later(this::restartApp, 260);
+            });
+            r.row(R.drawable.ic_eye, getString(R.string.settings_wallpaper_colors), getString(R.string.settings_wallpaper_colors_desc),
+                    wall, v -> wall.toggle());
+        }
         View sw = swatch(Palette.seedColor(this, cur), Ui.dp(this, 28));
         r.row(R.drawable.ic_star, getString(R.string.settings_accent), seedLabel(cur), sw, v -> {
             android.widget.GridLayout grid = new android.widget.GridLayout(this);

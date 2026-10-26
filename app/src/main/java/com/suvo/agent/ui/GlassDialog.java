@@ -281,7 +281,9 @@ public final class GlassDialog extends Overlay {
             int maxBody = activity.getResources().getDisplayMetrics().heightPixels - dp(48 + 24 + 24 + 64 + 120);
             panel.addView(new MaxHeightFrame(activity, maxBody, sv, reserve(b)), sp);
         }
-        int count = (b.posText != null ? 1 : 0) + (b.negText != null ? 1 : 0);
+        // All actions side by side in one row of equal capsules: neutral, negative, positive
+        // (the positive one is the only solid primary).
+        int count = (b.posText != null ? 1 : 0) + (b.negText != null ? 1 : 0) + (b.neuText != null ? 1 : 0);
         if (count > 0) {
             LinearLayout row = new LinearLayout(activity);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -289,35 +291,17 @@ public final class GlassDialog extends Overlay {
             row.setClipToPadding(false);
             LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             rp.topMargin = dp(16);
+            if (b.neuText != null) row.addView(button(b.neuText, false, DialogInterface.BUTTON_NEUTRAL, b.neu, pal), weight(row.getChildCount() > 0));
             if (b.negText != null) row.addView(button(b.negText, false, DialogInterface.BUTTON_NEGATIVE, b.neg, pal), weight(row.getChildCount() > 0));
             if (b.posText != null) row.addView(button(b.posText, true, DialogInterface.BUTTON_POSITIVE, b.pos, pal), weight(row.getChildCount() > 0));
             panel.addView(row, rp);
-        }
-        if (b.neuText != null) {
-            // Never three capsules: the extra action is a quiet text action under them.
-            TextView n = new TextView(activity, null, 0, R.style.YF_Body);
-            n.setText(b.neuText);
-            n.setTextColor(pal.primary);
-            n.setGravity(Gravity.CENTER);
-            n.setPadding(dp(16), dp(12), dp(16), dp(8));
-            n.setBackground(new TonalDrawable(0, -1).pressable(pal.pressed()));
-            n.setTag(R.id.fx_press, "row");
-            n.setOnClickListener(v -> {
-                v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
-                dismiss();
-                if (b.neu != null) Fx.later(() -> b.neu.onClick(this, DialogInterface.BUTTON_NEUTRAL), 60);
-            });
-            LinearLayout.LayoutParams np = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            np.topMargin = dp(count > 0 ? 6 : 16);
-            panel.addView(n, np);
         }
     }
 
     /** Height kept free below the body for the buttons, so they never leave the screen. */
     private int reserve(Builder b) {
         int r = dp(20); // panel bottom padding
-        if (b.posText != null || b.negText != null) r += dp(16 + 64);
-        if (b.neuText != null) r += dp(6 + 48);
+        if (b.posText != null || b.negText != null || b.neuText != null) r += dp(16 + 64);
         return r;
     }
 

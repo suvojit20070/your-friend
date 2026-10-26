@@ -570,6 +570,8 @@
     <string name="settings_vrm_remove">3D model hatao</string>
     <string name="settings_vrm_remove_confirm">Import kiya model app se delete karna hai?</string>
     <string name="settings_vrm_use_builtin">Built-in character par wapas</string>
+    <string name="settings_wallpaper_colors">Wallpaper ke colours</string>
+    <string name="settings_wallpaper_colors_desc">Phone ke wallpaper ke colours use karo (Material You)</string>
     <string name="settings_web">Web</string>
     <string name="settings_workspace">Workspace</string>
     <string name="setup_banner_action">Setup karo</string>

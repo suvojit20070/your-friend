@@ -18,9 +18,24 @@ public final class Widgets {
     private Widgets() {
     }
 
-    /** The liquid toggle (64 x 28 capsule, glass thumb while held). */
-    public static LiquidSwitch newSwitch(Context c) {
-        return new LiquidSwitch(c);
+    private static final int[][] CHECK_STATES = {{-android.R.attr.state_enabled}, {android.R.attr.state_checked}, {}};
+
+    /** A Material 3 switch in the palette's colours. */
+    public static com.google.android.material.materialswitch.MaterialSwitch newSwitch(Context c) {
+        return styleSwitch(new com.google.android.material.materialswitch.MaterialSwitch(c));
+    }
+
+    /** On = primary track, onPrimary thumb; off = tonal track with a muted thumb and outline. */
+    public static com.google.android.material.materialswitch.MaterialSwitch styleSwitch(com.google.android.material.materialswitch.MaterialSwitch s) {
+        Palette p = Palette.of(s.getContext());
+        int off = p.surfaceHighest;
+        int outline = Palette.alpha(p.onSurfaceVariant, 0.75f);
+        int disabled = Palette.alpha(p.onSurface, 0.12f);
+        s.setTrackTintList(new ColorStateList(CHECK_STATES, new int[]{disabled, p.primary, off}));
+        s.setThumbTintList(new ColorStateList(CHECK_STATES, new int[]{Palette.alpha(p.onSurface, 0.38f), p.onPrimary, outline}));
+        s.setTrackDecorationTintList(new ColorStateList(CHECK_STATES, new int[]{disabled, android.graphics.Color.TRANSPARENT, outline}));
+        s.setThumbIconTintList(ColorStateList.valueOf(p.primary));
+        return s;
     }
 
     /** A liquid slider for whole numbers {@code min..max} (values outside are clamped). */

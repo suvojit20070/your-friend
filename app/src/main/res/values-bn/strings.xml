@@ -570,6 +570,8 @@
     <string name="settings_vrm_remove">3D মডেল সরান</string>
     <string name="settings_vrm_remove_confirm">ইমপোর্ট করা মডেল অ্যাপ থেকে মুছবেন?</string>
     <string name="settings_vrm_use_builtin">বিল্ট-ইন ক্যারেক্টারে ফিরুন</string>
+    <string name="settings_wallpaper_colors">ওয়ালপেপারের রং</string>
+    <string name="settings_wallpaper_colors_desc">ফোনের ওয়ালপেপারের রং ব্যবহার করো (Material You)</string>
     <string name="settings_web">ওয়েব</string>
     <string name="settings_workspace">ওয়ার্কস্পেস</string>
     <string name="setup_banner_action">সেটআপ</string>

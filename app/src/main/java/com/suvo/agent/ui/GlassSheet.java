@@ -124,7 +124,8 @@ public final class GlassSheet extends Overlay {
                 s.pick(idx);
             });
             LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.setMargins(Ui.dp(a, -4), Ui.dp(a, 2), Ui.dp(a, -4), 0);
+            // 24dp from the screen edges (16dp body + 8dp) so the highlight never touches them.
+            rp.setMargins(Ui.dp(a, 8), Ui.dp(a, 2), Ui.dp(a, 8), 0);
             list.addView(row, rp);
         }
         return s;

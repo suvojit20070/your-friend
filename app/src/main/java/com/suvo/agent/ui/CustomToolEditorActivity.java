@@ -42,7 +42,7 @@ public final class CustomToolEditorActivity extends BaseActivity {
     private String originalName;
     private EditText name, description, version, schema, code, url, headers, body, secretHeader, secret, timeout;
     private Spinner kind, method, risk;
-    private LiquidSwitch enabled;
+    private com.google.android.material.materialswitch.MaterialSwitch enabled;
     private LinearLayout pythonBox, httpBox;
     private TextView status;
 
