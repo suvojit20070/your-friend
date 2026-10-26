@@ -86,6 +86,7 @@ public final class OpenAiCompatClient implements LlmClient {
                 throw new LlmException(LlmException.Kind.MALFORMED_RESPONSE, "Response is not JSON", e);
             }
             ChatResponse r = OpenAiProtocol.parseResponse(json);
+            ThinkTags.apply(r);
             if (!r.content.isEmpty()) listener.onTextDelta(r.content);
             return r;
         } catch (SocketTimeoutException e) {

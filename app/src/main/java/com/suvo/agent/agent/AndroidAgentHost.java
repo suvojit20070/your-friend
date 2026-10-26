@@ -87,6 +87,7 @@ public final class AndroidAgentHost implements AgentHost {
         CharacterSpec ch = g.characters.active();
         pa.characterName = ch.name;
         pa.persona = ch.personaPrompt();
+        applyUserPrompt(g, pa);
         String lang = g.settings.str(Settings.RESPONSE_LANGUAGE, "").trim();
         String tone = g.settings.str(Settings.TONE, "").trim();
         StringBuilder langText = new StringBuilder();
@@ -123,6 +124,13 @@ public final class AndroidAgentHost implements AgentHost {
         pa.lessons = lessons(g, 12);
         pa.teamRoster = teamRoster(g);
         return pa.build();
+    }
+
+    /** The parts of the system prompt the user edits in Settings → System prompt. */
+    public static void applyUserPrompt(AppGraph g, PromptAssembler pa) {
+        pa.userInstructions = g.settings.str(Settings.SYSTEM_INSTRUCTIONS, "");
+        pa.workGuideOverride = g.settings.str(Settings.WORK_GUIDE_TEXT, "");
+        pa.includeWorkGuide = g.settings.bool(Settings.INCLUDE_WORK_GUIDE, true);
     }
 
     /** Most recent lessons from record_mistake, newest first. */

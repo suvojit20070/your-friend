@@ -145,6 +145,7 @@ public final class StreamAccumulator {
         ChatResponse r = new ChatResponse();
         r.content = content.toString();
         r.reasoning = reasoning.toString();
+        ThinkTags.apply(r);
         r.finishReason = finishReason;
         r.model = model;
         r.promptTokens = promptTokens;

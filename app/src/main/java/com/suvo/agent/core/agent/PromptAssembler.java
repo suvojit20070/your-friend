@@ -91,13 +91,19 @@ public final class PromptAssembler {
     /** For a child agent: who it is and what the boss asked. Empty for the boss. */
     public String assignment = "";
     public boolean includeWorkGuide = true;
+    /** The user's own working guide (replaces {@link #WORK_GUIDE} when not blank). */
+    public String workGuideOverride = "";
+    /** Standing instructions the user wrote in the System prompt screen. */
+    public String userInstructions = "";
 
     public String build() {
         StringBuilder sb = new StringBuilder(CORE_RULES);
         if (!TextUtil.isBlank(autonomyDescription)) {
             sb.append("\n\n# Autonomy\n").append(autonomyDescription);
         }
-        if (includeWorkGuide) sb.append("\n\n").append(WORK_GUIDE);
+        if (includeWorkGuide) {
+            sb.append("\n\n").append(TextUtil.isBlank(workGuideOverride) ? WORK_GUIDE : "# How to work well (user-edited)\n" + workGuideOverride.trim());
+        }
         if (!TextUtil.isBlank(assignment)) {
             sb.append("\n\n# Your assignment (from the boss agent)\n").append(assignment.trim());
         }
@@ -107,6 +113,10 @@ public final class PromptAssembler {
         sb.append("\n\n# Character and personality (user-editable)\n");
         if (!TextUtil.isBlank(characterName)) sb.append("Your name is ").append(characterName).append(".\n");
         sb.append(TextUtil.isBlank(persona) ? "Be a warm, natural, helpful companion." : persona.trim());
+        if (!TextUtil.isBlank(userInstructions)) {
+            sb.append("\n\n# Standing instructions from the user (user-editable; the rules above still apply)\n")
+                    .append(userInstructions.trim());
+        }
         if (!TextUtil.isBlank(responseLanguage)) {
             sb.append("\n\n# Response language\n").append(responseLanguage.trim());
         }

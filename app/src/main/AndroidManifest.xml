@@ -149,6 +149,7 @@
         <activity android:name=".ui.SettingsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.AboutActivity" android:exported="false" />
         <activity android:name=".ui.StorageActivity" android:exported="false" />
+        <activity android:name=".ui.SystemPromptActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.TeamActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.ScheduleActivity" android:exported="false" />
 

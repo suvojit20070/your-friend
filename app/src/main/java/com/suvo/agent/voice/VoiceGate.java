@@ -386,13 +386,21 @@ public final class VoiceGate {
                 audioSourceUnsupported = true;
                 Log.i(TAG, "No results from the audio pipe twice; switching to the recognizer's microphone");
             }
+            // 11 = ERROR_SERVER_DISCONNECTED: Google's recognizer drops the connection when it is fed
+            // audio through a pipe on some phones (the level meter moves, but no text comes back).
             if (usedPipe && (error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_AUDIO
+                    || error == SpeechRecognizer.ERROR_SERVER || error == 11
                     || error == 13 /* ERROR_CANNOT_LISTEN_TO_DOWNLOAD_EVENTS */ || error == 14 /* ERROR_CANNOT_CHECK_SUPPORT */)) {
                 // This recognizer does not accept an external audio source; use its microphone next time.
                 audioSourceUnsupported = true;
                 Log.i(TAG, "Recognizer refused external audio (" + error + "); switching to its own microphone");
             }
             boolean benign = error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT;
+            if (usedPipe && audioSourceUnsupported && (error == 11 || error == SpeechRecognizer.ERROR_SERVER)) {
+                // Switched to the recognizer's own microphone: say so instead of a bare error code.
+                if (cb != null) cb.onError("Switched speech input to the recognizer's microphone — please say it again", false);
+                return;
+            }
             if (cb != null && !benign) cb.onError(SpeechInput.describe(error), error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS);
         }
 

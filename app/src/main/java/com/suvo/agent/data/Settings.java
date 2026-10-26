@@ -97,6 +97,9 @@ public final class Settings {
 
     // Overlay
     public static final String FLOATING_COMPANION = "floating_companion";
+    public static final String SYSTEM_INSTRUCTIONS = "system_instructions"; // user's standing instructions
+    public static final String WORK_GUIDE_TEXT = "work_guide_text";         // "" = built-in guide
+    public static final String INCLUDE_WORK_GUIDE = "include_work_guide";
 
     private static volatile Settings instance;
     private final SharedPreferences prefs;

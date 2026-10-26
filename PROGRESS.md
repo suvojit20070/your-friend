@@ -209,6 +209,11 @@ Your Friend — Original project by Suvo.
       again (palette colours); sheet options 24dp from the edges; fixed the accent row (swatch filled
       the row); "Wallpaper colours" switch (Material You); crash fix when the floating window stops
       while the character is falling
+- [x] 2.8.4: Settings → System prompt screen (your standing instructions, link to the character's
+      personality, working guide on/off + editable + reset, fixed safety rules read-only, full preview);
+      `<thought>/<think>` blocks a proxy leaves in the answer are moved to reasoning (chat shows
+      "Thinking…" while only thinking streams); hands-free: error 11 (server disconnected) with the audio
+      pipe switches to the recognizer's own microphone, clearer messages for errors 10–13
 
 ## Planned
 

@@ -146,6 +146,14 @@ public final class SpeechInput {
                 return "Speech recognition server error";
             case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
                 return "No speech heard";
+            case 10:
+                return "Too many speech requests, wait a moment";
+            case 11:
+                return "The speech service disconnected (error 11). Check the internet connection or the Google app's speech settings";
+            case 12:
+                return "This recognition language is not supported — pick another one in Voice settings";
+            case 13:
+                return "This recognition language is not downloaded for offline use";
             default:
                 return "Speech recognition error " + error;
         }

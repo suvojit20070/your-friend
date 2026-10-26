@@ -1289,8 +1289,15 @@ public final class ChatActivity extends BaseActivity {
             boolean prose = it.type == ASSISTANT || it.type == STREAM;
             if (prose) {
                 if (mdStyle == null) mdStyle = Markdown.styleFor(ChatActivity.this);
-                CharSequence md = Markdown.render(it.text, mdStyle);
-                text.setText(it.type == STREAM ? new android.text.SpannableStringBuilder(md).append(" ▍") : md);
+                // Thinking a proxy left inside the text (<thought>…</thought>) is not part of the answer.
+                String[] parts = com.suvo.agent.core.llm.ThinkTags.split(it.text);
+                if (it.type == STREAM && parts[1].isEmpty() && !parts[0].isEmpty()) {
+                    text.setText(getString(R.string.status_thinking));
+                    text.setTextColor(Palette.of(ChatActivity.this).onSurfaceVariant);
+                } else {
+                    CharSequence md = Markdown.render(parts[1], mdStyle);
+                    text.setText(it.type == STREAM ? new android.text.SpannableStringBuilder(md).append(" ▍") : md);
+                }
             } else if (it.type != TOOLS) {
                 text.setText(it.text);
             }
