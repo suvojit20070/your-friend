@@ -48,6 +48,7 @@ public final class SettingsActivity extends BaseActivity {
         r.section(R.string.settings_ai);
         r.link(R.drawable.ic_provider, R.string.section_providers, R.string.settings_providers_desc, ProvidersActivity.class);
         r.link(R.drawable.ic_edit, R.string.sysprompt_title, R.string.sysprompt_settings_desc, SystemPromptActivity.class);
+        r.switchRow(R.drawable.ic_screen, R.string.settings_keep_screen_on, R.string.settings_keep_screen_on_desc, Settings.KEEP_SCREEN_ON, false, null);
         r.switchRow(R.drawable.ic_tools, R.string.settings_tool_calling, R.string.settings_tool_calling_desc, Settings.TOOL_CALLING, true, null);
         r.sliderRow(R.drawable.ic_agent, R.string.settings_max_steps, Settings.MAX_STEPS, 25, 1, 100, "", null);
         r.sliderRow(R.drawable.ic_agent, R.string.settings_max_tool_calls, Settings.MAX_TOOL_CALLS, 60, 1, 300, "", null);

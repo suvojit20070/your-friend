@@ -40,6 +40,8 @@
     <string name="agent_live_log">লাইভ লগ</string>
     <string name="agent_no_history">এখনো কোনো টাস্ক নেই।</string>
     <string name="agent_no_provider">আগে একটি AI প্রোভাইডার যোগ করুন (Providers)।</string>
+    <string name="settings_keep_screen_on">স্ক্রিন চালু রাখুন</string>
+    <string name="settings_keep_screen_on_desc">এজেন্টের কাজ চলাকালীন স্ক্রিন চালু রাখুন।</string>
     <string name="agent_no_task">অলস</string>
     <string name="agent_running_tool">%1$s চলছে…</string>
     <string name="agent_status_cancelled">বাতিল</string>

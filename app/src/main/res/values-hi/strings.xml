@@ -40,6 +40,8 @@
     <string name="agent_live_log">लाइव लॉग</string>
     <string name="agent_no_history">अभी तक कोई कार्य नहीं।</string>
     <string name="agent_no_provider">पहले एक AI प्रदाता जोड़ें (Providers)।</string>
+    <string name="settings_keep_screen_on">स्क्रीन चालू रखें</string>
+    <string name="settings_keep_screen_on_desc">एजेंट का टास्क चलने के दौरान स्क्रीन चालू रखें।</string>
     <string name="agent_no_task">निष्क्रिय</string>
     <string name="agent_running_tool">%1$s चल रहा है…</string>
     <string name="agent_status_cancelled">रद्द</string>

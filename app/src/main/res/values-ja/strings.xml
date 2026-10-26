@@ -40,6 +40,8 @@
     <string name="agent_live_log">ライブログ</string>
     <string name="agent_no_history">まだタスクはありません。</string>
     <string name="agent_no_provider">まず AI プロバイダーを追加してください（プロバイダー）。</string>
+    <string name="settings_keep_screen_on">画面をオンのままにする</string>
+    <string name="settings_keep_screen_on_desc">エージェントのタスク実行中は画面をオンに保ちます。</string>
     <string name="agent_no_task">待機中</string>
     <string name="agent_running_tool">%1$s を実行中…</string>
     <string name="agent_status_cancelled">キャンセル</string>

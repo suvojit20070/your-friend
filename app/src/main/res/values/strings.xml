@@ -40,6 +40,8 @@
     <string name="agent_live_log">Live log</string>
     <string name="agent_no_history">No tasks yet.</string>
     <string name="agent_no_provider">Add an AI provider first (Providers).</string>
+    <string name="settings_keep_screen_on">Keep Screen On</string>
+    <string name="settings_keep_screen_on_desc">Keep the display awake while the agent is running a task.</string>
     <string name="agent_no_task">Idle</string>
     <string name="agent_running_tool">Running %1$s…</string>
     <string name="agent_status_cancelled">Cancelled</string>

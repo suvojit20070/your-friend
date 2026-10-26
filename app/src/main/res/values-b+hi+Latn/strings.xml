@@ -40,6 +40,8 @@
     <string name="agent_live_log">Live log</string>
     <string name="agent_no_history">Abhi tak koi task nahi.</string>
     <string name="agent_no_provider">Pehle ek AI provider add karo (Providers).</string>
+    <string name="settings_keep_screen_on">Screen On Rakhein</string>
+    <string name="settings_keep_screen_on_desc">Agent ka task chalte waqt screen on rakhein.</string>
     <string name="agent_no_task">Idle</string>
     <string name="agent_running_tool">%1$s chal raha hai…</string>
     <string name="agent_status_cancelled">Cancel hua</string>
