@@ -63,8 +63,9 @@
     <string name="autonomy_autonomous_long">Autonomous — run safe actions, ask for high-risk ones</string>
     <string name="autonomy_confirm">Confirm</string>
     <string name="autonomy_confirm_long">Confirm — run read-only actions, ask for the rest</string>
+    <string name="autonomy_never_ask_long">Never Ask Anything — All Allowed</string>
     <string name="autonomy_mode">Autonomy</string>
-    <string name="autonomy_note">High-risk actions (deleting files, installing apps, shell commands that change things, sending messages) always ask, in every mode.</string>
+    <string name="autonomy_note">Never Ask mode skips confirmation for all tools except explicitly blocked tools. Use carefully.</string>
     <string name="back">Back</string>
     <string name="cancel">Cancel</string>
     <string name="cap_accessibility">Screen control (Accessibility)</string>

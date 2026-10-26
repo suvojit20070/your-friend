@@ -64,7 +64,8 @@
     <string name="autonomy_confirm">নিশ্চিতকরণ</string>
     <string name="autonomy_confirm_long">নিশ্চিতকরণ — শুধু-পড়ার কাজ নিজে, বাকিগুলোতে জিজ্ঞেস করবে</string>
     <string name="autonomy_mode">স্বাধীনতার মাত্রা</string>
-    <string name="autonomy_note">উচ্চ ঝুঁকির কাজ (ফাইল মোছা, অ্যাপ ইনস্টল, পরিবর্তন করা শেল কমান্ড, মেসেজ পাঠানো) সব মোডেই সবসময় জিজ্ঞেস করে।</string>
+    <string name="autonomy_never_ask_long">কিছুই জিজ্ঞাসা করবে না — সব অনুমোদিত</string>
+    <string name="autonomy_note">Never Ask মোডে স্পষ্টভাবে ব্লক করা টুল ছাড়া অন্য কোনো টুলের জন্য নিশ্চিতকরণ চাওয়া হবে না। সতর্কতার সঙ্গে ব্যবহার করুন।</string>
     <string name="back">পিছনে</string>
     <string name="cancel">বাতিল</string>
     <string name="cap_accessibility">স্ক্রিন কন্ট্রোল (Accessibility)</string>

@@ -61,8 +61,8 @@ public final class SettingsActivity extends BaseActivity {
         r.textRow(R.drawable.ic_chat, R.string.settings_response_language, Settings.RESPONSE_LANGUAGE, "", false, R.string.settings_response_language_auto, null);
         r.textRow(R.drawable.ic_chat, R.string.settings_tone, Settings.TONE, "", false, R.string.settings_tone_default, null);
         r.choiceRow(R.drawable.ic_shield, R.string.autonomy_mode, Settings.AUTONOMY, "CONFIRM",
-                new String[]{getString(R.string.autonomy_assist_long), getString(R.string.autonomy_confirm_long), getString(R.string.autonomy_autonomous_long)},
-                new String[]{"ASSIST", "CONFIRM", "AUTONOMOUS"}, null);
+                new String[]{getString(R.string.autonomy_assist_long), getString(R.string.autonomy_confirm_long), getString(R.string.autonomy_autonomous_long), getString(R.string.autonomy_never_ask_long)},
+                new String[]{"ASSIST", "CONFIRM", "AUTONOMOUS", "NEVER_ASK"}, null);
 
         r.section(R.string.settings_voice);
         r.link(R.drawable.ic_voice, R.string.section_voice, R.string.settings_voice_desc, VoiceActivity.class);

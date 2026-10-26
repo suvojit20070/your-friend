@@ -64,7 +64,8 @@
     <string name="autonomy_confirm">Confirm</string>
     <string name="autonomy_confirm_long">Confirm — read-only actions khud, baaki ke liye poochega</string>
     <string name="autonomy_mode">Autonomy</string>
-    <string name="autonomy_note">High-risk actions (files delete karna, apps install karna, cheezein badalne wale shell commands, messages bhejna) har mode mein hamesha poochte hain.</string>
+    <string name="autonomy_never_ask_long">Kabhi Kuch Mat Puchho — Sab Allowed</string>
+    <string name="autonomy_note">Never Ask mode mein explicitly blocked tools ke alawa kisi bhi tool ke liye confirmation nahi maanga jayega. Dhyan se use karein.</string>
     <string name="back">Peeche</string>
     <string name="cancel">Cancel</string>
     <string name="cap_accessibility">Screen control (Accessibility)</string>

@@ -64,7 +64,8 @@
     <string name="autonomy_confirm">確認</string>
     <string name="autonomy_confirm_long">確認 — 読み取りのみ自動、それ以外は確認</string>
     <string name="autonomy_mode">自律レベル</string>
-    <string name="autonomy_note">高リスクの操作（ファイル削除、アプリのインストール、変更を伴うシェルコマンド、メッセージ送信）は、どのモードでも必ず確認します。</string>
+    <string name="autonomy_never_ask_long">一切確認しない — すべて許可</string>
+    <string name="autonomy_note">Never Ask モードでは、明示的にブロックされたツールを除き、すべてのツールで確認を求めません。慎重に使用してください。</string>
     <string name="back">戻る</string>
     <string name="cancel">キャンセル</string>
     <string name="cap_accessibility">画面操作（ユーザー補助）</string>

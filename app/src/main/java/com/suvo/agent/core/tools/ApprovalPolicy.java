@@ -16,7 +16,9 @@ public final class ApprovalPolicy {
         /** Asks before anything beyond low-risk actions. */
         CONFIRM,
         /** Runs permitted actions up to MEDIUM risk; HIGH risk always asks. */
-        AUTONOMOUS
+        AUTONOMOUS,
+        /** All allowed 💀 */
+        NEVER_ASK
     }
 
     public enum Decision {
@@ -33,6 +35,9 @@ public final class ApprovalPolicy {
 
     public Decision decide(String toolName, RiskLevel risk) {
         if (neverAllow.contains(toolName)) return Decision.BLOCK;
+        if (mode == AutonomyMode.NEVER_ASK) {
+            return Decision.ALLOW;
+        }
         if (risk == RiskLevel.READ_ONLY) {
             return alwaysAsk.contains(toolName) ? Decision.ASK : Decision.ALLOW;
         }
