@@ -91,6 +91,7 @@ android {
 }
 
 dependencies {
+    implementation 'androidx.core:core:1.15.0'
     // Material 3 components: MaterialSwitch and Slider (the rest of the UI is the app's own).
     implementation 'com.google.android.material:material:1.12.0'
     // Shizuku (optional elevated device control via ADB/root identity, no root required).

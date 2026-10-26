@@ -40,8 +40,6 @@
     <string name="agent_live_log">Live log</string>
     <string name="agent_no_history">No tasks yet.</string>
     <string name="agent_no_provider">Add an AI provider first (Providers).</string>
-    <string name="settings_keep_screen_on">Keep Screen On</string>
-    <string name="settings_keep_screen_on_desc">Keep the display awake while the agent is running a task.</string>
     <string name="agent_no_task">Idle</string>
     <string name="agent_running_tool">Running %1$s…</string>
     <string name="agent_status_cancelled">Cancelled</string>
@@ -63,9 +61,8 @@
     <string name="autonomy_autonomous_long">Autonomous — run safe actions, ask for high-risk ones</string>
     <string name="autonomy_confirm">Confirm</string>
     <string name="autonomy_confirm_long">Confirm — run read-only actions, ask for the rest</string>
-    <string name="autonomy_never_ask_long">Never Ask Anything — All Allowed</string>
     <string name="autonomy_mode">Autonomy</string>
-    <string name="autonomy_note">Never Ask mode skips confirmation for all tools except explicitly blocked tools. Use carefully.</string>
+    <string name="autonomy_note">High-risk actions (deleting files, installing apps, shell commands that change things, sending messages) always ask, in every mode.</string>
     <string name="back">Back</string>
     <string name="cancel">Cancel</string>
     <string name="cap_accessibility">Screen control (Accessibility)</string>
@@ -893,4 +890,18 @@
         <item quantity="one">%d message</item>
         <item quantity="other">%d messages</item>
     </plurals>
+    <string name="project_repo">https://github.com/suvojit20070/your-friend.git</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available_message">A new version is available: %1$s (%2$s). Would you like to download and install it?</string>
+    <string name="update_now">Update Now</string>
+    <string name="update_ignore">Ignore</string>
+    <string name="update_downloading">Downloading update</string>
+    <string name="update_please_wait">Please wait while the APK downloads…</string>
+    <string name="update_installing">Installing update…</string>
+    <string name="update_storage_error">Could not access app storage to download the update.</string>
+    <string name="update_failed">Update failed</string>
+    <string name="update_install_success">Installation command completed. Android may restart Your Friend to finish updating.</string>
+    <string name="update_install_fallback">Could not install with Shizuku</string>
+    <string name="update_install_error">Shizuku installation failed: %1$s</string>
+    <string name="update_install_with_android">Use Android installer</string>
 </resources>

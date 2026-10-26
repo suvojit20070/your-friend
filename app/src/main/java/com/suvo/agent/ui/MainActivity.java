@@ -26,6 +26,7 @@ import com.suvo.agent.core.tools.CapabilityState;
 import com.suvo.agent.data.Settings;
 import com.suvo.agent.voice.SpeechController;
 import com.suvo.agent.voice.SpeechInput;
+import com.suvo.agent.update.UpdateChecker;
 
 import java.util.Random;
 
@@ -155,6 +156,8 @@ public final class MainActivity extends BaseActivity {
             character.setTranslationY(g.settings.flt(Settings.CHARACTER_POS_Y, 0f) * area.getHeight());
         });
         if (getIntent().getBooleanExtra(EXTRA_LISTEN, false)) area.post(this::toggleListening);
+        UpdateChecker.cleanupAfterSuccessfulInstall(this);
+        UpdateChecker.check(this, g.shizuku);
     }
 
     @Override

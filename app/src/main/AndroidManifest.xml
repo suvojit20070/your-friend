@@ -221,6 +221,16 @@
         <receiver android:name=".tools.InstallResultReceiver" android:exported="false" />
 
         <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_file_paths" />
+        </provider>
+
+        <provider
             android:name=".files.WorkspaceProvider"
             android:authorities="${applicationId}.workspace"
             android:exported="false"

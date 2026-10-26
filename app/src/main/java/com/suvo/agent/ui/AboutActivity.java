@@ -39,7 +39,7 @@ public final class AboutActivity extends BaseActivity {
         notices.setPadding(p, p, p, p);
         notices.setText(readAsset("NOTICE.txt") + "\n\n" + readAsset("THIRD_PARTY_NOTICES.txt"));
         box.addView(notices);
-        r.button(R.string.about_source, false, v -> PermissionFlows.openUrl(this, "https://github.com/suvojit20070"));
+        r.button(R.string.about_source, false, v -> PermissionFlows.openUrl(this, R.string.project_repo));
     }
 
     private String readAsset(String name) {

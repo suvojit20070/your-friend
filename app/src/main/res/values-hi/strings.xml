@@ -40,8 +40,6 @@
     <string name="agent_live_log">लाइव लॉग</string>
     <string name="agent_no_history">अभी तक कोई कार्य नहीं।</string>
     <string name="agent_no_provider">पहले एक AI प्रदाता जोड़ें (Providers)।</string>
-    <string name="settings_keep_screen_on">स्क्रीन चालू रखें</string>
-    <string name="settings_keep_screen_on_desc">एजेंट का टास्क चलने के दौरान स्क्रीन चालू रखें।</string>
     <string name="agent_no_task">निष्क्रिय</string>
     <string name="agent_running_tool">%1$s चल रहा है…</string>
     <string name="agent_status_cancelled">रद्द</string>
@@ -64,8 +62,7 @@
     <string name="autonomy_confirm">पुष्टि</string>
     <string name="autonomy_confirm_long">पुष्टि — केवल-पढ़ने वाली कार्रवाइयाँ खुद, बाकी के लिए पूछेगा</string>
     <string name="autonomy_mode">स्वायत्तता</string>
-    <string name="autonomy_never_ask_long">कुछ भी न पूछें — सभी अनुमत</string>
-    <string name="autonomy_note">Never Ask मोड में स्पष्ट रूप से ब्लॉक किए गए टूल को छोड़कर किसी भी टूल के लिए पुष्टि नहीं माँगी जाएगी। सावधानी से उपयोग करें।</string>
+    <string name="autonomy_note">उच्च-जोखिम कार्रवाइयाँ (फ़ाइलें हटाना, ऐप इंस्टॉल करना, बदलाव करने वाले शेल कमांड, संदेश भेजना) हर मोड में हमेशा पूछती हैं।</string>
     <string name="back">पीछे</string>
     <string name="cancel">रद्द करें</string>
     <string name="cap_accessibility">स्क्रीन कंट्रोल (Accessibility)</string>
@@ -893,4 +890,5 @@
         <item quantity="one">%d संदेश</item>
         <item quantity="other">%d संदेश</item>
     </plurals>
+    <string name="project_repo">https://github.com/suvojit20070/your-friend.git</string>
 </resources>
