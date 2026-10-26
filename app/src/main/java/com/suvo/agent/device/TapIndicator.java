@@ -154,7 +154,7 @@ public final class TapIndicator {
         private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint trail = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Path arrow = new Path();
+        private final android.graphics.drawable.Drawable cursorDrawable;
         private final float d;
         private final int[] loc = new int[2];
 
@@ -167,6 +167,7 @@ public final class TapIndicator {
         CursorView(Context c) {
             super(c);
             d = c.getResources().getDisplayMetrics().density;
+            cursorDrawable = androidx.core.content.ContextCompat.getDrawable(c, com.suvo.agent.R.drawable.ic_cursor);
             fill.setColor(Color.WHITE);
             stroke.setColor(0xFF1B1B2F);
             stroke.setStyle(Paint.Style.STROKE);
@@ -178,15 +179,6 @@ public final class TapIndicator {
             trail.setStrokeCap(Paint.Cap.ROUND);
             trail.setStrokeWidth(6f * d);
             trail.setColor(0x997C5CFF);
-            // Classic pointer arrow with its tip at (0,0).
-            arrow.moveTo(0, 0);
-            arrow.lineTo(0, 22 * d);
-            arrow.lineTo(6 * d, 16.5f * d);
-            arrow.lineTo(10 * d, 25 * d);
-            arrow.lineTo(13.5f * d, 23.5f * d);
-            arrow.lineTo(9.5f * d, 15 * d);
-            arrow.lineTo(17 * d, 15 * d);
-            arrow.close();
         }
 
         void animateTo(int x1, int y1, int x2, int y2, int kind, Runnable onArrived) {
@@ -252,9 +244,21 @@ public final class TapIndicator {
                 fill.setColor(Color.WHITE);
             }
             c.save();
-            c.translate(cx, cy);
-            c.drawPath(arrow, fill);
-            c.drawPath(arrow, stroke);
+
+            float size = 128 * d;
+            float scale = size / 128f;
+
+            float left = cx - 53.82f * scale;
+            float top = cy - 52.31f * scale;
+
+            cursorDrawable.setBounds(
+               Math.round(left),
+               Math.round(top),
+               Math.round(left + size),
+               Math.round(top + size)
+            );
+
+            cursorDrawable.draw(c);
             c.restore();
             c.restore();
         }
