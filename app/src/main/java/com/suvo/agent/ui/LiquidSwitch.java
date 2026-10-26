@@ -62,7 +62,8 @@ public final class LiquidSwitch extends CompoundButton {
             pos = v;
             invalidate();
         });
-        pressSpring = new Fx.Spring(0f, 300f, 0.5f, v -> {
+        // No overshoot below 0 on release: a bouncing glass/white thumb looked like a flicker.
+        pressSpring = new Fx.Spring(0f, 300f, 0.9f, v -> {
             press = Math.max(0f, v);
             invalidate();
         });
@@ -71,8 +72,8 @@ public final class LiquidSwitch extends CompoundButton {
 
     @Override
     protected void onMeasure(int w, int h) {
-        // Room around the track for the 1.5x thumb swell.
-        setMeasuredDimension(Math.round(76 * d), Math.round(44 * d));
+        // Room around the track for the 1.5x thumb swell (so it is never cut at the sides).
+        setMeasuredDimension(Math.round(96 * d), Math.round(44 * d));
     }
 
     @Override

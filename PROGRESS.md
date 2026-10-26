@@ -192,6 +192,11 @@ Your Friend — Original project by Suvo.
       composer, copy / more icons under messages (no long-press needed), tertiary timestamps
 - [ ] Not yet: iOS-style scrollbar and rigid rubber-band overscroll, swipe-to-delete rows, multi-select
       collections, direction-aware "push from left" for history, 96sp onboarding hero
+- [x] 2.8.1 fixes: pressed buttons no longer stay shifted (the press ignored finger moves reported after
+      release and now settles exactly back); liquid press un-clips its parents so swells are not cut;
+      toggle / slider get room for their swelling thumbs and the toggle no longer flickers after a
+      change; the seed palette now also reaches XML-built views and views added later (text colours,
+      icon tints, tonal / glass backgrounds, press) on every layout pass (`ui/ThemeMap`)
 
 ## Planned
 

@@ -57,6 +57,7 @@ public final class Ui {
      */
     public static void tintAccent(Context ctx, View root) {
         if (root == null) return;
+        ThemeMap.apply(root);
         int c = accent(ctx);
         applyTint(root, c);
         Fx.attachAll(root);

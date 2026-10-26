@@ -84,7 +84,7 @@ public final class LiquidPress extends Drawable {
     private Path innerPath;
     private Fx.Spring press, backX, backY;
     private boolean pressed;
-    private float progress, startX, startY, curX, curY;
+    private float progress, startX, startY, curX, curY, hotX, hotY;
     private float baseTx, baseTy;
     private boolean based;
 
@@ -108,13 +108,15 @@ public final class LiquidPress extends Drawable {
 
     @Override
     public void setHotspot(float x, float y) {
-        if (!pressed) {
-            startX = x;
-            startY = y;
+        // Remember the finger; only while pressed does it move the element. (The framework keeps
+        // reporting moves after release — using those would leave the element shifted.)
+        hotX = x;
+        hotY = y;
+        if (pressed) {
+            curX = x;
+            curY = y;
+            apply();
         }
-        curX = x;
-        curY = y;
-        if (pressed) apply();
     }
 
     @Override
@@ -144,7 +146,9 @@ public final class LiquidPress extends Drawable {
             }
             if (backX != null) backX.cancel();
             if (backY != null) backY.cancel();
-            if (style.mode == 0 && style.pressScaleDp > 6) Fx.unclipParents(view);
+            startX = curX = hotX;
+            startY = curY = hotY;
+            if (style.mode == 0) Fx.unclipParents(view);
             press.animateTo(1f);
         } else {
             press.animateTo(0f);
@@ -160,9 +164,28 @@ public final class LiquidPress extends Drawable {
                 });
                 backX.animateTo(startX);
                 backY.animateTo(startY);
+                backX.onEnd(this::settle);
             }
+            press.onEnd(() -> {
+                if (!pressed) settle();
+            });
         }
         return true;
+    }
+
+    /** At rest: exactly back to where the element was (no drift from rounding or a cut spring). */
+    private void settle() {
+        if (pressed || progress > 0.002f) return;
+        if (backX != null && backX.value() != startX) return;
+        curX = startX;
+        curY = startY;
+        view.setScaleX(1f);
+        view.setScaleY(1f);
+        if (style.mode == 0) {
+            view.setTranslationX(baseTx);
+            view.setTranslationY(baseTy);
+        }
+        invalidateSelf();
     }
 
     private void apply() {

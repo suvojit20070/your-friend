@@ -70,7 +70,7 @@ public final class LiquidSlider extends View {
             shown = v;
             invalidate();
         });
-        pressSpring = new Fx.Spring(0f, 300f, 0.5f, v -> {
+        pressSpring = new Fx.Spring(0f, 300f, 0.9f, v -> {
             press = Math.max(0f, v);
             invalidate();
         });
@@ -129,12 +129,13 @@ public final class LiquidSlider extends View {
         setMeasuredDimension(MeasureSpec.getSize(w), Math.round(44 * d));
     }
 
+    // Margins leave room for the 1.35x thumb plus its stretch, so it is never cut at the ends.
     private float left() {
-        return 26 * d;
+        return 36 * d;
     }
 
     private float right() {
-        return getWidth() - 26 * d;
+        return getWidth() - 36 * d;
     }
 
     @Override

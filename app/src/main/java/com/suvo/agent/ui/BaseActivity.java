@@ -22,6 +22,7 @@ public abstract class BaseActivity extends Activity {
     protected AppGraph g;
     /** The scrolling content the top-bar glass blurs (null when the screen keeps its own layout). */
     protected View glassSource;
+    private boolean retintPending;
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -47,7 +48,18 @@ public abstract class BaseActivity extends Activity {
         }
         View back = findViewById(R.id.top_back);
         if (back != null) back.setOnClickListener(v -> onBackPressed());
-        Ui.tintAccent(this, findViewById(android.R.id.content));
+        View content = findViewById(android.R.id.content);
+        Ui.tintAccent(this, content);
+        // Views added later (list rows, cards built in code) get the theme and the press too.
+        final Runnable retint = () -> {
+            retintPending = false;
+            if (!isFinishing()) Ui.tintAccent(this, content);
+        };
+        content.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            if (retintPending) return;
+            retintPending = true;
+            content.post(retint);
+        });
     }
 
     protected void applyInsets(View root) {
