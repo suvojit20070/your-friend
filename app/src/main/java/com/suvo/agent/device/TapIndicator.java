@@ -245,7 +245,7 @@ public final class TapIndicator {
             }
             c.save();
 
-            float size = 24 * d;
+            float size = 30 * d;
             float scale = size / 128f;
 
             float left = cx - 53.82f * scale;

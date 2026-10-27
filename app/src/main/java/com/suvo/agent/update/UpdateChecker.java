@@ -7,13 +7,13 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
 import androidx.core.content.FileProvider;
 
 import com.suvo.agent.BuildConfig;
 import com.suvo.agent.R;
 import com.suvo.agent.device.shizuku.ShizukuManager;
+import com.suvo.agent.ui.Ui;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -71,11 +71,22 @@ public final class UpdateChecker {
                 MAIN.post(() -> {
                     if (!activity.isFinishing()) showUpdateDialog(activity, shizuku, tag, release.optString("name", tag), downloadUrl);
                 });
-            } catch (Exception e) {
-                Log.d(TAG, "Release check failed", e);
-            } finally {
-                checking = false;
-            }
+} catch (Exception e) {
+    String message = e.getMessage();
+    if (message == null || message.trim().isEmpty()) {
+        message = "Unknown error";
+    }
+
+    final String errorMessage = "Update check failed: " + message;
+
+    MAIN.post(() -> {
+        if (!activity.isFinishing()) {
+            Ui.toast(activity, errorMessage);
+        }
+    });
+} finally {
+    checking = false;
+}
         });
     }
 
