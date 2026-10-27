@@ -327,7 +327,7 @@ public final class LiveAgentActivity extends BaseActivity {
             TextView title = new TextView(this, null, 0, R.style.YF_Body);
             title.setText(getString(R.string.approval_card_title, p.request.toolName));
             android.graphics.Typeface customFont = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.anthropic_serif);
-            name.setTypeface(customFont, android.graphics.Typeface.BOLD);
+            title.setTypeface(customFont, android.graphics.Typeface.BOLD);
             card.addView(title);
             TextView body = new TextView(this, null, 0, R.style.YF_Caption);
             body.setText(p.request.summary + "\n" + getString(R.string.approval_risk, p.request.risk.name().toLowerCase()));
