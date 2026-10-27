@@ -55,5 +55,9 @@
         <item name="android:windowNoDisplay">false</item>
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowAnimationStyle">@null</item>
+        
+        <item name="android:fontFamily">@font/anthropic_serif</item>
+        <item name="android:letterSpacing">0.08928572</item>
+        <item name="fontFamily">@font/anthropic_serif</item>
     </style>
 </resources>

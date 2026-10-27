@@ -60,7 +60,7 @@ public final class Nav {
                 t.setText(PRIMARY[i][1]);
                 t.setTextColor(accent);
                 t.setTextSize(13.5f);
-                t.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+                t.setTypeface(android.graphics.Typeface.create(androidx.core.content.res.ResourcesCompat.getFont(a, R.font.anthropic_serif), android.graphics.Typeface.NORMAL));
                 t.setMaxLines(1);
                 t.setPadding(Ui.dp(a, 8), 0, 0, 0);
                 item.addView(t);

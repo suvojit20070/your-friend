@@ -31,6 +31,10 @@
         <item name="android:textSelectHandleLeft">@drawable/text_select_handle_left</item>
         <item name="android:textSelectHandleRight">@drawable/text_select_handle_right</item>
         <item name="android:textColorHighlight">@color/accent_soft</item>
+        
+        <item name="android:fontFamily">@font/anthropic_serif</item>
+        <item name="android:letterSpacing">0.08928572</item>
+        <item name="fontFamily">@font/anthropic_serif</item>
     </style>
 
     <style name="Theme.YourFriend.Dialog" parent="android:Theme.Material.Dialog.Alert">

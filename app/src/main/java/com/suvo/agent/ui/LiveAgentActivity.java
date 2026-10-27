@@ -215,7 +215,8 @@ public final class LiveAgentActivity extends BaseActivity {
         texts.setOrientation(LinearLayout.VERTICAL);
         TextView name = new TextView(this, null, 0, R.style.YF_Body);
         name.setText(node.agent + " · " + (depth == 0 ? getString(R.string.tree_boss) : node.role));
-        name.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        android.graphics.Typeface customFont = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.anthropic_serif);
+        name.setTypeface(customFont, android.graphics.Typeface.BOLD);
         texts.addView(name);
         TextView what = new TextView(this, null, 0, R.style.YF_Caption);
         String line;
@@ -325,7 +326,8 @@ public final class LiveAgentActivity extends BaseActivity {
             card.setOrientation(LinearLayout.VERTICAL);
             TextView title = new TextView(this, null, 0, R.style.YF_Body);
             title.setText(getString(R.string.approval_card_title, p.request.toolName));
-            title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            android.graphics.Typeface customFont = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.anthropic_serif);
+            name.setTypeface(customFont, android.graphics.Typeface.BOLD);
             card.addView(title);
             TextView body = new TextView(this, null, 0, R.style.YF_Caption);
             body.setText(p.request.summary + "\n" + getString(R.string.approval_risk, p.request.risk.name().toLowerCase()));

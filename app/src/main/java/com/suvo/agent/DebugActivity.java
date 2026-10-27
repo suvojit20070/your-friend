@@ -202,7 +202,8 @@ public final class DebugActivity extends Activity {
         title.setText("Your Friend crashed");
         title.setTextColor(Color.rgb(255, 120, 130));
         title.setTextSize(20);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setTypeface(
+        androidx.core.content.res.ResourcesCompat.getFont(this, R.font.anthropic_serif), Typeface.BOLD);
         root.addView(title);
 
         TextView hint = new TextView(this);
