@@ -85,6 +85,8 @@
         android:name=".App"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
+        android:manageSpaceActivity="com.suvo.agent.ui.SettingsActivity"
+        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
         android:fullBackupContent="false"
         android:enableOnBackInvokedCallback="false"
         android:icon="@mipmap/ic_launcher"
