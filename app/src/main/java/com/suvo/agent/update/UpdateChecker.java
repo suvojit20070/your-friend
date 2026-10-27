@@ -175,47 +175,123 @@ public final class UpdateChecker {
         });
     }
 
-    private static void installWithShizuku(Activity a, ShizukuManager shizuku, File apk, String tag) {
-        ProgressUi progress = showProgress(a, R.string.update_installing, a.getString(R.string.update_please_wait));
-        IO.execute(() -> {
-            String output = "";
-            boolean success = false;
-            try {
-                com.suvo.agent.terminal.ExecResult result = shizuku.run(
-                        "pm install -r -t " + ShizukuManager.shellQuote(apk.getAbsolutePath()), null, 180_000,
-                        new com.suvo.agent.core.util.CancellationToken());
-                output = (result.stdout + "\n" + result.stderr + "\n" + result.error).trim();
-                success = result.ok() && output.contains("Success");
-                if (output.isEmpty()) output = "Install command failed. Exit code: " + result.exitCode;
-            } catch (Throwable e) {
-                output = e.toString();
+    private static void installWithShizuku(
+        Activity a,
+        ShizukuManager shizuku,
+        File apk,
+        String tag
+) {
+    ProgressUi progress = showProgress(
+            a,
+            R.string.update_installing,
+            a.getString(R.string.update_please_wait)
+    );
+
+    IO.execute(() -> {
+        String output = "";
+        boolean success = false;
+
+        // system_server cannot reliably read APKs from shared storage.
+        // Copy the APK into /data/local/tmp before installing.
+        final String tempApk = "/data/local/tmp/yourfriend-update.apk";
+
+        try {
+            String source = ShizukuManager.shellQuote(apk.getAbsolutePath());
+            String target = ShizukuManager.shellQuote(tempApk);
+
+            String command =
+                    "mv " + source + " " + target
+                    + " && chmod 644 " + target
+                    + " && pm install -r -t " + target
+                    + "; install_status=$?; "
+                    + "rm -f " + target + "; "
+                    + "exit $install_status";
+
+            com.suvo.agent.terminal.ExecResult result = shizuku.run(
+                    command,
+                    null,
+                    180_000,
+                    new com.suvo.agent.core.util.CancellationToken()
+            );
+
+            output = (
+                    result.stdout + "\n"
+                    + result.stderr + "\n"
+                    + result.error
+            ).trim();
+
+            success = result.ok() && output.contains("Success");
+
+            if (output.isEmpty()) {
+                output = "Shizuku install failed. Exit code: "
+                        + result.exitCode;
             }
-            final boolean installed = success;
-            final String detail = output;
-            MAIN.post(() -> {
-                progress.dismiss();
-                if (a.isFinishing()) return;
-                if (installed) {
-                    Ui.show(Ui.dialog(a)
-                            .setMessage(R.string.update_install_success)
-                            .setPositiveButton(android.R.string.ok, (d, w) -> {
-                                Intent launch = a.getPackageManager().getLaunchIntentForPackage(a.getPackageName());
-                                if (launch != null) {
-                                    launch.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                                    a.startActivity(launch);
-                                }
-                            }));
-                } else {
-                    toastIfAlive(a, "Shizuku installation failed: " + detail);
-                    Ui.show(Ui.dialog(a)
-                            .setTitle(R.string.update_install_fallback)
-                            .setMessage(a.getString(R.string.update_install_error, detail))
-                            .setPositiveButton(R.string.update_install_with_android, (d, w) -> installWithAndroid(a, apk))
-                            .setNegativeButton(android.R.string.cancel, null));
-                }
-            });
+
+        } catch (Throwable e) {
+            output = e.getMessage() == null
+                    ? e.toString()
+                    : e.getMessage();
+        }
+
+        final boolean installed = success;
+        final String detail = output;
+
+        MAIN.post(() -> {
+            progress.dismiss();
+
+            if (a.isFinishing()) return;
+
+            if (installed) {
+                Ui.show(
+                        Ui.dialog(a)
+                                .setMessage(R.string.update_install_success)
+                                .setPositiveButton(
+                                        android.R.string.ok,
+                                        (d, w) -> {
+                                            Intent launch = a
+                                                    .getPackageManager()
+                                                    .getLaunchIntentForPackage(
+                                                            a.getPackageName()
+                                                    );
+
+                                            if (launch != null) {
+                                                launch.addFlags(
+                                                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                                        | Intent.FLAG_ACTIVITY_NEW_TASK
+                                                );
+                                                a.startActivity(launch);
+                                            }
+                                        }
+                                )
+                );
+            } else {
+                toastIfAlive(
+                        a,
+                        "Shizuku installation failed: " + detail
+                );
+
+                Ui.show(
+                        Ui.dialog(a)
+                                .setTitle(R.string.update_install_fallback)
+                                .setMessage(
+                                        a.getString(
+                                                R.string.update_install_error,
+                                                detail
+                                        )
+                                )
+                                .setPositiveButton(
+                                        R.string.update_install_with_android,
+                                        (d, w) -> installWithAndroid(a, apk)
+                                )
+                                .setNegativeButton(
+                                        android.R.string.cancel,
+                                        null
+                                )
+                );
+            }
         });
-    }
+    });
+}
 
     private static void installWithAndroid(Activity a, File apk) {
         try {
