@@ -10,6 +10,15 @@
     <string name="update_downloading">Downloading update…</string>
     <string name="update_download_failed">Failed to download update.</string>
     <string name="update_install_failed">Failed to install update.</string>
+    <string name="update_ignore">Ignore</string>
+<string name="update_storage_error">Storage error</string>
+<string name="update_please_wait">Please wait…</string>
+<string name="update_failed">Update failed</string>
+<string name="update_installing">Installing update…</string>
+<string name="update_install_success">Update installed successfully</string>
+<string name="update_install_fallback">Opening Android installer…</string>
+<string name="update_install_error">Installation failed</string>
+<string name="update_install_with_android">Install with Android</string>
     <string name="about_license">License</string>
     <string name="about_license_text">Your Friend is open source under the Apache License 2.0. You may use, modify and redistribute it, but you must keep the copyright notice, the NOTICE file and the credit \"Your Friend — Original project by Suvo.\" in derived works. OmniVoice model weights are not included and are licensed separately (CC BY-NC 4.0 — non-commercial).</string>
     <string name="about_native_missing">Native audio library not loaded (Java fallback in use)</string>

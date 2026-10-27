@@ -10,6 +10,15 @@
 <string name="update_downloading">अपडेट डाउनलोड हो रहा है…</string>
 <string name="update_download_failed">अपडेट डाउनलोड नहीं हो पाया।</string>
 <string name="update_install_failed">अपडेट इंस्टॉल नहीं हो पाया।</string>
+<string name="update_ignore">अनदेखा करें</string>
+<string name="update_storage_error">स्टोरेज में समस्या</string>
+<string name="update_please_wait">कृपया प्रतीक्षा करें…</string>
+<string name="update_failed">अपडेट विफल हुआ</string>
+<string name="update_installing">अपडेट इंस्टॉल हो रहा है…</string>
+<string name="update_install_success">अपडेट सफलतापूर्वक इंस्टॉल हुआ</string>
+<string name="update_install_fallback">Android इंस्टॉलर खोला जा रहा है…</string>
+<string name="update_install_error">इंस्टॉलेशन विफल हुआ</string>
+<string name="update_install_with_android">Android से इंस्टॉल करें</string>
     <string name="about_license">लाइसेंस</string>
     <string name="about_license_text">Your Friend, Apache License 2.0 के तहत ओपन सोर्स है। आप इसे उपयोग, संशोधित और पुनर्वितरित कर सकते हैं, लेकिन व्युत्पन्न कार्यों में कॉपीराइट नोटिस, NOTICE फ़ाइल और \"Your Friend — Original project by Suvo.\" श्रेय रखना ज़रूरी है। OmniVoice मॉडल वेट्स शामिल नहीं हैं और उनका लाइसेंस अलग है (CC BY-NC 4.0 — केवल गैर-व्यावसायिक)।</string>
     <string name="about_native_missing">नेटिव ऑडियो लाइब्रेरी लोड नहीं हुई (Java विकल्प चल रहा है)</string>

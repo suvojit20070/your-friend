@@ -10,6 +10,15 @@
 <string name="update_downloading">আপডেট ডাউনলোড হচ্ছে…</string>
 <string name="update_download_failed">আপডেট ডাউনলোড করা যায়নি।</string>
 <string name="update_install_failed">আপডেট ইনস্টল করা যায়নি।</string>
+<string name="update_ignore">উপেক্ষা করুন</string>
+<string name="update_storage_error">স্টোরেজে সমস্যা</string>
+<string name="update_please_wait">অনুগ্রহ করে অপেক্ষা করুন…</string>
+<string name="update_failed">আপডেট ব্যর্থ হয়েছে</string>
+<string name="update_installing">আপডেট ইনস্টল হচ্ছে…</string>
+<string name="update_install_success">আপডেট সফলভাবে ইনস্টল হয়েছে</string>
+<string name="update_install_fallback">অ্যান্ড্রয়েড ইনস্টলার খোলা হচ্ছে…</string>
+<string name="update_install_error">ইনস্টলেশন ব্যর্থ হয়েছে</string>
+<string name="update_install_with_android">অ্যান্ড্রয়েড দিয়ে ইনস্টল করুন</string>
     <string name="about_license">লাইসেন্স</string>
     <string name="about_license_text">Your Friend Apache License 2.0-এর অধীনে ওপেন সোর্স। আপনি এটি ব্যবহার, পরিবর্তন ও পুনর্বিতরণ করতে পারেন, তবে ডেরাইভড কাজে কপিরাইট নোটিস, NOTICE ফাইল এবং \"Your Friend — Original project by Suvo.\" ক্রেডিট রাখতে হবে। OmniVoice মডেল ওয়েটস এতে নেই এবং সেগুলোর লাইসেন্স আলাদা (CC BY-NC 4.0 — শুধু অ-বাণিজ্যিক)।</string>
     <string name="about_native_missing">নেটিভ অডিও লাইব্রেরি লোড হয়নি (Java বিকল্প চলছে)</string>

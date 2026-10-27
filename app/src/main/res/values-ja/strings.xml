@@ -10,6 +10,15 @@
 <string name="update_downloading">アップデートをダウンロード中…</string>
 <string name="update_download_failed">アップデートをダウンロードできませんでした。</string>
 <string name="update_install_failed">アップデートをインストールできませんでした。</string>
+<string name="update_ignore">無視</string>
+<string name="update_storage_error">ストレージエラー</string>
+<string name="update_please_wait">お待ちください…</string>
+<string name="update_failed">アップデートに失敗しました</string>
+<string name="update_installing">アップデートをインストール中…</string>
+<string name="update_install_success">アップデートが正常にインストールされました</string>
+<string name="update_install_fallback">Android インストーラーを開いています…</string>
+<string name="update_install_error">インストールに失敗しました</string>
+<string name="update_install_with_android">Android でインストール</string>
     <string name="about_license">ライセンス</string>
     <string name="about_license_text">Your Friend は Apache License 2.0 のオープンソースです。使用・改変・再配布できますが、派生物には著作権表示、NOTICE ファイル、そしてクレジット「Your Friend — Original project by Suvo.」を残す必要があります。OmniVoice のモデル重みは同梱されておらず、別ライセンス（CC BY-NC 4.0・非商用のみ）です。</string>
     <string name="about_native_missing">ネイティブ音声ライブラリが読み込まれていません（Java 実装を使用中）</string>
