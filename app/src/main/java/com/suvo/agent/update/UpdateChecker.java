@@ -367,7 +367,7 @@ public final class UpdateChecker {
 
     private static void toastIfAlive(Activity a, String message) {
         MAIN.post(() -> {
-            if (a != null && !a.isFinishing()) Ui.toast(a, message);
+            // if (a != null && !a.isFinishing()) Ui.toast(a, message);
         });
     }
 
