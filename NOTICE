@@ -15,8 +15,7 @@ This product includes third-party software:
   - Shizuku API (rikka.shizuku) — Apache License 2.0
   - JSch (com.github.mwiede:jsch) — BSD 3-Clause License
 
-These are optional and not bundled. You obtain them yourself:
-  - audio.cpp (https://github.com/0xShug0/audio.cpp) — Apache License 2.0
+These are optional, not bundled, and run on your own server or Space:
   - omnivoice-server (https://github.com/maemreyo/omnivoice-server) — MIT License
   - OmniVoice model weights (https://github.com/k2-fsa/OmniVoice) — CC BY-NC 4.0
     (non-commercial use only)

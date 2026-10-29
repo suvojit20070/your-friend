@@ -49,7 +49,8 @@ start(task)
      3. no tool calls → final answer → COMPLETED
      4. for each call: ToolExecutor.execute(call)      ── validate, capability, approve, run
      5. loop detection: same (name, args) → same result twice → stop with explanation
-     6. limits: maxSteps, maxToolCalls, maxDuration → stop with explanation
+     6. limits: maxSteps, maxToolCalls, maxDuration → stop with explanation (each limit can be
+        switched to "no limit" in Settings; loop detection stays on)
  pause() / resume() / cancel() are honoured between steps and inside long tools
  (CancellationToken).
 ```
@@ -84,12 +85,20 @@ version.
 
 ## Native code
 
-`libyf_native.so` (CMake, `c++_shared`):
+`libyourfriend.so` (CMake, `c++_shared`). Everything here has a Java fallback, so the app works
+the same if the library cannot load (`NativeAudio.isLoaded()`, shown on the About screen):
 
 - `native_audio.cpp`: lip-sync analysis (RMS + Goertzel bands), identical to `LipSync.java`.
-- `omnivoice_bridge.cpp`: `dlopen`s the user-imported `libaudiocpp.so`, resolves the C API
-  symbols, checks the ABI version, and runs OmniVoice synthesis with a reference clip and
-  transcript.
+- `dsp_core.cpp` / `native_dsp.cpp`: the other audio hot loops: mouth shapes (`Visemes`, Goertzel
+  for many frequencies in one SIMD-friendly pass), resampling, peak normalising, microphone
+  level (RMS). `dsp_core.*` is plain C++ without JNI, so it is tested on a PC against the Java
+  reference (max difference 3e-8).
+
+What stays in Java on purpose: the UI, network and database work (they wait on I/O, C++ would not
+make them faster), and the 3D renderer and spring-bone physics (tied to OpenGL state and the model
+classes; moving them is possible but was not done).
+
+The on-device OmniVoice bridge (`omnivoice_bridge.cpp`, `:tts` process) no longer exists.
 
 ## Character rendering
 

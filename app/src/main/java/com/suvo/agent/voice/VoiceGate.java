@@ -218,9 +218,7 @@ public final class VoiceGate {
     }
 
     private static float rms(short[] s, int n) {
-        double sum = 0;
-        for (int i = 0; i < n; i++) sum += (double) s[i] * s[i];
-        return (float) Math.sqrt(sum / Math.max(1, n));
+        return com.suvo.agent.nativebridge.NativeAudio.rms16(s, n); // C++, Java fallback inside
     }
 
     // ---- main thread ----

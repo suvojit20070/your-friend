@@ -107,10 +107,10 @@ public final class ChatActivity extends BaseActivity {
                 streamItem.type = STREAM;
                 streamItem.time = System.currentTimeMillis();
                 items.add(streamItem);
+                streamJustStarted = true;
             }
             streamItem.text += delta;
-            adapter.notifyDataSetChanged();
-            scrollToEnd();
+            scheduleStreamRender();
         }
 
         @Override
@@ -120,7 +120,7 @@ public final class ChatActivity extends BaseActivity {
 
         @Override
         public void onAssistantMessage(TaskState task, ChatMessage message) {
-            if (task.conversationId == conversationId) reload();
+            if (task.conversationId == conversationId) reloadSoon();
         }
 
         @Override
@@ -130,7 +130,7 @@ public final class ChatActivity extends BaseActivity {
 
         @Override
         public void onToolResult(TaskState task, ToolCall call, ToolResult result) {
-            if (task.conversationId == conversationId) reload();
+            if (task.conversationId == conversationId) reloadSoon();
         }
 
         @Override
@@ -780,6 +780,7 @@ public final class ChatActivity extends BaseActivity {
         updateAttachmentHint();
         streamItem = null;
         reload();
+        scrollToEnd();
         updateRunState(getString(R.string.status_thinking));
     }
 
@@ -794,6 +795,11 @@ public final class ChatActivity extends BaseActivity {
 
     /** Rebuilds the list from the database (the single source of truth). */
     private void reload() {
+        uiHandler.removeCallbacks(reloadRunnable);
+        uiHandler.removeCallbacks(streamRender);
+        streamRenderQueued = false;
+        // Stay where the user is reading if they scrolled up; follow the end only when already there.
+        final boolean follow = !list.canScrollVertically(1);
         items.clear();
         streamItem = null;
         ConversationRepo.Conversation conv = g.conversations.get(conversationId);
@@ -873,7 +879,7 @@ public final class ChatActivity extends BaseActivity {
         }
         groupTools();
         adapter.notifyDataSetChanged();
-        scrollToEnd();
+        if (follow) scrollToEnd();
     }
 
     /** Consecutive tool calls become one "N tools" card that opens like an accordion. */
@@ -914,8 +920,63 @@ public final class ChatActivity extends BaseActivity {
         return json.length() > 6000 ? json.substring(0, 6000) + "\n…" : json;
     }
 
+    private final android.os.Handler uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable reloadRunnable = this::reload;
+    private boolean streamRenderQueued;
+    private boolean streamJustStarted;
+    private long lastStreamRender;
+    private static final long STREAM_FRAME_MS = 60;
+
+    /** Tool results and messages arrive in bursts: rebuild the list once per burst, not once per event. */
+    private void reloadSoon() {
+        uiHandler.removeCallbacks(reloadRunnable);
+        uiHandler.postDelayed(reloadRunnable, 120);
+    }
+
+    /** Streamed text is drawn at most ~16 times a second, however fast the tokens arrive. */
+    private void scheduleStreamRender() {
+        if (streamRenderQueued) return;
+        streamRenderQueued = true;
+        long wait = Math.max(0, lastStreamRender + STREAM_FRAME_MS - android.os.SystemClock.uptimeMillis());
+        uiHandler.postDelayed(streamRender, wait);
+    }
+
+    private final Runnable streamRender = new Runnable() {
+        @Override
+        public void run() {
+            streamRenderQueued = false;
+            lastStreamRender = android.os.SystemClock.uptimeMillis();
+            boolean follow = streamJustStarted || !list.canScrollVertically(1);
+            streamJustStarted = false;
+            adapter.notifyDataSetChanged();
+            if (follow) scrollToEnd();
+        }
+    };
+
+    @Override
+    protected void onDestroy() {
+        uiHandler.removeCallbacksAndMessages(null);
+        super.onDestroy();
+    }
+
+    /** Shows the end of the list. A reply taller than the screen is shown from its end, not its start. */
     private void scrollToEnd() {
-        list.post(() -> list.setSelection(Math.max(0, adapter.getCount() - 1)));
+        list.post(() -> {
+            final int last = adapter.getCount() - 1;
+            if (last < 0) return;
+            list.setSelection(last);
+            list.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    list.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    if (list.getLastVisiblePosition() != last) return;
+                    View v = list.getChildAt(list.getChildCount() - 1);
+                    if (v == null) return;
+                    int room = list.getHeight() - list.getPaddingBottom() - list.getPaddingTop();
+                    if (v.getHeight() > room) list.setSelectionFromTop(last, room - v.getHeight());
+                }
+            });
+        });
     }
 
     /** The whole message in a sheet where any part can be selected and copied. */
@@ -1179,6 +1240,17 @@ public final class ChatActivity extends BaseActivity {
     }
 
     private Markdown.Style mdStyle;
+    /** Parsed answers by text, so scrolling the list does not parse Markdown again. */
+    private final android.util.LruCache<String, List<Markdown.Block>> mdCache = new android.util.LruCache<>(64);
+
+    private List<Markdown.Block> blocksFor(String src) {
+        List<Markdown.Block> b = mdCache.get(src);
+        if (b == null) {
+            b = Markdown.blocks(src, mdStyle);
+            mdCache.put(src, b);
+        }
+        return b;
+    }
 
     private final class Adapter extends BaseAdapter {
         @Override
@@ -1213,6 +1285,9 @@ public final class ChatActivity extends BaseActivity {
             detail.setVisibility(View.GONE);
             ImageView chevron = v.findViewById(R.id.msg_chevron);
             LinearLayout toolsBox = v.findViewById(R.id.msg_tools);
+            LinearLayout mdBox = v.findViewById(R.id.msg_md);
+            mdBox.setVisibility(View.GONE);
+            mdBox.removeAllViews();
             chevron.setVisibility(View.GONE);
             chevron.animate().cancel();
             toolsBox.setVisibility(View.GONE);
@@ -1294,9 +1369,22 @@ public final class ChatActivity extends BaseActivity {
                 if (it.type == STREAM && parts[1].isEmpty() && !parts[0].isEmpty()) {
                     text.setText(getString(R.string.status_thinking));
                     text.setTextColor(Palette.of(ChatActivity.this).onSurfaceVariant);
-                } else {
+                } else if (it.type == STREAM) {
+                    // Still streaming: one cheap styled text (code and tables as monospace text).
                     CharSequence md = Markdown.render(parts[1], mdStyle);
-                    text.setText(it.type == STREAM ? new android.text.SpannableStringBuilder(md).append(" ▍") : md);
+                    text.setText(new android.text.SpannableStringBuilder(md).append(" ▍"));
+                } else {
+                    // Finished answer: text, code blocks (scroll sideways, copy button) and tables as views.
+                    List<Markdown.Block> blocks = blocksFor(parts[1]);
+                    boolean simple = blocks.isEmpty() || (blocks.size() == 1 && blocks.get(0).type == Markdown.Block.TEXT);
+                    if (simple) {
+                        text.setText(blocks.isEmpty() ? "" : blocks.get(0).text);
+                    } else {
+                        text.setText("");
+                        text.setVisibility(View.GONE);
+                        mdBox.setVisibility(View.VISIBLE);
+                        MarkdownViews.fill(mdBox, blocks, mdStyle, 17f, Ui.dp(ChatActivity.this, 6.5f), getColor(R.color.text_primary));
+                    }
                 }
             } else if (it.type != TOOLS) {
                 text.setText(it.text);

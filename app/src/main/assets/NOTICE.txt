@@ -1,10 +1,21 @@
 Your Friend — Original project by Suvo.
-Copyright 2026 Suvo (github.com/suvojit20070)
+Copyright 2026 Suvo (https://github.com/suvojit20070)
 
-This product is licensed under the Apache License, Version 2.0.
-Redistributions and derivative works must retain this NOTICE,
-including the credit line "Your Friend — Original project by Suvo.",
-as required by Section 4(d) of the Apache License 2.0.
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
-The characters "Aiko" and "Haru", their procedural 2D rig and all
+Under Section 4(d) of the Apache License 2.0, any redistribution or derivative
+work must keep this NOTICE file, including the credit line:
+
+    "Your Friend — Original project by Suvo."
+
+The characters "Aiko" and "Haru", their procedural 2D rig, the app icons and all
 artwork drawn by this app are original to this project.
+
+This product includes third-party software:
+  - Shizuku API (rikka.shizuku) — Apache License 2.0
+  - JSch (com.github.mwiede:jsch) — BSD 3-Clause License
+
+These are optional, not bundled, and run on your own server or Space:
+  - omnivoice-server (https://github.com/maemreyo/omnivoice-server) — MIT License
+  - OmniVoice model weights (https://github.com/k2-fsa/OmniVoice) — CC BY-NC 4.0
+    (non-commercial use only)

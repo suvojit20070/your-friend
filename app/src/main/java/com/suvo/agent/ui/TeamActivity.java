@@ -25,7 +25,7 @@ public final class TeamActivity extends BaseActivity {
 
     public static final String EXTRA_ID = "employee_id";
     public static final String EXTRA_NEW = "new_employee";
-    private static final int[] STEP_CHOICES = {8, 15, 20, 30, 45, 60};
+    private static final int[] STEP_CHOICES = {8, 15, 20, 30, 45, 60, 100, 0};
 
     private EmployeeRepo.Employee editing;
     private boolean editMode;
@@ -124,7 +124,7 @@ public final class TeamActivity extends BaseActivity {
         String providerLabel = e.providerId < 0 ? getString(R.string.team_provider_boss)
                 : p == null ? getString(R.string.team_no_provider) : p.name + (p.model.isEmpty() ? "" : " · " + p.model);
         r.row(R.drawable.ic_provider, getString(R.string.team_provider), providerLabel, null, v -> pickProvider());
-        r.row(R.drawable.ic_agent, getString(R.string.team_steps), String.valueOf(e.maxSteps), null, v -> pickSteps());
+        r.row(R.drawable.ic_agent, getString(R.string.team_steps), e.maxSteps <= 0 ? getString(R.string.team_steps_unlimited) : String.valueOf(e.maxSteps), null, v -> pickSteps());
         r.row(R.drawable.ic_tools, getString(R.string.team_tools),
                 e.tools.isEmpty() ? getString(R.string.team_tools_all) : String.join(", ", e.tools), null, v -> pickTools());
         com.google.android.material.materialswitch.MaterialSwitch on = Widgets.newSwitch(this);
@@ -183,7 +183,7 @@ public final class TeamActivity extends BaseActivity {
         String[] labels = new String[STEP_CHOICES.length];
         int checked = 0;
         for (int i = 0; i < STEP_CHOICES.length; i++) {
-            labels[i] = String.valueOf(STEP_CHOICES[i]);
+            labels[i] = STEP_CHOICES[i] == 0 ? getString(R.string.team_steps_unlimited) : String.valueOf(STEP_CHOICES[i]);
             if (STEP_CHOICES[i] == editing.maxSteps) checked = i;
         }
         Ui.show(Ui.dialog(this).setTitle(R.string.team_steps).setSingleChoiceItems(labels, checked, (d, which) -> {

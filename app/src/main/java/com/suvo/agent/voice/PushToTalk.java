@@ -135,12 +135,7 @@ public final class PushToTalk {
             while (recording) {
                 int n = rec.read(buf, 0, buf.length);
                 if (n <= 0) continue;
-                double sum = 0;
-                for (int i = 0; i + 1 < n; i += 2) {
-                    short s = (short) ((buf[i] & 0xff) | (buf[i + 1] << 8));
-                    sum += (double) s * s;
-                }
-                final float level = (float) Math.min(1.0, Math.sqrt(sum / Math.max(1, n / 2)) / 6000.0);
+                final float level = (float) Math.min(1.0, com.suvo.agent.nativebridge.NativeAudio.rms16Bytes(buf, n) / 6000.0);
                 main.post(() -> {
                     if (cb != null) cb.onLevel(level);
                 });

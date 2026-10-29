@@ -46,7 +46,7 @@ public final class App extends Application {
     private void installCrashHandler(Context base) {
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
             Log.e("YF.Crash", "Uncaught exception in " + thread.getName(), throwable);
-            if (!isDebugProcess() && !isEngineProcess()) {
+            if (!isDebugProcess()) {
                 Context ctx = getBaseContext() != null ? this : base;
                 DebugActivity.handleCrash(ctx, thread, throwable);
             }
@@ -58,11 +58,6 @@ public final class App extends Application {
     /** True in the separate ":debug" process that only hosts DebugActivity. */
     private static boolean isDebugProcess() {
         return processName().endsWith(":debug");
-    }
-
-    /** True in the ":tts" process that runs the user's audio.cpp library (see OmniVoiceService). */
-    private static boolean isEngineProcess() {
-        return processName().endsWith(":tts");
     }
 
     private static String processName() {
@@ -86,7 +81,7 @@ public final class App extends Application {
         super.onCreate();
         // The crash screen's process must not run any app setup: if that setup is what crashed,
         // DebugActivity would crash too.
-        if (isDebugProcess() || isEngineProcess()) return;
+        if (isDebugProcess()) return;
 
         Notifications.createChannels(this);
         // A native crash or freeze last time is shown now (the Java handler cannot catch those).
@@ -99,6 +94,8 @@ public final class App extends Application {
                 if (n > 0) Log.i("YF.App", n + " task(s) were interrupted by a previous process stop");
                 g.memory.pruneExpired();
                 g.scheduler.armAll();
+                // The on-device OmniVoice engine was removed: free the models and libraries it left behind.
+                deleteRecursive(new java.io.File(getFilesDir(), "omnivoice"));
             } catch (RuntimeException e) {
                 Log.w("YF.App", "Startup maintenance failed", e);
             }
@@ -136,5 +133,13 @@ public final class App extends Application {
             public void onActivityDestroyed(Activity activity) {
             }
         });
+    }
+
+    private static void deleteRecursive(java.io.File f) {
+        if (f == null || !f.exists()) return;
+        java.io.File[] kids = f.listFiles();
+        if (kids != null) for (java.io.File k : kids) deleteRecursive(k);
+        //noinspection ResultOfMethodCallIgnored
+        f.delete();
     }
 }

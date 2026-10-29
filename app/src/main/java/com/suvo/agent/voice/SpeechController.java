@@ -49,7 +49,6 @@ public final class SpeechController {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
     private final AudioPlayback playback = new AudioPlayback();
-    private final OmniVoiceNativeEngine omniNative;
     private final OmniVoiceServerEngine omniServer;
     private final SystemTtsEngine system;
     private final HfSpaceEngine hfSpace;
@@ -61,7 +60,8 @@ public final class SpeechController {
     public SpeechController(Context ctx, Settings settings) {
         this.ctx = ctx.getApplicationContext();
         this.settings = settings;
-        omniNative = new OmniVoiceNativeEngine(ctx, settings);
+        // The on-device engine was removed; anyone who had picked it now gets the phone's own voice.
+        if ("omnivoice_native".equals(settings.str(Settings.VOICE_ENGINE, ""))) settings.put(Settings.VOICE_ENGINE, "system");
         omniServer = new OmniVoiceServerEngine(settings);
         hfSpace = new HfSpaceEngine(settings);
         system = new SystemTtsEngine(ctx, settings);
@@ -83,10 +83,6 @@ public final class SpeechController {
         return lastError;
     }
 
-    public OmniVoiceNativeEngine nativeEngine() {
-        return omniNative;
-    }
-
     public HfSpaceEngine spaceEngine() {
         return hfSpace;
     }
@@ -103,15 +99,13 @@ public final class SpeechController {
     }
 
     public TtsEngine engine() {
-        switch (settings.str(Settings.VOICE_ENGINE, "omnivoice_native")) {
+        switch (settings.str(Settings.VOICE_ENGINE, "system")) {
             case "omnivoice_server":
                 return omniServer;
             case "hf_space":
                 return hfSpace;
-            case "system":
-                return system;
             default:
-                return omniNative;
+                return system;
         }
     }
 
@@ -147,7 +141,7 @@ public final class SpeechController {
     private static LipSync.Track analyzeMouth(Pcm pcm) {
         LipSync.Track t = NativeAudio.analyze(pcm, 60);
         try {
-            t.vis = com.suvo.agent.core.audio.Visemes.analyze(pcm, t.hopSamples);
+            t.vis = NativeAudio.visemes(pcm, t.hopSamples);
         } catch (RuntimeException ignored) {
         }
         return t;
@@ -192,7 +186,7 @@ public final class SpeechController {
                     if (state != State.SPEAKING) setState(State.SYNTHESIZING, engine.id());
                     Pcm pcm;
                     try {
-                        pcm = engine.synthesize(c, token).normalized();
+                        pcm = NativeAudio.normalized(engine.synthesize(c, token));
                     } catch (CancellationToken.CancelledException ce) {
                         throw ce;
                     } catch (Exception e) {
@@ -201,7 +195,7 @@ public final class SpeechController {
                         Log.w(TAG, engine.id() + " failed, using system TTS", e);
                         lastError = engine.id() + ": " + e.getMessage();
                         engineRef[0] = system;
-                        pcm = system.synthesize(c, token).normalized();
+                        pcm = NativeAudio.normalized(system.synthesize(c, token));
                     }
                     while (!token.isCancelled() && !ready.offer(pcm, 200, TimeUnit.MILLISECONDS)) {
                         // wait for the player
@@ -254,7 +248,7 @@ public final class SpeechController {
             CancellationToken t = new CancellationToken();
             current = t;
             setState(State.SYNTHESIZING, engine.id());
-            Pcm p = engine.synthesize(phrase, t).normalized();
+            Pcm p = NativeAudio.normalized(engine.synthesize(phrase, t));
             setState(State.SPEAKING, "");
             playback.play(p, analyzeMouth(p), t, mouthCb);
             setState(State.IDLE, "");

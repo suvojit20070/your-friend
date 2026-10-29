@@ -48,6 +48,10 @@ public final class Settings {
     public static final String MAX_STEPS = "max_steps";
     public static final String MAX_TOOL_CALLS = "max_tool_calls";
     public static final String MAX_TASK_MINUTES = "max_task_minutes";
+    /** "No limit" switches: when on, the matching slider is ignored. */
+    public static final String NO_LIMIT_STEPS = "no_limit_steps";
+    public static final String NO_LIMIT_TOOL_CALLS = "no_limit_tool_calls";
+    public static final String NO_LIMIT_TIME = "no_limit_time";
     public static final String TOOL_CALLING = "tool_calling";
     public static final String ALWAYS_ASK_TOOLS = "always_ask_tools";
     public static final String BLOCKED_TOOLS = "blocked_tools";
@@ -72,14 +76,11 @@ public final class Settings {
 
     // Voice
     public static final String VOICE_OUTPUT = "voice_output";
-    public static final String VOICE_ENGINE = "voice_engine";         // omnivoice_native | omnivoice_server | system
+    public static final String VOICE_ENGINE = "voice_engine";         // hf_space | omnivoice_server | system
     public static final String VOICE_SPEED = "voice_speed";
     public static final String VOICE_STEPS = "voice_steps";
     public static final String VOICE_LANGUAGE = "voice_language";
     public static final String VOICE_INSTRUCT = "voice_instruct";
-    public static final String OMNI_LIB_PATH = "omni_lib_path";
-    public static final String OMNI_MODEL_PATH = "omni_model_path";
-    public static final String OMNI_THREADS = "omni_threads";
     public static final String OMNI_SERVER_URL = "omni_server_url";
     public static final String OMNI_SERVER_MODE = "omni_server_mode"; // clone_multipart | openai_speech
     public static final String OMNI_SERVER_VOICE = "omni_server_voice";
@@ -201,9 +202,9 @@ public final class Settings {
 
     public AgentConfig agentConfig() {
         AgentConfig c = new AgentConfig();
-        c.maxSteps = clamp(integer(MAX_STEPS, 25), 1, 200);
-        c.maxToolCalls = clamp(integer(MAX_TOOL_CALLS, 60), 1, 500);
-        c.maxDurationMs = clamp(integer(MAX_TASK_MINUTES, 15), 1, 240) * 60_000L;
+        c.maxSteps = bool(NO_LIMIT_STEPS, false) ? AgentConfig.UNLIMITED : clamp(integer(MAX_STEPS, 25), 1, 1000);
+        c.maxToolCalls = bool(NO_LIMIT_TOOL_CALLS, false) ? AgentConfig.UNLIMITED : clamp(integer(MAX_TOOL_CALLS, 60), 1, 5000);
+        c.maxDurationMs = bool(NO_LIMIT_TIME, false) ? AgentConfig.UNLIMITED_MS : clamp(integer(MAX_TASK_MINUTES, 15), 1, 1440) * 60_000L;
         return c;
     }
 

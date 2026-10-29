@@ -95,7 +95,8 @@ public final class ChildAgent {
         CancellationToken cancel = parentCancel.child();
         TaskState task = new TaskState(-1, brief);
         AgentConfig cfg = g.settings.agentConfig();
-        cfg.maxSteps = Math.max(3, Math.min(cfg.maxSteps, e.maxSteps));
+        // 0 = the employee follows the boss's setting (which may be "no limit").
+        if (e.maxSteps > 0) cfg.maxSteps = Math.max(3, Math.min(cfg.maxSteps, e.maxSteps));
         ChildHost host = new ChildHost(g, e, reg, llm.config().supportsVision);
         AgentListener listener = new AgentListener() {
             @Override

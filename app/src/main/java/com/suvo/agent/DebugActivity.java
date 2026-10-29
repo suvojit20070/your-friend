@@ -75,8 +75,6 @@ public final class DebugActivity extends Activity {
             for (android.app.ApplicationExitInfo e : exits) {
                 if (e.getTimestamp() <= seen) continue;
                 if (e.getProcessName() != null && e.getProcessName().endsWith(":debug")) continue;
-                // The voice engine process: its crashes are reported in Voice settings, not here.
-                if (e.getProcessName() != null && e.getProcessName().endsWith(":tts")) continue;
                 int r = e.getReason();
                 if (r == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE || r == android.app.ApplicationExitInfo.REASON_ANR) {
                     hit = e;

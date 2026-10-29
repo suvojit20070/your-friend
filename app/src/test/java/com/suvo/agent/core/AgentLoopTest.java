@@ -205,6 +205,44 @@ public class AgentLoopTest {
     }
 
     @Test
+    public void noLimitsLetALongTaskFinish() {
+        FakeLlm llm = new FakeLlm();
+        for (int i = 0; i < 40; i++) llm.tools(new ToolCall("c" + i, "counter", "{\"by\":" + (i + 1) + "}"));
+        llm.text("all done");
+        AgentConfig cfg = fast();
+        cfg.maxSteps = AgentConfig.UNLIMITED;
+        cfg.maxToolCalls = AgentConfig.UNLIMITED;
+        cfg.maxDurationMs = AgentConfig.UNLIMITED_MS;
+        assertTrue(cfg.stepsUnlimited() && cfg.toolCallsUnlimited() && cfg.timeUnlimited());
+        TaskState t = run(llm, cfg, new CancellationToken(), "many");
+        assertEquals(TaskState.Status.COMPLETED, t.status);
+        assertEquals(40, t.toolCalls);
+        assertEquals(41, t.llmTurns);
+    }
+
+    @Test
+    public void toolCallLimitStillAppliesWhenSet() {
+        FakeLlm llm = new FakeLlm();
+        for (int i = 0; i < 6; i++) llm.tools(new ToolCall("c" + i, "counter", "{\"by\":" + (i + 1) + "}"));
+        llm.text("stopped early");
+        AgentConfig cfg = fast();
+        cfg.maxToolCalls = 2;
+        TaskState t = run(llm, cfg, new CancellationToken(), "many");
+        assertEquals(2, t.toolCalls);
+    }
+
+    @Test
+    public void wakeLockTimeNeverOverflows() {
+        AgentConfig cfg = new AgentConfig();
+        cfg.maxDurationMs = AgentConfig.UNLIMITED_MS;
+        assertEquals(AgentConfig.UNLIMITED_WAKELOCK_MS, cfg.wakeLockMs());
+        cfg.maxDurationMs = 15 * 60_000L;
+        assertEquals(25 * 60_000L, cfg.wakeLockMs());
+        cfg.maxDurationMs = 24L * 60 * 60_000L;
+        assertEquals(AgentConfig.UNLIMITED_WAKELOCK_MS, cfg.wakeLockMs());
+    }
+
+    @Test
     public void transientErrorsAreRetried() {
         FakeLlm llm = new FakeLlm()
                 .error(new LlmException(LlmException.Kind.SERVER, "502", 502, 0, null))

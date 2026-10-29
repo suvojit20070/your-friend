@@ -85,7 +85,7 @@
         android:name=".App"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:manageSpaceActivity="com.suvo.agent.ui.SettingsActivity"
+        android:manageSpaceActivity="com.suvo.agent.ui.StorageActivity"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"
         android:fullBackupContent="false"
         android:enableOnBackInvokedCallback="false"
@@ -180,13 +180,6 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Shows the user-enabled floating assistant character overlay; it can be dismissed from its notification." />
         </service>
-
-        <!-- Runs the user-supplied audio.cpp library apart from the app, so a native crash or an
-             out-of-memory kill there cannot close the app. -->
-        <service
-            android:name=".voice.OmniVoiceService"
-            android:exported="false"
-            android:process=":tts" />
 
         <service
             android:name=".voice.HandsFreeService"

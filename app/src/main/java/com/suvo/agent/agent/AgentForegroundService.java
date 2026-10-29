@@ -110,7 +110,7 @@ public final class AgentForegroundService extends Service {
 		try {
 			wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "YourFriend:agent-task");
 			wakeLock.setReferenceCounted(false);
-			long limit = AppGraph.get().settings.agentConfig().maxDurationMs + 10 * 60_000L;
+			long limit = AppGraph.get().settings.agentConfig().wakeLockMs();
 			wakeLock.acquire(limit);
 		} catch (RuntimeException ignored) {
 			wakeLock = null;
@@ -142,8 +142,7 @@ public final class AgentForegroundService extends Service {
 			
 			screenWakeLock.setReferenceCounted(false);
 			
-			long limit = AppGraph.get().settings.agentConfig().maxDurationMs
-			+ 10 * 60_000L;
+			long limit = AppGraph.get().settings.agentConfig().wakeLockMs();
 			
 			screenWakeLock.acquire(limit);
 			

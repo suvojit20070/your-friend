@@ -56,6 +56,14 @@
             android:breakStrategy="simple"
             android:hyphenationFrequency="none" />
 
+        <!-- Answers with code blocks or tables: text, code (scrolls sideways, copy button) and table views -->
+        <LinearLayout
+            android:id="@+id/msg_md"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/msg_detail"
             style="@style/YF.Mono"

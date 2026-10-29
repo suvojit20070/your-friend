@@ -8,7 +8,6 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.OpenableColumns;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -20,32 +19,27 @@ import com.suvo.agent.core.audio.Wav;
 import com.suvo.agent.core.util.CancellationToken;
 import com.suvo.agent.data.Settings;
 import com.suvo.agent.voice.HandsFreeService;
-import com.suvo.agent.voice.OmniVoiceNativeEngine;
 import com.suvo.agent.voice.SpeechInput;
 import com.suvo.agent.voice.VoiceProfile;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Voice output (OmniVoice in-process via audio.cpp, OmniVoice server, or Android system TTS),
+ * Voice output (Hugging Face Space, OmniVoice server, or Android system TTS),
  * voice cloning reference (ref.wav + ref.txt), voice input language and hands-free mode.
  */
 public final class VoiceActivity extends BaseActivity {
 
-    private static final int REQ_LIB = 121;
-    private static final int REQ_MODEL = 122;
     private static final int REQ_REF_WAV = 123;
     private static final int REQ_REF_TXT = 124;
     private static final int REQ_MIC = 125;
     private static final int MAX_RECORD_S = 15;
 
     private volatile boolean recording;
-    private volatile String importProgress = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,18 +67,17 @@ public final class VoiceActivity extends BaseActivity {
 
         r.section(R.string.voice_output);
         r.switchRow(R.drawable.ic_voice, R.string.voice_speak_replies, R.string.voice_speak_replies_desc, Settings.VOICE_OUTPUT, false, null);
-        r.choiceRow(R.drawable.ic_voice, R.string.voice_engine, Settings.VOICE_ENGINE, "omnivoice_native",
-                new String[]{getString(R.string.voice_engine_space), getString(R.string.voice_engine_native), getString(R.string.voice_engine_server), getString(R.string.voice_engine_system)},
-                new String[]{"hf_space", "omnivoice_native", "omnivoice_server", "system"}, v -> build());
+        r.choiceRow(R.drawable.ic_voice, R.string.voice_engine, Settings.VOICE_ENGINE, "system",
+                new String[]{getString(R.string.voice_engine_space), getString(R.string.voice_engine_server), getString(R.string.voice_engine_system)},
+                new String[]{"hf_space", "omnivoice_server", "system"}, v -> build());
         String why = g.speech.engine().notReadyReason();
         r.note(why == null ? getString(R.string.voice_engine_ready) : getString(R.string.voice_engine_not_ready, why));
         r.button(R.string.voice_test, true, v -> test());
         r.switchRow(R.drawable.ic_refresh, R.string.voice_fallback, R.string.voice_fallback_desc,
                 com.suvo.agent.voice.SpeechController.FALLBACK_KEY, true, null);
 
-        String engine = g.settings.str(Settings.VOICE_ENGINE, "omnivoice_native");
-        if ("omnivoice_native".equals(engine)) nativeSection(r);
-        else if ("omnivoice_server".equals(engine)) serverSection(r);
+        String engine = g.settings.str(Settings.VOICE_ENGINE, "system");
+        if ("omnivoice_server".equals(engine)) serverSection(r);
         else if ("hf_space".equals(engine)) spaceSection(r);
         else r.note(getString(R.string.voice_system_note));
 
@@ -190,38 +183,6 @@ public final class VoiceActivity extends BaseActivity {
             return;
         }
         HandsFreeService.start(this);
-    }
-
-    private void nativeSection(Rows r) {
-        r.section(R.string.voice_native);
-        r.note(getString(R.string.voice_native_intro));
-        OmniVoiceNativeEngine ne = g.speech.nativeEngine();
-        File[] libs = ne.libDir().listFiles((d, n) -> n.endsWith(".so"));
-        List<String> names = new ArrayList<>();
-        if (libs != null) for (File f : libs) names.add(f.getName());
-        r.row(R.drawable.ic_download, getString(R.string.voice_import_libs),
-                names.isEmpty() ? getString(R.string.voice_no_libs) : String.join(", ", names), null, v ->
-                        startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE)
-                                .setType("*/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_LIB));
-        if (!names.isEmpty()) {
-            r.row(R.drawable.ic_delete, getString(R.string.voice_remove_libs), null, null, v -> Ui.confirm(this, R.string.voice_remove_libs,
-                    getString(R.string.voice_remove_libs_confirm), () -> {
-                        ne.close();
-                        if (libs != null) for (File f : libs) //noinspection ResultOfMethodCallIgnored
-                            f.delete();
-                        build();
-                    }));
-        }
-        String model = g.settings.str(Settings.OMNI_MODEL_PATH, "");
-        File mf = model.isEmpty() ? null : new File(model);
-        r.row(R.drawable.ic_files, getString(R.string.voice_model),
-                mf != null && mf.isFile() ? mf.getName() + " · " + Ui.size(mf.length()) : getString(R.string.not_set), null, v ->
-                        startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"), REQ_MODEL));
-        r.sliderRow(R.drawable.ic_settings, R.string.voice_threads, Settings.OMNI_THREADS,
-                Math.max(2, Math.min(6, Runtime.getRuntime().availableProcessors() - 2)), 1, Math.max(2, Runtime.getRuntime().availableProcessors()), "", v -> ne.close());
-        String st = ne.status();
-        if (!st.isEmpty()) r.note(st);
-        if (!importProgress.isEmpty()) r.note(importProgress);
     }
 
     private void serverSection(Rows r) {
@@ -411,38 +372,6 @@ public final class VoiceActivity extends BaseActivity {
 
     // ---- Imports --------------------------------------------------------------------------------
 
-    private String displayName(Uri uri, String fallback) {
-        try (android.database.Cursor c = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
-            if (c != null && c.moveToFirst() && c.getString(0) != null) return c.getString(0).replace('/', '_');
-        } catch (RuntimeException ignored) {
-        }
-        return fallback;
-    }
-
-    /** Streams a document to a file, updating the progress line. */
-    private void copy(Uri uri, File dest) throws Exception {
-        File tmp = new File(dest.getParentFile(), dest.getName() + ".part");
-        try (InputStream in = getContentResolver().openInputStream(uri); OutputStream os = new FileOutputStream(tmp)) {
-            if (in == null) throw new java.io.FileNotFoundException(String.valueOf(uri));
-            byte[] buf = new byte[1 << 16];
-            long total = 0;
-            long lastUi = 0;
-            int n;
-            while ((n = in.read(buf)) > 0) {
-                os.write(buf, 0, n);
-                total += n;
-                long now = System.currentTimeMillis();
-                if (now - lastUi > 500) {
-                    lastUi = now;
-                    importProgress = getString(R.string.voice_importing, dest.getName(), Ui.size(total));
-                    runOnUiThread(this::build);
-                }
-            }
-        }
-        if (dest.exists() && !dest.delete()) throw new java.io.IOException("Could not replace " + dest.getName());
-        if (!tmp.renameTo(dest)) throw new java.io.IOException("Could not save " + dest.getName());
-    }
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -458,44 +387,6 @@ public final class VoiceActivity extends BaseActivity {
             String msg;
             try {
                 switch (requestCode) {
-                    case REQ_LIB: {
-                        OmniVoiceNativeEngine ne = g.speech.nativeEngine();
-                        ne.close();
-                        List<String> done = new ArrayList<>();
-                        for (Uri u : uris) {
-                            String name = displayName(u, "lib.so");
-                            if (!name.endsWith(".so") || !name.matches("[A-Za-z0-9._+-]+")) {
-                                done.add("✗ " + name);
-                                continue;
-                            }
-                            copy(u, new File(ne.libDir(), name));
-                            done.add("✓ " + name);
-                        }
-                        msg = String.join("\n", done);
-                        break;
-                    }
-                    case REQ_MODEL: {
-                        Uri u = uris.get(0);
-                        String name = displayName(u, "omnivoice.gguf");
-                        if (!name.toLowerCase(java.util.Locale.ROOT).endsWith(".gguf")) {
-                            msg = getString(R.string.voice_model_not_gguf);
-                            break;
-                        }
-                        File dir = new File(getFilesDir(), "omnivoice/models");
-                        //noinspection ResultOfMethodCallIgnored
-                        dir.mkdirs();
-                        File dest = new File(dir, name.replaceAll("[^A-Za-z0-9._-]", "_"));
-                        g.speech.nativeEngine().close();
-                        copy(u, dest);
-                        String old = g.settings.str(Settings.OMNI_MODEL_PATH, "");
-                        if (!old.isEmpty() && !old.equals(dest.getAbsolutePath()) && old.startsWith(dir.getAbsolutePath())) {
-                            //noinspection ResultOfMethodCallIgnored
-                            new File(old).delete();
-                        }
-                        g.settings.put(Settings.OMNI_MODEL_PATH, dest.getAbsolutePath());
-                        msg = getString(R.string.voice_model_saved, dest.getName());
-                        break;
-                    }
                     case REQ_REF_WAV: {
                         Uri u = uris.get(0);
                         byte[] bytes;
@@ -528,7 +419,6 @@ public final class VoiceActivity extends BaseActivity {
             } catch (Exception e) {
                 msg = getString(R.string.error_prefix, e.getMessage());
             }
-            importProgress = "";
             String m = msg;
             runOnUiThread(() -> {
                 Ui.show(Ui.dialog(this).setMessage(m).setPositiveButton(R.string.close, null));

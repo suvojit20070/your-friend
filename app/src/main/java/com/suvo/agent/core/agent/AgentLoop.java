@@ -81,11 +81,11 @@ public final class AgentLoop {
                 if (cancel.isCancelled()) {
                     return end(task, TaskState.Status.CANCELLED, "", "Stopped by the user");
                 }
-                if (steps >= config.maxSteps) {
+                if (!config.stepsUnlimited() && steps >= config.maxSteps) {
                     return end(task, TaskState.Status.LIMIT_REACHED, "",
                             "Reached the maximum of " + config.maxSteps + " steps. You can continue the task with a new message.");
                 }
-                if (System.currentTimeMillis() - task.startedAt > config.maxDurationMs) {
+                if (!config.timeUnlimited() && System.currentTimeMillis() - task.startedAt > config.maxDurationMs) {
                     return end(task, TaskState.Status.LIMIT_REACHED, "",
                             "Reached the maximum task duration (" + config.maxDurationMs / 60000 + " min).");
                 }
@@ -129,7 +129,7 @@ public final class AgentLoop {
                         result = ToolResult.of(ToolResult.Status.DENIED, "Only one tool call per turn is allowed; call it again in the next turn.");
                     } else if (cancel.isCancelled()) {
                         result = ToolResult.of(ToolResult.Status.CANCELLED, "Task cancelled");
-                    } else if (task.toolCalls >= config.maxToolCalls) {
+                    } else if (!config.toolCallsUnlimited() && task.toolCalls >= config.maxToolCalls) {
                         result = ToolResult.of(ToolResult.Status.DENIED, "Tool-call limit reached for this task");
                     } else {
                         // A loop is the same call returning the same result again and again. Repeating a

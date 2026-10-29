@@ -44,7 +44,7 @@ public final class VoiceProfile {
         try (InputStream in = new FileInputStream(refWavPath)) {
             Pcm p = Wav.decode(Wav.readAll(in, 20 * 1024 * 1024));
             if (p.durationSeconds() > 30) throw new IOException("Reference audio is longer than 30 s; use a 3–10 s clip");
-            return p.resample(24000);
+            return com.suvo.agent.nativebridge.NativeAudio.resample(p, 24000);
         }
     }
 }

@@ -77,8 +77,6 @@ public final class StorageActivity extends BaseActivity {
         File files = getFilesDir();
         File data = files.getParentFile();
         List<Part> parts = new ArrayList<>();
-        parts.add(new Part(R.drawable.ic_voice, R.string.storage_voice_models, new File(files, "omnivoice/models")));
-        parts.add(new Part(R.drawable.ic_download, R.string.storage_voice_libs, new File(files, "omnivoice/lib")));
         parts.add(new Part(R.drawable.ic_character, R.string.storage_character, new File(files, "models")));
         File ws = g.workspace.root();
         File trash = new File(ws, ".trash");

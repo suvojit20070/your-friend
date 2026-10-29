@@ -8,19 +8,19 @@ Your Friend — Original project by Suvo.
       approvals, memory ranking/extraction/secret filter, context compaction, history repair,
       skill parser, audio + lip sync, character rig/animator/renderer
 - [x] Android layer: SQLite (v3, FTS4), Keystore secrets, settings, repositories, audit log
-- [x] 30 built-in tools (apps, screen, files, code, SSH, web, memory, skills, custom tools)
+- [x] 35 built-in tools (apps, screen, files, code, SSH, web, memory, skills, custom tools)
 - [x] Accessibility service, MediaProjection capture, Shizuku UserService, camera, speech input,
       hands-free foreground service
 - [x] Termux RUN_COMMAND backend, local shell, SSH with host-key pinning, runtime detection
-- [x] Voice: OmniVoice via audio.cpp (JNI + dlopen), omnivoice-server client, system TTS,
+- [x] Voice: omnivoice-server client, Hugging Face Space engine, system TTS,
       reference voice record/import, AudioTrack playback with lip sync
 - [x] Characters Aiko and Haru (original procedural 2D rig), custom characters with
       import/export, floating companion overlay
 - [x] All UI sections, glass theme, Material You colors on Android 12+, onboarding,
       permissions dashboard
-- [x] 5 languages × 680 strings + 6 plurals
+- [x] 5 languages × 872 strings + 7 plurals
 - [x] GitHub Actions: resource check, assembleDebug, unit tests, lint, artifacts, optional
-      signed release; experimental audio.cpp Android build
+      signed release
 - [x] Docs, LICENSE (Apache-2.0), NOTICE with credit, examples
 
 ## Verified so far (in a sandbox without Android build tools)
@@ -36,7 +36,7 @@ Your Friend — Original project by Suvo.
 
 - [ ] **Gradle/AGP build** (AAPT2 resource compile, D8/R8, lint): first CI run
 - [ ] **Running on a phone**: every Android-facing feature
-- [ ] audio.cpp Android cross-compile workflow and on-device OmniVoice speed and memory
+- [x] (removed in Phase 2.8) audio.cpp cross-compile workflow and on-device OmniVoice
 - [ ] omnivoice-server against a real server
 - [ ] Hugging Face Space engine against the real Space (input order of its `/tts` endpoint)
 - [ ] 3D renderer on real phones and real VRM files (shaders were not compiled by a GPU driver here)
@@ -138,7 +138,7 @@ Your Friend — Original project by Suvo.
       damped oscillators per limb, unit-tested), then settle after letting go
 - [x] Sitting styles chosen by mood and changed every 9–19 s with smooth blending: swinging legs, legs
       crossed, leaning back on the hands, hugging the knees (sad / shy / sleepy), chin in hand (thoughtful)
-- [x] OmniVoice (audio.cpp) now runs in its own `:tts` process (`OmniVoiceService`): a native crash or an
+- [x] (history; removed in Phase 2.8) OmniVoice (audio.cpp) ran in its own `:tts` process (`OmniVoiceService`): a native crash or an
       out-of-memory kill there no longer closes the app. Voice settings show why it died (stage: loading
       library / loading model / speaking, signal, abort lines from Android's crash record) with a tip
       (wrong GGUF format, missing CPU instructions, low memory). The imported libc++_shared.so is no
@@ -227,6 +227,29 @@ Your Friend — Original project by Suvo.
    simple tool task (`device_status`, `find_installed_apps` → `launch_app`).
 3. Enable accessibility and try a read → tap → read loop in a simple app (Settings, Clock).
 4. Install Termux, then test `execute_python` and a custom Python tool.
-5. Test voice: system TTS first, then omnivoice-server, then audio.cpp.
+5. Test voice: system TTS first, then omnivoice-server or the Hugging Face Space.
 6. Add instrumented tests (Espresso) for the main flows once the app runs.
 7. Profile the character renderer on a low-end phone and tune the "low" animation quality.
+
+## Phase 2.8 — chat, limits, voice cleanup, native audio
+
+- [x] **Chat rendering.** `Markdown` rewritten: list markers are drawn in the margin so wrapped lines
+      line up, nested lists, task lists, `***bold italic***`, continuation lines inside list items,
+      `<url>` links, tables with alignment, half-height paragraph gaps. Finished answers are split
+      into text / code / table views (`MarkdownViews`): code scrolls sideways and has a copy
+      button, tables are real grids. While streaming, text is drawn at most ~16 times a second
+      (before: a full list rebuild per token), tool results and messages reload the list once per burst,
+      and the list only follows the end if you were already at the end; a reply taller than the
+      screen is followed from its end. Parsed answers are cached.
+- [x] **No-limit switches** for steps, tool calls and time (Settings → AI), `AgentConfig.UNLIMITED*`,
+      wake-lock time that cannot overflow, employee step setting "No limit". Tests added.
+- [x] **On-device OmniVoice removed** (Java, JNI bridge, `:tts` process, manifest entry, strings,
+      audio.cpp workflow, notices). Default voice engine is now the system voice; a saved
+      "on device" choice is migrated; leftover files are deleted at start.
+- [x] **Native C++ audio**: mouth shapes (`Visemes`), resampling, normalising, microphone level in
+      `dsp_core.cpp`; compared with the Java code on a PC (max difference 3e-8; visemes ~5x faster).
+- [x] Docs, NOTICE, `assets/NOTICE.txt` (was out of date), THIRD_PARTY_NOTICES and the string tables
+      (`tools/i18n`, which had missed 20 strings that only existed in the generated XML) brought back in line with the code.
+
+Not verified: none of this has run in Gradle or on a device. JVM tests added in this phase could not
+be run where it was written (no JUnit / org.json available there).

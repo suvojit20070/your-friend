@@ -57,7 +57,8 @@ public final class EmployeeRepo {
             JSONArray t = o.optJSONArray("tools");
             if (t != null) for (int i = 0; i < t.length(); i++) e.tools.add(t.optString(i));
             e.enabled = o.optBoolean("enabled", true);
-            e.maxSteps = Math.max(3, Math.min(60, o.optInt("max_steps", 20)));
+            int ms = o.optInt("max_steps", 20);
+            e.maxSteps = ms <= 0 ? 0 : Math.max(3, Math.min(1000, ms)); // 0 = no limit of its own
             return e;
         }
 

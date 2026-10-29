@@ -47,8 +47,11 @@ What each column means:
 
 - **Implemented** — the code exists and is wired into the app.
 - **Compiles** — compiled with `javac` against the Android 35 platform jar (all 325 app classes,
-  zero errors). The Gradle/AGP build itself has not run yet.
-- **Unit-tested** — covered by JVM unit tests in `app/src/test` (82 tests, all passing).
+  zero errors) in an earlier session. The latest changes (chat rendering, limits, native audio)
+  were checked piece by piece (see [PROGRESS.md](PROGRESS.md)); the Gradle/AGP build itself has
+  not run yet.
+- **Unit-tested** — covered by JVM unit tests in `app/src/test` (116 test methods; the newest ones
+  were written but not run in the environment that made them).
 - **On device** — verified on a real phone. **Nothing is in this column yet.**
 
 | Area | Implemented | Compiles | Unit-tested | On device |
@@ -66,9 +69,10 @@ What each column means:
 | Files: private workspace, trash, SAF folders | ✅ | ✅ | — | ⏳ |
 | Terminal via Termux `RUN_COMMAND`, SSH (JSch, host-key pinning) | ✅ | ✅ | — | ⏳ |
 | Custom tools (Python / HTTP), SKILL.md skills | ✅ | ✅ | ✅ (skill parser) | ⏳ |
-| OmniVoice via audio.cpp (user-imported native library) | ✅ | ✅ (C++ syntax-checked) | — | ⏳ |
-| OmniVoice via omnivoice-server, Android system TTS | ✅ | ✅ | — | ⏳ |
-| Lip sync (Java + native; matched on desktop) | ✅ | ✅ | ✅ (Java) | ⏳ |
+| OmniVoice via omnivoice-server, Hugging Face Space, Android system TTS | ✅ | ✅ | — | ⏳ |
+| Native C++ audio (lip sync, mouth shapes, resample, level) with Java fallback | ✅ | ✅ (C++ built and compared with Java on a PC) | ✅ (Java) | ⏳ |
+| Chat: Markdown (lists, tables, code blocks with copy), batched streaming | ✅ | ✅ (renderer compiled against stubs) | — | ⏳ |
+| Agent limits with "no limit" switches (steps, tool calls, time) | ✅ | ✅ | ✅ | ⏳ |
 | Animated characters Aiko & Haru, custom characters, floating companion | ✅ | ✅ | ✅ (animator) | ⏳ |
 | Team: user-created employees (own provider each), `delegate_task`, live team tree | ✅ | ✅ | prompt layering | ⏳ |
 | Self-active: `schedule_task`, self check-in, `record_mistake` lessons, `install_skill` | ✅ | ✅ | prompt layering | ⏳ |
@@ -91,21 +95,21 @@ app/src/main/java/com/suvo/agent/
 │   ├── tools/       ToolSpec, schema validator, registry, executor, approval policy
 │   ├── memory/      Memory store API, ranker, secret filter, compactor, extractor
 │   ├── skills/      SKILL.md parser
-│   ├── audio/       PCM / WAV helpers, lip-sync analysis
+│   ├── audio/       PCM / WAV helpers, lip-sync and mouth-shape (viseme) analysis
 │   └── character/   Rig parameters, animator, renderer over a tiny Gfx abstraction
 ├── data/            SQLite (Db), Keystore SecretStore, Settings, repositories, audit log
 ├── agent/           AgentRuntime, Android host, foreground service, approval notifications
-├── tools/           The 30 built-in tools
+├── tools/           The 35 built-in tools
 ├── device/          Accessibility service, screen capture, Shizuku, camera, capability registry
 ├── files/           Workspace (private files + trash), SAF folders, FileProvider
 ├── terminal/        Local shell, Termux backend, runtime manager
 ├── plugins/         Custom tools
 ├── skills/          Skill storage
 ├── voice/           TTS engines, playback with lip sync, speech input, hands-free service
-├── nativebridge/    JNI wrappers for libyf_native
+├── nativebridge/    JNI wrappers for libyourfriend (C++ audio, Java fallback)
 ├── character/       Character specs, Android renderer, CharacterView, floating companion
 └── ui/              Activities and small view helpers
-app/src/main/cpp/    native_audio.cpp (lip sync), omnivoice_bridge.cpp (dlopen audio.cpp)
+app/src/main/cpp/    native_audio.cpp (lip sync), dsp_core.cpp + native_dsp.cpp (visemes, resample, level)
 ```
 
 The agent loop, step by step:
@@ -118,7 +122,7 @@ The agent loop, step by step:
    Every call moves through `REQUESTED → VALIDATED → AUTHORIZED → EXECUTING →
    SUCCEEDED | FAILED | CANCELLED | DENIED`, and each transition is written to the audit log.
 4. Feed results back and repeat until the model answers without tool calls or a limit is hit
-   (steps, tool calls, wall time). Identical calls returning identical results are detected as
+   (steps, tool calls, wall time; each can be switched to "no limit" in Settings → AI). Identical calls returning identical results are detected as
    a loop and stopped.
 5. If the provider reports a context overflow, the oldest turns are summarized (tool call and
    result groups are never split), the summary is saved, and the request is retried.
@@ -144,9 +148,6 @@ pull request:
 
 Signed release builds run only when these repository secrets exist (nothing is hardcoded):
 `YF_KEYSTORE_BASE64`, `YF_KEYSTORE_PASSWORD`, `YF_KEY_ALIAS`, `YF_KEY_PASSWORD`.
-
-`.github/workflows/audiocpp-android.yml` is a separate, manual, experimental workflow that tries
-to cross-compile `libaudiocpp.so` for arm64-v8a and x86_64. See [Voice](#voice-omnivoice-setup).
 
 ### Locally
 
@@ -206,7 +207,7 @@ The app never works around Android's own consent screens. Step-by-step instructi
 
 ## Voice (OmniVoice) setup
 
-Your Friend speaks through one of four engines (**Settings → Voice**):
+Your Friend speaks through one of three engines (**Settings → Voice**; the default is the phone's own voice):
 
 1. **Hugging Face Space (online)** — your own Gradio Space, for example `Suvo75/tanu-voice`
    (OmniVoice with your reference voice on ZeroGPU). Enter the Space, optionally a Hugging Face
@@ -215,23 +216,20 @@ Your Friend speaks through one of four engines (**Settings → Voice**):
    set one. A sleeping Space takes 1–2 minutes to wake; the app retries. With "Use the phone's voice
    if this fails" on, replies are still spoken when you are offline or out of quota.
 
-2. **OmniVoice on device (audio.cpp)** — the app loads a `libaudiocpp.so` (and the libraries
-   it depends on) that *you* import, plus an OmniVoice GGUF model, through a small JNI bridge
-   (`dlopen`). Nothing is bundled.
-3. **OmniVoice server** — point the app at an
+2. **OmniVoice server** — point the app at an
    [omnivoice-server](https://github.com/maemreyo/omnivoice-server) running on your PC or LAN.
    Voice cloning uses `/v1/audio/speech/clone`; plain speech uses `/v1/audio/speech`.
-4. **Android system TTS** — always available, no cloning.
+3. **Android system TTS** — always available, no cloning.
 
 **Voice cloning:** set a reference clip `ref.wav` (3–10 s of clean speech; record it in the app
 or import it) and its exact transcript `ref.txt` (type it or import it) in **Settings → Voice →
 Reference voice**. Use only voices you have the right to use.
 
 **Licensing:** the OmniVoice model weights are **CC BY-NC 4.0 (non-commercial)** and are not
-shipped with this app. audio.cpp is Apache-2.0; omnivoice-server is MIT.
+shipped with this app. omnivoice-server is MIT.
 
-Neither OmniVoice path has been tested on a phone yet. The JNI bridge follows the audio.cpp C
-API (ABI 0.2), but whether a given phone has enough RAM and speed is unknown.
+The on-device OmniVoice engine (audio.cpp) was removed because it was heavy and slow on phones.
+Neither the server nor the Space path has been tested on a phone yet.
 Full guide: [docs/VOICE.md](docs/VOICE.md).
 
 ---
@@ -273,9 +271,19 @@ See `app/src/main/assets/characters/aiko.json` and `haru.json` for complete exam
 file (VRoid Studio / VRoid Hub / Booth exports, VRM 0.x or 1.0). The app copies it into its private
 storage and draws it with OpenGL ES 3: skinning, face morphs, blink, lip sync, look toward taps,
 breathing and expressions, with a full-body or upper-body camera. 2D stays the default; if a model
-cannot be shown the app falls back to 2D and Settings shows why. Hair/cloth physics are not simulated. The
+cannot be shown the app falls back to 2D and Settings shows why. Hair and cloth use VRM spring-bone physics. The
 floating companion (Settings → Floating companion) sits on top of other apps, can be dragged
 and snaps to edges.
+
+---
+
+## Agent limits
+
+**Settings → AI** has three limits for one autonomous task: steps, tool calls and minutes. Each
+one has its own **No limit** switch; while it is on, the slider is hidden and the task runs until it
+is finished or you stop it. Repeated identical failing calls are still stopped, and a task with no
+time limit holds its wake lock in 12-hour blocks. Team employees have a step setting of their own
+("No limit" there means "follow the boss").
 
 ---
 
@@ -358,7 +366,7 @@ required_tools: [py_web_search, py_web_read]
 1. Search first, then open the 2–3 best results...
 ```
 
-Five skills ship in `assets/skills/`. Imported skills are treated as **untrusted text**: they
+Six skills ship in `assets/skills/`. Imported skills are treated as **untrusted text**: they
 cannot grant permissions, cannot change approval rules, and are shown as instructions the model
 *may* follow.
 
@@ -403,7 +411,7 @@ Details: [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Languages
 
-English, Hinglish (`b+hi+Latn`), Bengali, Hindi and Japanese, with 680 strings and 6 plural
+English, Hinglish (`b+hi+Latn`), Bengali, Hindi and Japanese, with 872 strings and 7 plural
 sets each. On Android 13+ you can pick a per-app language in system settings; on older versions
 use the in-app picker. To edit text, change `tools/i18n/*.py` and run
 `python3 tools/i18n/generate.py`.
@@ -414,15 +422,13 @@ use the in-app picker. To edit text, change `tools/i18n/*.py` and run
 
 - **Not built with Gradle yet, and not run on a device yet.** Expect first-build fixes (lint,
   AAPT) and first-run fixes.
-- OmniVoice on device depends on a native library you build yourself. The included workflow is
-  experimental, and performance on phones is unknown.
 - Code runtimes need Termux. Without it only the limited local `sh` is available.
 - Accessibility control cannot see inside some apps (games, Flutter or WebView canvases without
   accessibility nodes) or on secure screens.
 - Screenshots through MediaProjection need your consent every session (Android rule).
 - Plain `http://` is allowed (needed for LAN servers). Use `https://` for public providers so
   your API key is not sent unencrypted.
-- Characters are a procedural 2D rig, not Live2D. They cannot load Live2D or VRM models.
+- The built-in characters are a procedural 2D rig, not Live2D (Live2D models cannot be loaded). VRM 3D models can be loaded.
 - Speech input uses Android's `SpeechRecognizer`. Quality and offline support depend on the
   phone's recognition service.
 - Android may kill background agents on aggressive OEM ROMs. Exempt the app from battery
@@ -453,5 +459,5 @@ Redistributions must keep the NOTICE credit: **"Your Friend — Original project
 
 Third-party components and their licenses are listed in
 `app/src/main/assets/THIRD_PARTY_NOTICES.txt` and on the in-app About screen: Shizuku API
-(Apache-2.0), JSch (BSD-3-Clause), audio.cpp (Apache-2.0, not bundled), omnivoice-server (MIT,
+(Apache-2.0), JSch (BSD-3-Clause), omnivoice-server (MIT,
 not bundled), OmniVoice weights (CC BY-NC 4.0, not bundled).

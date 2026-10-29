@@ -14,13 +14,9 @@ JSch (com.github.mwiede:jsch) 2.28.8
 AndroidX Annotation (transitive, via Shizuku) — Apache License 2.0
   Copyright The Android Open Source Project
 
-Not bundled — loaded only if you import them
+Not bundled — services you run or use yourself
 --------------------------------------------
-audio.cpp (libaudiocpp.so and its libraries)
-  https://github.com/0xShug0/audio.cpp — Apache License 2.0
-  Copyright 2026 ShugoAI LLC. You build and import it yourself.
-
-OmniVoice (k2-fsa) model weights, including GGUF conversions
+OmniVoice (k2-fsa) model weights (used by your own server or Hugging Face Space)
   https://github.com/k2-fsa/OmniVoice — the published model weights are
   licensed CC BY-NC 4.0 (non-commercial). They are never shipped with this
   app; check the current model card before downloading.
