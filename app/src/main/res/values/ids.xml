@@ -16,4 +16,7 @@
     <item name="md_kind" type="id" />
     <item name="md_sig" type="id" />
     <item name="chat_bound" type="id" />
+    <!-- A subtree that themes itself in code: the layout-pass re-theming skips it. -->
+    <item name="theme_skip" type="id" />
+    <item name="theme_sel" type="id" />
 </resources>

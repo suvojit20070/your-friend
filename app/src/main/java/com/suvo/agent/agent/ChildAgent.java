@@ -78,7 +78,8 @@ public final class ChildAgent {
             return out;
         }
         out.providerName = p.name;
-        LlmClient llm = new OpenAiCompatClient(p);
+        // Usage (own token count, errors, speed) is recorded per provider.
+        LlmClient llm = TrackedLlm.wrap(g.ctx, new OpenAiCompatClient(p));
 
         ToolRegistry reg = new ToolRegistry();
         for (Tool t : g.tools.all()) {

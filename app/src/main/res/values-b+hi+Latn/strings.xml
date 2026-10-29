@@ -914,4 +914,19 @@
     <string name="files_show_more">Aur dikhao</string>
     <string name="files_show_more_count">%1$d aur dikhao</string>
     <string name="handsfree_mic_needed">Hands-free ke liye microphone permission chahiye</string>
+    <string name="chat_show_earlier">Pehle ke messages dikhao</string>
+    <string name="usage_section">Usage</string>
+    <string name="usage_intro">App khud har request ka count karta hai (har provider ke liye same tarika), provider ke numbers pe depend nahi.</string>
+    <string name="usage_none">Abhi tak koi request nahi.</string>
+    <string name="usage_requests">Requests</string>
+    <string name="usage_tokens">Tokens (apna count)</string>
+    <string name="usage_provider_tokens">Provider ne jo tokens bataye</string>
+    <string name="usage_provider_none">Provider ne usage nahi bataya</string>
+    <string name="usage_speed">Speed</string>
+    <string name="usage_errors">Error type ke hisaab se</string>
+    <string name="usage_no_errors">Koi error nahi</string>
+    <string name="usage_last_used">Last use</string>
+    <string name="usage_reset">Usage reset karo</string>
+    <string name="usage_reset_all">Saara usage reset karo</string>
+    <string name="terminal_ctrl_hint">CTRL: C, L, D, U ya A dabao</string>
 </resources>

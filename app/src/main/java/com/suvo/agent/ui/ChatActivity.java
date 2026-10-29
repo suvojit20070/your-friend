@@ -15,6 +15,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.suvo.agent.R;
@@ -95,7 +96,13 @@ public final class ChatActivity extends BaseActivity {
 
     private final List<Item> items = new ArrayList<>();
     private Adapter adapter;
-    private ListView list;
+    /** The conversation: a scrolling column of message rows (rows are kept, never recycled). */
+    private ScrollView list;
+    private LinearLayout listBox;
+    /** Rows shown from the end of the conversation; "Show earlier" adds more. */
+    private int shownLimit = 80;
+    /** Scroll to the end on the next layout of the column (content height changes after binding). */
+    private boolean followPending;
     private EditText input;
     private ImageButton send;
     private long conversationId;
@@ -183,15 +190,18 @@ public final class ChatActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
-        list = findViewById(R.id.chat_list);
+        list = findViewById(R.id.chat_scroll);
+        listBox = findViewById(R.id.chat_list);
         ((android.view.ViewGroup) list.getParent()).setClipChildren(true); // never draw over the top bar
+        // The rows colour themselves from the palette; the screen-wide re-theming after every
+        // layout pass skips them (it used to swap colours back and forth while scrolling).
+        listBox.setTag(R.id.theme_skip, Boolean.TRUE);
+        listBox.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (followPending) list.scrollTo(0, listBox.getHeight());
+        });
         input = findViewById(R.id.chat_input);
         send = findViewById(R.id.chat_send);
         adapter = new Adapter();
-        list.setAdapter(adapter);
-        // Rows must be able to take focus, or selectable message text cannot start a selection.
-        list.setItemsCanFocus(true);
-        list.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         speechInput = new SpeechInput(this);
         conversationId = getIntent().getLongExtra(EXTRA_CONVERSATION, g.agent.activeConversation());
         g.agent.setActiveConversation(conversationId);
@@ -227,19 +237,6 @@ public final class ChatActivity extends BaseActivity {
             else submit(input.getText().toString());
         });
         findViewById(R.id.chat_mic).setOnClickListener(v -> toggleMic());
-        list.setOnItemClickListener((p, v, pos, id) -> {
-            Item it = items.get(pos);
-            if (it.type == SUMMARY) {
-                it.expanded = !it.expanded;
-                adapter.notifyDataSetChanged();
-            } else if (it.type == ERROR) {
-                retry();
-            }
-        });
-        list.setOnItemLongClickListener((p, v, pos, id) -> {
-            itemMenu(items.get(pos));
-            return true;
-        });
         String prefill = getIntent().getStringExtra(EXTRA_PREFILL);
         if (prefill != null) input.setText(prefill + "\n");
         handleShare(getIntent());
@@ -296,7 +293,7 @@ public final class ChatActivity extends BaseActivity {
         LiquidPress.attach(down, LiquidPress.CAPSULE);
         down.setAlpha(0f);
         down.setVisibility(View.GONE);
-        down.setOnClickListener(v -> list.smoothScrollToPosition(Math.max(0, adapter.getCount() - 1)));
+        down.setOnClickListener(v -> list.smoothScrollTo(0, listBox.getHeight()));
         android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40),
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         ViewGroup frame = (ViewGroup) list.getParent();
@@ -311,24 +308,19 @@ public final class ChatActivity extends BaseActivity {
             }
         });
         final boolean[] shown = {false};
-        list.setOnScrollListener(new android.widget.AbsListView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(android.widget.AbsListView view, int state) {
+        android.view.ViewTreeObserver.OnScrollChangedListener watch = () -> {
+            boolean away = list.canScrollVertically(1);
+            if (away == shown[0]) return;
+            shown[0] = away;
+            if (away) {
+                down.setVisibility(View.VISIBLE);
+                down.animate().alpha(1f).setDuration(160).start();
+            } else {
+                down.animate().alpha(0f).setDuration(100).withEndAction(() -> down.setVisibility(View.GONE)).start();
             }
-
-            @Override
-            public void onScroll(android.widget.AbsListView view, int first, int visible, int total) {
-                boolean away = list.canScrollVertically(1);
-                if (away == shown[0]) return;
-                shown[0] = away;
-                if (away) {
-                    down.setVisibility(View.VISIBLE);
-                    down.animate().alpha(1f).setDuration(160).start();
-                } else {
-                    down.animate().alpha(0f).setDuration(100).withEndAction(() -> down.setVisibility(View.GONE)).start();
-                }
-            }
-        });
+        };
+        list.getViewTreeObserver().addOnScrollChangedListener(watch);
+        list.getViewTreeObserver().addOnGlobalLayoutListener(watch::onScrollChanged);
     }
 
     private void updateAttachmentHint() {
@@ -1027,24 +1019,20 @@ public final class ChatActivity extends BaseActivity {
         super.onDestroy();
     }
 
-    /** Shows the end of the list. A reply taller than the screen is shown from its end, not its start. */
+    /** Shows the end of the conversation (after the rows have been laid out). */
     private void scrollToEnd() {
+        followPending = true;
         list.post(() -> {
-            final int last = adapter.getCount() - 1;
-            if (last < 0) return;
-            list.setSelection(last);
-            list.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                @Override
-                public void onGlobalLayout() {
-                    list.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-                    if (list.getLastVisiblePosition() != last) return;
-                    View v = list.getChildAt(list.getChildCount() - 1);
-                    if (v == null) return;
-                    int room = list.getHeight() - list.getPaddingBottom() - list.getPaddingTop();
-                    if (v.getHeight() > room) list.setSelectionFromTop(last, room - v.getHeight());
-                }
-            });
+            list.scrollTo(0, listBox.getHeight());
+            // Keep following through the next layout passes (images, code cards measuring late).
+            list.postDelayed(() -> followPending = false, 250);
         });
+    }
+
+    /** The current item with this id (rows keep their listeners across rebuilds). */
+    private Item itemById(long id) {
+        for (Item it : items) if (it.id == id) return it;
+        return null;
     }
 
     private static String toolsText(Item group) {
@@ -1303,30 +1291,95 @@ public final class ChatActivity extends BaseActivity {
         return blocks;
     }
 
-    private final class Adapter extends BaseAdapter {
-        @Override
-        public int getCount() {
+    /**
+     * Keeps one row view per item in the column, matched by the item's stable id. A row whose
+     * content did not change is left completely alone, so a selection in it survives updates
+     * (streaming, tool results). New rows are inserted, gone ones removed; nothing is recycled.
+     */
+    private final class Adapter {
+        private View earlier;
+
+        int getCount() {
             return items.size();
         }
 
-        @Override
-        public Object getItem(int position) {
-            return items.get(position);
+        void notifyDataSetChanged() {
+            int start = Math.max(0, items.size() - shownLimit);
+            java.util.Set<Long> want = new java.util.HashSet<>();
+            for (int i = start; i < items.size(); i++) want.add(items.get(i).id);
+            // 1. Drop rows that are no longer shown (the others keep their order).
+            java.util.Map<Long, View> byId = new java.util.HashMap<>();
+            for (int i = listBox.getChildCount() - 1; i >= 0; i--) {
+                View c = listBox.getChildAt(i);
+                if (c == earlier) continue;
+                Object t = c.getTag(R.id.chat_bound);
+                long id = t instanceof long[] ? ((long[]) t)[0] : Long.MIN_VALUE;
+                if (!want.contains(id) || byId.containsKey(id)) listBox.removeViewAt(i);
+                else byId.put(id, c);
+            }
+            // 2. "Show earlier" at the top when older messages are hidden.
+            int idx = 0;
+            if (start > 0) {
+                if (earlier == null) earlier = earlierChip();
+                if (earlier.getParent() == null) listBox.addView(earlier, 0);
+                idx = 1;
+            } else if (earlier != null && earlier.getParent() != null) {
+                listBox.removeView(earlier);
+            }
+            // 3. Bind / insert in order.
+            for (int i = start; i < items.size(); i++) {
+                Item it = items.get(i);
+                View old = byId.get(it.id);
+                View v = getView(i, old, listBox);
+                if (listBox.getChildAt(idx) != v) {
+                    if (v.getParent() instanceof ViewGroup) ((ViewGroup) v.getParent()).removeView(v);
+                    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT);
+                    // Each row keeps its own side margins (no padding on the column).
+                    lp.setMarginStart(Ui.dp(ChatActivity.this, 16));
+                    lp.setMarginEnd(Ui.dp(ChatActivity.this, 16));
+                    listBox.addView(v, idx, lp);
+                }
+                idx++;
+            }
+            while (listBox.getChildCount() > idx) listBox.removeViewAt(listBox.getChildCount() - 1);
         }
 
-        @Override
-        public long getItemId(int position) {
-            return items.get(position).id;
+        /** Loads older messages above, keeping what you were reading in place. */
+        private View earlierChip() {
+            Palette pal = Palette.of(ChatActivity.this);
+            TextView c = new TextView(ChatActivity.this, null, 0, R.style.YF_Body);
+            c.setText(R.string.chat_show_earlier);
+            c.setTextSize(14f);
+            c.setTextColor(pal.primary);
+            c.setGravity(Gravity.CENTER);
+            c.setBackground(new TonalDrawable(Palette.alpha(pal.primary, 0.12f), -1).pressable(pal.pressed()));
+            int ph = Ui.dp(ChatActivity.this, 18), pv = Ui.dp(ChatActivity.this, 9);
+            c.setPadding(ph, pv, ph, pv);
+            c.setClickable(true);
+            c.setOnClickListener(x -> {
+                int before = listBox.getHeight(), y = list.getScrollY();
+                shownLimit += 80;
+                notifyDataSetChanged();
+                listBox.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+                    @Override
+                    public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                        listBox.removeOnLayoutChangeListener(this);
+                        list.scrollTo(0, y + (listBox.getHeight() - before));
+                    }
+                });
+            });
+            LiquidPress.attach(c, LiquidPress.TEXT);
+            LinearLayout wrap = new LinearLayout(ChatActivity.this);
+            wrap.setGravity(Gravity.CENTER_HORIZONTAL);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, Ui.dp(ChatActivity.this, 8), 0, Ui.dp(ChatActivity.this, 8));
+            wrap.addView(c, lp);
+            wrap.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            return wrap;
         }
 
-        @Override
-        public boolean hasStableIds() {
-            // With stable ids the list keeps a row whose text is being selected (transient state).
-            return true;
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
+        View getView(int position, View convertView, ViewGroup parent) {
             Item it = items.get(position);
             if (convertView != null) {
                 Object bound = convertView.getTag(R.id.chat_bound);
@@ -1392,7 +1445,7 @@ public final class ChatActivity extends BaseActivity {
                     bubble.setBackground(new TonalDrawable(pal.surfaceLow, Ui.dp(ChatActivity.this, 20)));
                     bubble.setPadding(Ui.dp(ChatActivity.this, 14), Ui.dp(ChatActivity.this, 8), Ui.dp(ChatActivity.this, 14), Ui.dp(ChatActivity.this, 8));
                     text.setTextSize(13.5f);
-                    text.setTextColor(getColor(R.color.text_secondary));
+                    text.setTextColor(Palette.of(ChatActivity.this).onSurfaceVariant);
                     title.setVisibility(View.VISIBLE);
                     title.setText(getString(R.string.chat_tool_title, it.title, statusLabel(it.status)));
                     title.setTextColor(statusColor(it.status));
@@ -1408,17 +1461,17 @@ public final class ChatActivity extends BaseActivity {
                     bubble.setBackground(new TonalDrawable(pal.surfaceLow, Ui.dp(ChatActivity.this, 20)));
                     title.setVisibility(View.VISIBLE);
                     title.setText(it.title);
-                    title.setTextColor(getColor(R.color.text_secondary));
+                    title.setTextColor(Palette.of(ChatActivity.this).onSurfaceVariant);
                     if (it.expanded) {
                         detail.setVisibility(View.VISIBLE);
                         detail.setText(it.detail);
                     }
                     break;
                 case ERROR:
-                    bubble.setBackground(new TonalDrawable(Palette.alpha(getColor(R.color.danger), 0.12f), Ui.dp(ChatActivity.this, 20)));
+                    bubble.setBackground(new TonalDrawable(Palette.alpha(Palette.of(ChatActivity.this).error, 0.12f), Ui.dp(ChatActivity.this, 20)));
                     title.setVisibility(View.VISIBLE);
                     title.setText(R.string.chat_error_tap_retry);
-                    title.setTextColor(getColor(R.color.danger));
+                    title.setTextColor(Palette.of(ChatActivity.this).error);
                     break;
                 default: // NOTICE
                     row.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -1467,7 +1520,36 @@ public final class ChatActivity extends BaseActivity {
                 text.setMovementMethod(null);
                 text.setFocusable(false);
             }
-            detail.setTextIsSelectable(detail.getVisibility() == View.VISIBLE);
+            if (detail.getVisibility() == View.VISIBLE) {
+                detail.setBackground(new TonalDrawable(Palette.alpha(pal.surfaceHighest, 0.7f), Ui.dp(ChatActivity.this, 16)));
+                detail.setTextColor(pal.onSurface);
+                MarkdownViews.makeSelectable(detail, true, selectionHook);
+            } else {
+                detail.setTextIsSelectable(false);
+            }
+            // Taps and long-presses on the bubble (outside its text, which selects): look the item up
+            // by id, since a kept row outlives the Item objects of a rebuild.
+            final long itemId = it.id;
+            if (it.type == SUMMARY || it.type == ERROR) {
+                bubble.setClickable(true);
+                bubble.setOnClickListener(x -> {
+                    Item cur = itemById(itemId);
+                    if (cur == null) return;
+                    if (cur.type == SUMMARY) {
+                        cur.expanded = !cur.expanded;
+                        adapter.notifyDataSetChanged();
+                    } else {
+                        retry();
+                    }
+                });
+            }
+            if (it.type != TOOLS) {
+                bubble.setOnLongClickListener(x -> {
+                    Item cur = itemById(itemId);
+                    if (cur != null) itemMenu(cur);
+                    return true;
+                });
+            }
             // An expanded tool detail would otherwise shrink to the title's width (one word per line).
             lp.width = detail.getVisibility() == View.VISIBLE || prose || it.type == TOOLS ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
             bubble.setAlpha(it.dim ? 0.55f : 1f);
@@ -1475,7 +1557,9 @@ public final class ChatActivity extends BaseActivity {
             time.setText(it.time == 0 ? "" : DateFormat.getTimeFormat(ChatActivity.this).format(new Date(it.time))
                     + (it.dim ? " · " + getString(R.string.chat_summarized) : ""));
             time.setGravity(it.type == USER ? Gravity.END : Gravity.START);
-            time.setTextColor(Palette.of(ChatActivity.this).tertiary);
+            time.setTextColor(pal.tertiary);
+            ImageView chev = v.findViewById(R.id.msg_chevron);
+            chev.setImageTintList(android.content.res.ColorStateList.valueOf(pal.onSurfaceVariant));
             // Copy / more icons under your messages and finished answers (28dp, squish 0.88).
             LinearLayout acts = v.findViewById(R.id.msg_actions);
             boolean showActs = it.type == USER || it.type == ASSISTANT;
@@ -1483,8 +1567,16 @@ public final class ChatActivity extends BaseActivity {
             if (showActs) {
                 ((LinearLayout.LayoutParams) acts.getLayoutParams()).gravity = it.type == USER ? Gravity.END : Gravity.START;
                 View copy = v.findViewById(R.id.msg_copy), more = v.findViewById(R.id.msg_more);
-                copy.setOnClickListener(x -> Ui.copy(ChatActivity.this, it.text));
-                more.setOnClickListener(x -> itemMenu(it));
+                ((ImageView) copy).setImageTintList(android.content.res.ColorStateList.valueOf(pal.onSurfaceVariant));
+                ((ImageView) more).setImageTintList(android.content.res.ColorStateList.valueOf(pal.onSurfaceVariant));
+                copy.setOnClickListener(x -> {
+                    Item cur = itemById(itemId);
+                    Ui.copy(ChatActivity.this, (cur != null ? cur : it).text);
+                });
+                more.setOnClickListener(x -> {
+                    Item cur = itemById(itemId);
+                    itemMenu(cur != null ? cur : it);
+                });
                 LiquidPress.attach(copy, LiquidPress.ICON);
                 LiquidPress.attach(more, LiquidPress.ICON);
             }
@@ -1507,12 +1599,12 @@ public final class ChatActivity extends BaseActivity {
             if (running > 0) head += " · " + getString(R.string.tool_status_running);
             else if (failed > 0) head += " · " + getString(R.string.chat_tools_failed, failed);
             title.setText(head);
-            title.setTextColor(running > 0 ? Ui.accent(ChatActivity.this) : failed > 0 ? getColor(R.color.warning) : getColor(R.color.text_secondary));
+            title.setTextColor(running > 0 ? Ui.accent(ChatActivity.this) : failed > 0 ? getColor(R.color.warning) : Palette.of(ChatActivity.this).onSurfaceVariant);
             title.setTextSize(14f);
             Item last = it.children.get(it.children.size() - 1);
             text.setText(last.title + " — " + last.text);
             text.setTextSize(13.5f);
-            text.setTextColor(getColor(R.color.text_secondary));
+            text.setTextColor(Palette.of(ChatActivity.this).onSurfaceVariant);
             text.setMaxLines(2);
             chevron.setVisibility(View.VISIBLE);
             chevron.setRotation(it.expanded ? 90f : 0f);
@@ -1566,14 +1658,16 @@ public final class ChatActivity extends BaseActivity {
                 line.addView(st);
                 ImageView arrow = new ImageView(ChatActivity.this);
                 arrow.setImageResource(R.drawable.ic_chevron);
-                arrow.setImageTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.text_secondary)));
+                arrow.setImageTintList(android.content.res.ColorStateList.valueOf(Palette.of(ChatActivity.this).onSurfaceVariant));
                 arrow.setRotation(c.expanded ? 90f : 0f);
                 LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(Ui.dp(ChatActivity.this, 16), Ui.dp(ChatActivity.this, 16));
                 ap.setMarginStart(Ui.dp(ChatActivity.this, 6));
                 line.addView(arrow, ap);
                 row.addView(line);
                 TextView code = new TextView(ChatActivity.this, null, 0, R.style.YF_Mono);
-                code.setBackgroundResource(R.drawable.code_bg);
+                code.setBackground(new TonalDrawable(Palette.alpha(Palette.of(ChatActivity.this).surfaceHighest, 0.7f), Ui.dp(ChatActivity.this, 14)));
+                code.setTextColor(Palette.of(ChatActivity.this).onSurface);
+                MarkdownViews.makeSelectable(code, true, selectionHook);
                 int pad = Ui.dp(ChatActivity.this, 10);
                 code.setPadding(pad, pad, pad, pad);
                 code.setTextIsSelectable(true);
@@ -1619,9 +1713,9 @@ public final class ChatActivity extends BaseActivity {
 
         private int statusColor(String s) {
             if ("succeeded".equals(s)) return getColor(R.color.success);
-            if ("…".equals(s) || s.isEmpty()) return getColor(R.color.text_secondary);
+            if ("…".equals(s) || s.isEmpty()) return Palette.of(ChatActivity.this).onSurfaceVariant;
             if ("denied".equals(s) || "cancelled".equals(s)) return getColor(R.color.warning);
-            return getColor(R.color.danger);
+            return Palette.of(ChatActivity.this).error;
         }
     }
 

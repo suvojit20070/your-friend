@@ -1,66 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Private terminal: backend chips, a real terminal panel (your commands and the agent's, live), command line. -->
+<!-- Terminal in the Termux / Kali style: full black screen, session tabs, monospace output with
+     colours, a two-line Kali prompt with the command line, and the Termux extra-keys rows. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/term_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#FF0C0C0C"
     android:orientation="vertical">
 
     <include layout="@layout/top_bar" />
 
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:clipToPadding="false"
-        android:paddingStart="@dimen/screen_padding"
-        android:paddingEnd="@dimen/screen_padding"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:id="@+id/term_backends"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingBottom="8dp" />
-    </HorizontalScrollView>
-
     <LinearLayout
+        android:id="@+id/term_body"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
         android:layout_weight="1"
-        android:background="@drawable/term_bg"
-        android:clipToOutline="true"
         android:orientation="vertical">
 
-        <!-- Window-style header: three dots + where commands run -->
+        <!-- Sessions (where commands run), like terminal tabs -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/term_backends"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <!-- Status line: where you are, and a spinner while something runs -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
+            android:layout_height="wrap_content"
             android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="14dp"
-            android:paddingEnd="12dp">
-
-            <View
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:background="@drawable/dot"
-                android:backgroundTint="@color/term_red" />
-
-            <View
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/dot"
-                android:backgroundTint="@color/term_yellow" />
-
-            <View
-                android:layout_width="10dp"
-                android:layout_height="10dp"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/dot"
-                android:backgroundTint="@color/term_green" />
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/term_status"
@@ -68,25 +43,23 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="4dp"
                 android:layout_weight="1"
                 android:ellipsize="middle"
                 android:maxLines="1"
-                android:textColor="@color/term_dim"
-                android:textSize="11.5sp" />
+                android:textColor="#FF7D8794"
+                android:textSize="11sp" />
 
             <ProgressBar
                 android:id="@+id/term_busy"
                 style="?android:attr/progressBarStyleSmall"
                 android:layout_width="14dp"
                 android:layout_height="14dp"
-                android:tag="accent"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="12dp"
                 android:visibility="gone" />
         </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#1FFFFFFF" />
 
         <ScrollView
             android:id="@+id/term_scroll"
@@ -94,87 +67,89 @@
             android:layout_height="0dp"
             android:layout_weight="1"
             android:fillViewport="true"
-            android:scrollbars="none">
+            android:scrollbarSize="3dp"
+            android:scrollbarThumbVertical="@drawable/term_scroll_thumb"
+            android:scrollbars="vertical">
 
             <TextView
                 android:id="@+id/term_output"
                 style="@style/YF.Terminal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingStart="14dp"
-                android:paddingTop="10dp"
-                android:paddingEnd="14dp"
-                android:paddingBottom="10dp"
-                android:textIsSelectable="true" />
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="10dp"
+                android:layout_marginBottom="4dp"
+                android:breakStrategy="simple"
+                android:hyphenationFrequency="none"
+                android:lineSpacingExtra="1dp"
+                android:textIsSelectable="true"
+                android:textSize="12.5sp" />
         </ScrollView>
 
-        <!-- Command line inside the terminal panel -->
+        <!-- ┌──(user㉿yourfriend)-[path] -->
+        <TextView
+            android:id="@+id/term_prompt"
+            style="@style/YF.Terminal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="10dp"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:textSize="12.5sp" />
+
+        <!-- └─$ command -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#14FFFFFF"
             android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="14dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="6dp"
-            android:paddingBottom="4dp">
+            android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/term_prompt"
+                android:id="@+id/term_dollar"
                 style="@style/YF.Terminal"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:maxWidth="140dp"
-                android:ellipsize="start"
-                android:maxLines="1"
-                android:text="$"
-                android:textColor="@color/term_green" />
+                android:layout_marginStart="10dp"
+                android:textSize="12.5sp" />
 
             <EditText
                 android:id="@+id/term_input"
                 style="@style/YF.Terminal"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:background="@null"
-                android:hint="@string/terminal_hint"
-                android:imeOptions="actionSend"
-                android:inputType="text|textNoSuggestions"
+                android:imeOptions="actionSend|flagNoExtractUi"
+                android:inputType="text|textNoSuggestions|textVisiblePassword"
                 android:maxLines="4"
-                android:minHeight="44dp"
-                android:textColorHint="@color/term_dim" />
+                android:minHeight="40dp"
+                android:textColor="#FFF2F2F2"
+                android:textColorHint="#FF5C6370"
+                android:textSize="12.5sp" />
 
-            <ImageButton
+            <TextView
                 android:id="@+id/term_run"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="@drawable/circle_accent"
-                android:contentDescription="@string/terminal_run"
-                android:padding="11dp"
-                android:scaleType="fitCenter"
-                android:src="@drawable/ic_send"
-                android:tag="accent"
-                android:tint="@color/text_on_accent" />
+                style="@style/YF.Terminal"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="8dp"
+                android:gravity="center"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Quick keys -->
-    <HorizontalScrollView
+    <!-- Termux extra keys: two rows -->
+    <LinearLayout
+        android:id="@+id/term_keys"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:clipToPadding="false"
-        android:paddingStart="12dp"
-        android:paddingTop="6dp"
-        android:paddingEnd="12dp"
-        android:paddingBottom="10dp"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:id="@+id/term_keys"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal" />
-    </HorizontalScrollView>
+        android:background="#FF171717"
+        android:orientation="vertical" />
 </LinearLayout>

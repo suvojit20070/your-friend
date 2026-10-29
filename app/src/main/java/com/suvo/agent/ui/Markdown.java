@@ -78,11 +78,11 @@ public final class Markdown {
 
     /** One part of an answer. */
     public static final class Block {
-        public static final int TEXT = 0, CODE = 1, TABLE = 2;
+        public static final int TEXT = 0, CODE = 1, TABLE = 2, QUOTE = 3;
         public int type;
         /** TEXT: the styled text. */
         public CharSequence text = "";
-        /** CODE: language label (may be empty) and the code itself. */
+        /** CODE: language label (may be empty) and the code itself. QUOTE: alert kind (NOTE, TIP, WARNING…) or empty. */
         public String lang = "";
         public String code = "";
         /** CODE: the code with syntax colours (null when not highlighted, e.g. while streaming). */
@@ -104,6 +104,8 @@ public final class Markdown {
                     }
                     return sb.toString();
                 }
+                case QUOTE:
+                    return "q:" + lang + "\u0000" + text;
                 default:
                     return "x:" + text;
             }
@@ -119,6 +121,8 @@ public final class Markdown {
     private static final Pattern NUMBERED = Pattern.compile("^(\\s*)(\\d{1,4})[.)]\\s+(.*)$");
     private static final Pattern QUOTE_RE = Pattern.compile("^\\s*>\\s?(.*)$");
     private static final Pattern RULE_RE = Pattern.compile("^\\s*([-*_])(\\s*\\1){2,}\\s*$");
+    private static final Pattern ALERT = Pattern.compile("^\\s*\\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION|INFO|DANGER)\\]\\s*\\n?",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern TABLE_SEP = Pattern.compile("^\\s*\\|?\\s*:?-{1,}:?\\s*(\\|\\s*:?-{1,}:?\\s*)*\\|?\\s*$");
 
     /** Marker kinds drawn by {@link ListSpan}. */
@@ -265,6 +269,34 @@ public final class Markdown {
                     appendTable(out, rows);
                 }
                 prev = TABLE;
+                blank = false;
+                lastItem = null;
+                continue;
+            }
+
+            // Quote (in block mode): one card for all its lines; "> [!NOTE]" makes a titled alert.
+            if (blocks != null && QUOTE_RE.matcher(line).matches()) {
+                StringBuilder inner = new StringBuilder();
+                while (i < lines.length) {
+                    Matcher qm = QUOTE_RE.matcher(lines[i]);
+                    if (!qm.matches()) break;
+                    if (inner.length() > 0) inner.append('\n');
+                    inner.append(qm.group(1));
+                    i++;
+                }
+                flush(out, blocks);
+                out = new SpannableStringBuilder();
+                Block qb = new Block();
+                qb.type = Block.QUOTE;
+                String body = inner.toString();
+                Matcher alert = ALERT.matcher(body);
+                if (alert.find()) {
+                    qb.lang = alert.group(1).toUpperCase(java.util.Locale.ROOT);
+                    body = body.substring(alert.end());
+                }
+                qb.text = new SpannedString(build(body, st, null, false));
+                blocks.add(qb);
+                prev = QUOTE;
                 blank = false;
                 lastItem = null;
                 continue;

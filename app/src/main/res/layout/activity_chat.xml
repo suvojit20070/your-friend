@@ -96,21 +96,28 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <ListView
-            android:id="@+id/chat_list"
+        <!-- A plain scrolling column, not a recycling list: rows are never recycled, so text in
+             any message can be selected right here (and keeps its theme colours while scrolling). -->
+        <ScrollView
+            android:id="@+id/chat_scroll"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:divider="@null"
             android:fadingEdgeLength="24dp"
-            android:paddingStart="16dp"
+            android:fillViewport="true"
+            android:overScrollMode="ifContentScrolls"
             android:paddingTop="4dp"
-            android:paddingEnd="16dp"
             android:paddingBottom="12dp"
             android:requiresFadingEdge="vertical"
-            android:scrollbars="none"
-            android:stackFromBottom="true"
-            android:transcriptMode="normal" />
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/chat_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="bottom"
+                android:orientation="vertical" />
+        </ScrollView>
 
         <LinearLayout
             android:id="@+id/chat_bottom"

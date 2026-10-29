@@ -107,7 +107,23 @@ final class ThemeMap {
         walk(root, cache(root.getContext()));
     }
 
+    /** Lists seen on screen; re-themed as they scroll (rows appear without a layout pass). */
+    private static final java.util.WeakHashMap<android.widget.AbsListView, Boolean> LISTS = new java.util.WeakHashMap<>();
+
+    /** Themes the rows of every visible list (called when something scrolled). */
+    static void applyLists() {
+        java.util.List<android.widget.AbsListView> ls;
+        synchronized (LISTS) {
+            ls = new java.util.ArrayList<>(LISTS.keySet());
+        }
+        for (android.widget.AbsListView lv : ls) {
+            if (lv != null && lv.isShown()) walk(lv, cache(lv.getContext()));
+        }
+    }
+
     private static void walk(View v, Cache c) {
+        // A subtree that themes itself in code (the chat) is left alone.
+        if (v.getTag(R.id.theme_skip) != null) return;
         {
             Drawable bg = v.getBackground();
             if (bg != null) {
@@ -132,6 +148,8 @@ final class ThemeMap {
                     Integer lk = c.colors.get(links.getDefaultColor());
                     if (lk != null) t.setLinkTextColor(lk);
                 }
+                // Selection highlight and handles (and the cursor) in the theme's accent.
+                if (t.isTextSelectable() || t instanceof EditText) Ui.selectionColors(t);
             }
             if (v instanceof ImageView) {
                 ImageView iv = (ImageView) v;
@@ -146,6 +164,20 @@ final class ThemeMap {
             // Lists: no dividers, and the pressed row gets the 8% tonal highlight instead of a ripple.
             android.widget.AbsListView lv = (android.widget.AbsListView) v;
             lv.setTag(R.id.theme_list, Boolean.TRUE);
+            synchronized (LISTS) {
+                LISTS.put(lv, Boolean.TRUE);
+            }
+            // New rows (added while scrolling, with no layout pass of the screen) get the theme at once.
+            lv.setOnHierarchyChangeListener(new ViewGroup.OnHierarchyChangeListener() {
+                @Override
+                public void onChildViewAdded(View parent, View child) {
+                    walk(child, cache(child.getContext()));
+                }
+
+                @Override
+                public void onChildViewRemoved(View parent, View child) {
+                }
+            });
             lv.setSelector(new TonalDrawable(0, 20 * v.getResources().getDisplayMetrics().density).pressable(c.pal.pressed()));
             if (lv instanceof android.widget.ListView) {
                 ((android.widget.ListView) lv).setDivider(null);

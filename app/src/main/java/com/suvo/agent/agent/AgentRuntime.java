@@ -189,7 +189,8 @@ public final class AgentRuntime {
             g.conversations.rename(conversationId, t.length() > 48 ? t.substring(0, 48) + "…" : t);
         }
         g.speech.stop();
-        LlmClient llm = new OpenAiCompatClient(p);
+        // Usage (own token count, errors, speed) is recorded per provider.
+        LlmClient llm = TrackedLlm.wrap(g.ctx, new OpenAiCompatClient(p));
         CancellationToken tk = new CancellationToken();
         token = tk;
         TaskState task = new TaskState(conversationId, text);

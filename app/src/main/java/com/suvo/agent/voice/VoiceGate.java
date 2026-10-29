@@ -92,6 +92,10 @@ public final class VoiceGate {
      * happened, and on phones whose recognizer ignores the pipe hands-free heard nothing, forever.
      */
     private boolean utteranceViaPipe;
+    /** Set after a client / busy / disconnected error: the next sentence gets a new recognizer. */
+    private boolean needFreshRecognizer;
+    /** Client / busy errors in a row; single ones are normal hiccups and are not reported. */
+    private int transientErrors;
 
     public VoiceGate(Context ctx) {
         this.ctx = ctx.getApplicationContext();
@@ -174,10 +178,12 @@ public final class VoiceGate {
                         final ArrayList<short[]> head = new ArrayList<>(preRoll);
                         preRoll.clear();
                         boolean viaPipe = !audioSourceUnsupported;
+                        // Without the pipe the recognizer needs the microphone: release it FIRST,
+                        // otherwise the recognizer can find the mic busy and fail (client / audio error).
+                        if (!viaPipe) rec.stop();
                         main.post(() -> beginUtterance(head));
                         if (!viaPipe) {
-                            // Hand the microphone to the recognizer for this sentence.
-                            rec.stop();
+                            // The recognizer has the microphone for this sentence.
                             waitWhileFeedingOrRecognizing();
                             if (!running) break;
                             rec.startRecording();
@@ -234,8 +240,18 @@ public final class VoiceGate {
         if (!running || cb == null) return;
         cb.onSpeechStarted();
         recognizing = true;
-        destroyRecognizer();
-        recognizer = createRecognizer();
+        // One recognizer is reused for every sentence: destroying and creating one each time makes
+        // some phones answer with "client error" / "busy". It is only rebuilt after such an error.
+        if (recognizer != null && needFreshRecognizer) destroyRecognizer();
+        needFreshRecognizer = false;
+        if (recognizer == null) {
+            recognizer = createRecognizer();
+        } else {
+            try {
+                recognizer.cancel();
+            } catch (RuntimeException ignored) {
+            }
+        }
         if (recognizer == null) {
             recognizing = false;
             cb.onError("No speech recognizer is installed on this phone", true);
@@ -403,6 +419,13 @@ public final class VoiceGate {
                 audioSourceUnsupported = true;
                 Log.i(TAG, "Recognizer refused external audio (" + error + "); switching to its own microphone");
             }
+            boolean transientError = error == SpeechRecognizer.ERROR_CLIENT || error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == 11;
+            if (transientError) {
+                needFreshRecognizer = true;
+                // Hiccups: retry quietly with a new recognizer; only a run of them is worth showing.
+                if (++transientErrors < 3) return;
+                transientErrors = 0;
+            }
             boolean benign = error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT;
             if (usedPipe && audioSourceUnsupported && (error == 11 || error == SpeechRecognizer.ERROR_SERVER)) {
                 // Switched to the recognizer's own microphone: say so instead of a bare error code.
@@ -420,6 +443,7 @@ public final class VoiceGate {
             if (!usedPipe) BeepMuter.muteFor(ctx, 800);
             ArrayList<String> r = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             String text = r == null || r.isEmpty() ? "" : r.get(0);
+            transientErrors = 0;
             if (!text.trim().isEmpty()) {
                 pipeMisses = 0;
             } else if (usedPipe && !audioSourceUnsupported && ++pipeMisses >= 2) {

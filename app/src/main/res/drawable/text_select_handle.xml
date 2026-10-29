@@ -6,6 +6,6 @@
     android:height="30dp">
     <path
         android:pathData="M12 1.2720781l6.363961 6.3639611a9 9 0 0 1 0 12.7279218 9 9 0 0 1 -12.727922 0 9 9 0 0 1 0 -12.7279218z"
-        android:fillColor="?android:attr/textColorPrimary"
+        android:fillColor="@color/accent"
         android:strokeLineCap="square" />
 </vector>

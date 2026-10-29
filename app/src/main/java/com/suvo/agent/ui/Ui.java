@@ -64,6 +64,7 @@ public final class Ui {
     }
 
     private static void applyTint(View v, int c, Palette pal) {
+        if (v.getTag(R.id.theme_skip) != null) return;
         if (v.getTag(R.id.theme_tint) == pal && !(v instanceof ViewGroup)) return;
         if (v instanceof com.google.android.material.materialswitch.MaterialSwitch) {
             Widgets.styleSwitch((com.google.android.material.materialswitch.MaterialSwitch) v);
@@ -93,6 +94,45 @@ public final class Ui {
             ViewGroup g = (ViewGroup) v;
             for (int i = 0; i < g.getChildCount(); i++) applyTint(g.getChildAt(i), c, pal);
         }
+    }
+
+    /**
+     * Text selection in the theme's accent: the highlight behind selected text, the drag handles
+     * and (in fields) the cursor. Done once per view and palette.
+     */
+    public static void selectionColors(android.widget.TextView t) {
+        Palette p = Palette.of(t.getContext());
+        if (t.getTag(R.id.theme_sel) == p) return;
+        t.setTag(R.id.theme_sel, p);
+        t.setHighlightColor(Palette.alpha(p.primary, p.dark ? 0.40f : 0.30f));
+        if (Build.VERSION.SDK_INT >= 29) {
+            Context c = t.getContext();
+            Drawable mid = tinted(c, R.drawable.text_select_handle, p.primary);
+            Drawable left = tinted(c, R.drawable.text_select_handle_left, p.primary);
+            Drawable right = tinted(c, R.drawable.text_select_handle_right, p.primary);
+            try {
+                if (mid != null) t.setTextSelectHandle(mid);
+                if (left != null) t.setTextSelectHandleLeft(left);
+                if (right != null) t.setTextSelectHandleRight(right);
+                if (t instanceof EditText) {
+                    android.graphics.drawable.GradientDrawable cur = new android.graphics.drawable.GradientDrawable();
+                    cur.setColor(p.primary);
+                    cur.setCornerRadius(dp(c, 1));
+                    cur.setSize(dp(c, 2), dp(c, 22));
+                    t.setTextCursorDrawable(cur);
+                }
+            } catch (RuntimeException ignored) {
+                // Some OEM TextViews reject custom handles; the theme's defaults stay.
+            }
+        }
+    }
+
+    private static Drawable tinted(Context c, int res, int color) {
+        Drawable d = c.getDrawable(res);
+        if (d == null) return null;
+        d = d.mutate();
+        d.setTint(color);
+        return d;
     }
 
     public static void toast(Context ctx, int res) {

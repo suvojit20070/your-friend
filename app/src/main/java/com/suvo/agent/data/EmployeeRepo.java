@@ -72,6 +72,60 @@ public final class EmployeeRepo {
 
     public EmployeeRepo(Context ctx) {
         prefs = ctx.getSharedPreferences("team", Context.MODE_PRIVATE);
+        seedBuiltins();
+    }
+
+    private static final String SEEDED = "builtin_seeded_v1";
+
+    /**
+     * A ready-made team, added once (they use the boss's provider; edit, switch off or delete them
+     * in Team like any other employee — a deleted one does not come back).
+     */
+    private synchronized void seedBuiltins() {
+        if (prefs.getBoolean(SEEDED, false)) return;
+        List<Employee> all = list();
+        long max = 0;
+        for (Employee x : all) max = Math.max(max, x.id);
+        String[][] team = {
+                {"Rhea", "Researcher",
+                        "You research on the web. Search with several queries, read the best sources, compare them and answer with "
+                                + "the facts that matter plus the links you used. Say clearly what you could not verify.",
+                        "py_web_search,py_web_read,py_download_file,memory,file_write,file_read"},
+                {"Kai", "Coder",
+                        "You write, run and fix code. Work in Termux (shell backend=termux, execute_python / execute_cpp / execute_java). "
+                                + "Run what you write, read the errors, fix them and run again until it works. Long builds keep running as "
+                                + "background jobs: follow them with termux_job. Report what you changed and how to run it.",
+                        "shell,execute_python,execute_cpp,execute_java,termux_job,file_read,file_write,file_edit,file_list,file_search,file_manage,ssh"},
+                {"Mira", "Writer",
+                        "You write and edit text: messages, posts, emails, summaries, translations, stories. Match the language and "
+                                + "tone you are asked for, keep it clear and natural, and give the finished text first.",
+                        "memory,file_read,file_write"},
+                {"Ozzy", "Phone operator",
+                        "You operate the phone: open apps, read the screen, tap, type and scroll until the job is done. Look at the "
+                                + "screen after every action, never guess where something is, and stop to report if a step needs the user.",
+                        "find_installed_apps,launch_app,open_uri,screen_operation_accessibility,screen_operation_shell,screenshot,view_image,device_status,notify"},
+                {"Vera", "Reviewer",
+                        "You check work before it is shown to the user: facts, code, plans and texts. Point out concrete mistakes and "
+                                + "risks with the fix for each, and say plainly when something is fine.",
+                        "py_web_search,py_web_read,file_read,file_list,file_search,shell"},
+        };
+        for (String[] t : team) {
+            boolean exists = false;
+            for (Employee x : all) if (x.name.equalsIgnoreCase(t[0])) exists = true;
+            if (exists) continue;
+            Employee e = new Employee();
+            e.id = ++max;
+            e.name = t[0];
+            e.role = t[1];
+            e.instructions = t[2];
+            for (String n : t[3].split(",")) e.tools.add(n.trim());
+            e.providerId = -1;
+            e.enabled = true;
+            e.maxSteps = 30;
+            all.add(e);
+        }
+        write(all);
+        prefs.edit().putBoolean(SEEDED, true).apply();
     }
 
     public synchronized List<Employee> list() {

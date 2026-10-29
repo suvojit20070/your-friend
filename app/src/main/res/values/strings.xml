@@ -917,4 +917,27 @@
     <string name="files_show_more_count">Show %1$d more</string>
     <!-- Hands-free -->
     <string name="handsfree_mic_needed">Microphone permission is needed for hands-free</string>
+    <string name="chat_show_earlier">Show earlier messages</string>
+    <!-- Provider usage (counted by the app) -->
+    <string name="usage_section">Usage</string>
+    <string name="usage_intro">Counted by the app itself for every request (the same way for every provider), not taken from the provider.</string>
+    <string name="usage_none">No requests yet.</string>
+    <string name="usage_line">↑ %1$s in · ↓ %2$s out · %3$d%% ok · %4$s</string>
+    <string name="usage_requests">Requests</string>
+    <string name="usage_requests_value">%1$d total · %2$d ok · %3$d failed · %4$d stopped</string>
+    <string name="usage_tokens">Tokens (own count)</string>
+    <string name="usage_tokens_value">%1$s in · %2$s out · %3$s total</string>
+    <string name="usage_provider_tokens">Tokens the provider reported</string>
+    <string name="usage_provider_none">The provider did not report usage</string>
+    <string name="usage_speed">Speed</string>
+    <string name="usage_speed_value">%1$s tokens/s · first token after %2$s · %3$s per request</string>
+    <string name="usage_errors">Errors by type</string>
+    <string name="usage_no_errors">No errors</string>
+    <string name="usage_last_used">Last used</string>
+    <string name="usage_reset">Reset usage</string>
+    <string name="usage_reset_all">Reset all usage</string>
+    <string name="usage_reset_confirm">Clear the usage counted for %1$s?</string>
+    <string name="usage_deleted_provider">%1$s (deleted)</string>
+    <string name="terminal_banner">Welcome to Your Friend terminal\n\nSessions:  app shell · termux · shizuku · ssh\nKeys:      ↑ ↓ history · TAB complete · CTRL+C stop · CTRL+L clear\nEach command runs as its own process (no vim / top).\n</string>
+    <string name="terminal_ctrl_hint">CTRL: press C, L, D, U or A</string>
 </resources>

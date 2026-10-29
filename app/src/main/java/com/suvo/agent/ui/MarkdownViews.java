@@ -41,7 +41,7 @@ final class MarkdownViews {
         void onSelecting(boolean active);
     }
 
-    private static final int KIND_TEXT = 1, KIND_CODE = 2, KIND_TABLE = 3;
+    private static final int KIND_TEXT = 1, KIND_CODE = 2, KIND_TABLE = 3, KIND_QUOTE = 4;
 
     static void fill(LinearLayout box, List<Markdown.Block> blocks, Markdown.Style st, float textSp, float lineExtraPx,
                      int textColor) {
@@ -53,7 +53,8 @@ final class MarkdownViews {
         for (int i = 0; i < blocks.size(); i++) {
             Markdown.Block b = blocks.get(i);
             View old = i < box.getChildCount() ? box.getChildAt(i) : null;
-            int kind = b.type == Markdown.Block.CODE ? KIND_CODE : b.type == Markdown.Block.TABLE ? KIND_TABLE : KIND_TEXT;
+            int kind = b.type == Markdown.Block.CODE ? KIND_CODE : b.type == Markdown.Block.TABLE ? KIND_TABLE
+                    : b.type == Markdown.Block.QUOTE ? KIND_QUOTE : KIND_TEXT;
             if (old != null && Integer.valueOf(kind).equals(old.getTag(R.id.md_kind))) {
                 String sig = old.getTag(R.id.md_block) == b ? (String) old.getTag(R.id.md_sig) : b.signature();
                 boolean same = sig != null && sig.equals(old.getTag(R.id.md_sig));
@@ -88,6 +89,9 @@ final class MarkdownViews {
             case KIND_TABLE:
                 v = table(ctx, b, st, textSp, textColor);
                 break;
+            case KIND_QUOTE:
+                v = quote(ctx, b, st, textSp, lineExtraPx, selectable, hook);
+                break;
             default:
                 v = text(ctx, b.text, st, textSp, lineExtraPx, textColor, selectable, hook);
                 break;
@@ -118,6 +122,7 @@ final class MarkdownViews {
      * refuse to start a selection ("does not support text selection"); turning it off and on fixes it.
      */
     static void makeSelectable(TextView t, boolean selectable, SelectionHook hook) {
+        Ui.selectionColors(t);
         t.setTextIsSelectable(false);
         if (selectable) {
             t.setTextIsSelectable(true);
@@ -171,6 +176,7 @@ final class MarkdownViews {
         t.setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE);
         t.setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NONE);
         t.setText(text);
+        Ui.selectionColors(t);
         if (selectable) {
             t.setTextIsSelectable(true);
             t.setMovementMethod(SelectLinkMovement.get());
@@ -264,6 +270,7 @@ final class MarkdownViews {
         code.setTextColor(st.codeText != 0 ? st.codeText : pal.onSurface);
         code.setHighlightColor(Palette.alpha(st.marker, 0.28f));
         code.setText(codeText(b));
+        Ui.selectionColors(code);
         code.setTextIsSelectable(true);
         watchSelection(code, hook);
         HorizontalScrollView.LayoutParams clp = new HorizontalScrollView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -290,6 +297,89 @@ final class MarkdownViews {
                 code.setTextIsSelectable(true);
             }
         }
+    }
+
+    // ---- Quote card ------------------------------------------------------------------------------
+
+    /**
+     * A quote as a soft tinted card with a rounded accent stripe; GitHub-style alerts
+     * ("> [!NOTE]", TIP, IMPORTANT, WARNING, CAUTION) get a titled header in their own colour.
+     */
+    private static View quote(Context ctx, Markdown.Block b, Markdown.Style st, float textSp, float lineExtraPx,
+                              boolean selectable, SelectionHook hook) {
+        Palette pal = Palette.of(ctx);
+        int color;
+        int icon = 0;
+        String title = "";
+        switch (b.lang) {
+            case "TIP":
+                color = pal.tertiary;
+                icon = R.drawable.ic_star;
+                title = "Tip";
+                break;
+            case "IMPORTANT":
+                color = pal.primary;
+                icon = R.drawable.ic_shield;
+                title = "Important";
+                break;
+            case "WARNING":
+                color = ctx.getColor(R.color.warning);
+                icon = R.drawable.ic_info;
+                title = "Warning";
+                break;
+            case "CAUTION":
+            case "DANGER":
+                color = pal.error;
+                icon = R.drawable.ic_shield;
+                title = b.lang.equals("DANGER") ? "Danger" : "Caution";
+                break;
+            case "NOTE":
+            case "INFO":
+                color = pal.primary;
+                icon = R.drawable.ic_info;
+                title = b.lang.equals("INFO") ? "Info" : "Note";
+                break;
+            default:
+                color = pal.primary;
+        }
+        LinearLayout card = new LinearLayout(ctx);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setBackground(new TonalDrawable(Palette.alpha(color, pal.dark ? 0.13f : 0.08f), Ui.dp(ctx, 18)));
+
+        View stripe = new View(ctx);
+        stripe.setBackground(new TonalDrawable(color, -1));
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(Ui.dp(ctx, 4), ViewGroup.LayoutParams.MATCH_PARENT);
+        sp.setMargins(Ui.dp(ctx, 10), Ui.dp(ctx, 12), 0, Ui.dp(ctx, 12));
+        card.addView(stripe, sp);
+
+        LinearLayout col = new LinearLayout(ctx);
+        col.setOrientation(LinearLayout.VERTICAL);
+        if (!title.isEmpty()) {
+            LinearLayout head = new LinearLayout(ctx);
+            head.setOrientation(LinearLayout.HORIZONTAL);
+            head.setGravity(Gravity.CENTER_VERTICAL);
+            ImageView iv = new ImageView(ctx);
+            iv.setImageResource(icon);
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(color));
+            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Ui.dp(ctx, 17), Ui.dp(ctx, 17));
+            ip.setMarginEnd(Ui.dp(ctx, 8));
+            head.addView(iv, ip);
+            TextView t = new TextView(ctx, null, 0, R.style.YF_Body);
+            t.setText(title);
+            t.setTextSize(14.5f);
+            t.setTypeface(t.getTypeface(), Typeface.BOLD);
+            t.setTextColor(color);
+            head.addView(t);
+            LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            hp.bottomMargin = Ui.dp(ctx, 6);
+            col.addView(head, hp);
+        }
+        TextView body = text(ctx, b.text, st, Math.max(14f, textSp - 1f), lineExtraPx, Palette.alpha(pal.onSurface, 0.88f), selectable, hook);
+        col.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        cp.setMargins(Ui.dp(ctx, 12), Ui.dp(ctx, 11), Ui.dp(ctx, 14), Ui.dp(ctx, 12));
+        card.addView(col, cp);
+        return card;
     }
 
     // ---- Table -----------------------------------------------------------------------------------

@@ -53,6 +53,8 @@ public abstract class BaseActivity extends Activity {
         // Views added later (list rows, cards built in code) get the theme and the press too —
         // right before the frame that would show them, so they never flash in the old colours.
         content.getViewTreeObserver().addOnGlobalLayoutListener(() -> retintPending = true);
+        // Rows of lists appear while scrolling without a layout pass: theme them as they scroll.
+        content.getViewTreeObserver().addOnScrollChangedListener(ThemeMap::applyLists);
         content.getViewTreeObserver().addOnPreDrawListener(() -> {
             if (retintPending && !isFinishing()) {
                 retintPending = false;

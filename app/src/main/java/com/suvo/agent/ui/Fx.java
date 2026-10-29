@@ -249,6 +249,9 @@ public final class Fx {
     }
 
     private static void walk(View v) {
+        if (v.getTag(R.id.theme_skip) != null) return;
+        // Selectable text handles its own touches (long-press selects): a press effect would eat them.
+        if (v instanceof TextView && ((TextView) v).isTextSelectable()) return;
         if (v instanceof AdapterView || v instanceof EditText || v instanceof CompoundButton
                 || v instanceof android.view.TextureView || v instanceof android.widget.SeekBar
                 || v instanceof com.suvo.agent.character.CharacterView || v instanceof LiquidSlider) {

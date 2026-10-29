@@ -46,7 +46,9 @@ public final class GlassDrawer extends Overlay {
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setClickable(true); // taps on the panel do not reach the scrim
         panel.setTag(R.id.fx_press, Boolean.TRUE); // no press squish on the whole drawer (it drags)
-        panel.setClipChildren(false);
+        // The list must be clipped to the panel: unclipped, scrolled rows were drawn over the header.
+        panel.setClipChildren(true);
+        panel.setClipToOutline(true);
         BackdropDrawable.apply(panel, contentRoot(a), GlassDrawable.Preset.DIALOG, dp(36));
         GlassDrawable.shadow(panel, GlassDrawable.Preset.DIALOG);
         panel.setVisibility(View.INVISIBLE);
@@ -93,7 +95,10 @@ public final class GlassDrawer extends Overlay {
         ScrollView scroll = new ScrollView(a);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
-        scroll.setClipToPadding(false);
+        scroll.setClipToPadding(true);
+        scroll.setClipChildren(true);
+        scroll.setVerticalFadingEdgeEnabled(true);
+        scroll.setFadingEdgeLength(dp(20));
         scroll.addView(list, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams sclp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
         sclp.bottomMargin = dp(12);
