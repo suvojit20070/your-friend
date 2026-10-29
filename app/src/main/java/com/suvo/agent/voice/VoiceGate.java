@@ -79,12 +79,19 @@ public final class VoiceGate {
     private SpeechRecognizer recognizer;
     private volatile FileOutputStream pipeOut;
     private volatile boolean feeding;
-    private boolean audioSourceUnsupported = Build.VERSION.SDK_INT < 33;
+    private volatile boolean audioSourceUnsupported = Build.VERSION.SDK_INT < 33;
     /** The on-device recognizer failed (often: language not available offline); use the normal one. */
     private boolean onDeviceFailed;
     private boolean usingOnDevice;
     /** Sentences fed through the pipe that produced nothing; after two, use the recognizer's own mic. */
     private int pipeMisses;
+    /**
+     * Whether the current sentence was handed to the recognizer through the pipe. Kept per
+     * sentence: the pipe itself is already closed when the result (or error) arrives, so checking
+     * it then always said "not the pipe" — the switch to the recognizer's own microphone never
+     * happened, and on phones whose recognizer ignores the pipe hands-free heard nothing, forever.
+     */
+    private boolean utteranceViaPipe;
 
     public VoiceGate(Context ctx) {
         this.ctx = ctx.getApplicationContext();
@@ -241,6 +248,7 @@ public final class VoiceGate {
         i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         if (!language.isEmpty()) i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, language);
         ParcelFileDescriptor readEnd = null;
+        utteranceViaPipe = false;
         if (!audioSourceUnsupported && Build.VERSION.SDK_INT >= 33) {
             try {
                 ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createPipe();
@@ -251,10 +259,12 @@ public final class VoiceGate {
                 pipeOut = new ParcelFileDescriptor.AutoCloseOutputStream(pipe[1]);
                 feeding = true;
                 readEnd = pipe[0];
+                utteranceViaPipe = true;
                 for (short[] f : head) write(f, f.length);
             } catch (IOException e) {
                 Log.w(TAG, "Audio pipe failed, falling back to the recognizer's microphone", e);
                 audioSourceUnsupported = true;
+                utteranceViaPipe = false;
                 closePipe();
             }
         }
@@ -371,7 +381,7 @@ public final class VoiceGate {
 
         @Override
         public void onError(int error) {
-            boolean usedPipe = feeding || pipeOut != null;
+            boolean usedPipe = utteranceViaPipe;
             closePipe();
             recognizing = false;
             if (!usedPipe) BeepMuter.muteFor(ctx, 800);
@@ -404,13 +414,18 @@ public final class VoiceGate {
 
         @Override
         public void onResults(Bundle results) {
-            boolean usedPipe = feeding || pipeOut != null;
+            boolean usedPipe = utteranceViaPipe;
             closePipe();
             recognizing = false;
             if (!usedPipe) BeepMuter.muteFor(ctx, 800);
             ArrayList<String> r = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             String text = r == null || r.isEmpty() ? "" : r.get(0);
-            if (!text.trim().isEmpty()) pipeMisses = 0;
+            if (!text.trim().isEmpty()) {
+                pipeMisses = 0;
+            } else if (usedPipe && !audioSourceUnsupported && ++pipeMisses >= 2) {
+                audioSourceUnsupported = true;
+                Log.i(TAG, "Empty results from the audio pipe twice; switching to the recognizer's microphone");
+            }
             if (cb != null && !text.trim().isEmpty()) cb.onText(text.trim());
         }
 

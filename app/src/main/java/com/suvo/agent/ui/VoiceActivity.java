@@ -176,13 +176,22 @@ public final class VoiceActivity extends BaseActivity {
         super.onStop();
     }
 
+    /** Hands-free was switched on and is waiting for the microphone permission. */
+    private boolean handsFreeAfterPermission;
+
     private void startHandsFree() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             g.settings.put(Settings.HANDS_FREE, false);
+            handsFreeAfterPermission = true;
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
             return;
         }
-        HandsFreeService.start(this);
+        g.settings.put(Settings.HANDS_FREE, true);
+        if (!HandsFreeService.start(this)) {
+            g.settings.put(Settings.HANDS_FREE, false);
+            Ui.toast(this, R.string.handsfree_mic_needed);
+            build();
+        }
     }
 
     private void serverSection(Rows r) {
@@ -364,9 +373,15 @@ public final class VoiceActivity extends BaseActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_MIC && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        if (requestCode == REQ_MIC && granted) {
             Ui.toast(this, R.string.permission_granted);
+            // The switch asked for the permission: now actually start listening.
+            if (handsFreeAfterPermission) startHandsFree();
+        } else if (requestCode == REQ_MIC && handsFreeAfterPermission) {
+            Ui.toast(this, R.string.handsfree_mic_needed);
         }
+        if (requestCode == REQ_MIC) handsFreeAfterPermission = false;
         build();
     }
 

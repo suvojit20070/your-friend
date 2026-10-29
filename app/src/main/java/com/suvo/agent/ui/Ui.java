@@ -58,12 +58,13 @@ public final class Ui {
     public static void tintAccent(Context ctx, View root) {
         if (root == null) return;
         ThemeMap.apply(root);
-        int c = accent(ctx);
-        applyTint(root, c);
+        Palette pal = Palette.of(ctx);
+        applyTint(root, pal.primary, pal);
         Fx.attachAll(root);
     }
 
-    private static void applyTint(View v, int c) {
+    private static void applyTint(View v, int c, Palette pal) {
+        if (v.getTag(R.id.theme_tint) == pal && !(v instanceof ViewGroup)) return;
         if (v instanceof com.google.android.material.materialswitch.MaterialSwitch) {
             Widgets.styleSwitch((com.google.android.material.materialswitch.MaterialSwitch) v);
         } else if (v instanceof LiquidSlider) {
@@ -73,10 +74,11 @@ public final class Ui {
             // Every boxed text field becomes a glass field (blurs the page when it floats over it).
             Activity act = Overlay.activityOf(v.getContext());
             glassField((EditText) v, act == null ? null : Overlay.contentRoot(act));
-        } else if ("accent".equals(v.getTag())) {
+        } else if ("accent".equals(v.getTag()) && v.getTag(R.id.theme_tint) != pal) {
+            if (!(v instanceof ViewGroup)) v.setTag(R.id.theme_tint, pal);
             if (v instanceof android.widget.ImageButton && v.getBackground() != null) {
                 v.setBackgroundTintList(ColorStateList.valueOf(c));
-                ((android.widget.ImageButton) v).setImageTintList(ColorStateList.valueOf(Palette.of(v.getContext()).onPrimary));
+                ((android.widget.ImageButton) v).setImageTintList(ColorStateList.valueOf(pal.onPrimary));
             } else if (v instanceof CompoundButton) {
                 ((CompoundButton) v).setButtonTintList(ColorStateList.valueOf(c));
             } else if (v instanceof ProgressBar) {
@@ -84,12 +86,12 @@ public final class Ui {
                 ((ProgressBar) v).setProgressTintList(ColorStateList.valueOf(c));
             } else {
                 v.setBackgroundTintList(ColorStateList.valueOf(c));
-                if (v instanceof android.widget.TextView) ((android.widget.TextView) v).setTextColor(Palette.of(v.getContext()).onPrimary);
+                if (v instanceof android.widget.TextView) ((android.widget.TextView) v).setTextColor(pal.onPrimary);
             }
         }
         if (v instanceof ViewGroup) {
             ViewGroup g = (ViewGroup) v;
-            for (int i = 0; i < g.getChildCount(); i++) applyTint(g.getChildAt(i), c);
+            for (int i = 0; i < g.getChildCount(); i++) applyTint(g.getChildAt(i), c, pal);
         }
     }
 

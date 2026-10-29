@@ -8,4 +8,12 @@
     <item name="overlay_insets" type="id" />
     <item name="overlay_owner" type="id" />
     <item name="theme_list" type="id" />
+    <!-- Palette a view was last themed with (skips repeat work on every layout pass). -->
+    <item name="theme_done" type="id" />
+    <item name="theme_tint" type="id" />
+    <!-- Chat: the Markdown block a view shows and the bind signature of a row. -->
+    <item name="md_block" type="id" />
+    <item name="md_kind" type="id" />
+    <item name="md_sig" type="id" />
+    <item name="chat_bound" type="id" />
 </resources>

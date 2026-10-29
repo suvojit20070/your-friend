@@ -61,6 +61,8 @@ public final class HandsFreeService extends Service {
     private AgentListener agentListener;
     private SpeechController.Listener speechListener;
     private boolean waitingForAgent;
+    /** Why it stopped by itself (shown in Voice settings), null when you stopped it. */
+    private String stopReason;
     private int consecutiveErrors;
 
     public static boolean isRunning() {
@@ -75,10 +77,44 @@ public final class HandsFreeService extends Service {
         listeners.remove(l);
     }
 
-    public static void start(Context ctx) {
+    /** True when hands-free may run: consent given and the microphone permission granted. */
+    public static boolean canRun(Context ctx) {
+        AppGraph g = AppGraph.get();
+        return g.settings.bool(Settings.ALLOW_BACKGROUND_LISTENING, false)
+                && ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+    }
+
+    /**
+     * Starts listening. Checks first: a service started with startForegroundService() that stops
+     * before calling startForeground() crashes the app ("did not then call startForeground"),
+     * and Android refuses a microphone foreground service without the permission.
+     */
+    public static boolean start(Context ctx) {
+        if (!canRun(ctx)) return false;
         Intent i = new Intent(ctx, HandsFreeService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ctx.startForegroundService(i);
-        else ctx.startService(i);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) ctx.startForegroundService(i);
+            else ctx.startService(i);
+            return true;
+        } catch (RuntimeException e) {
+            // e.g. ForegroundServiceStartNotAllowedException when the app is not in the foreground.
+            lastStatus = String.valueOf(e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Hands-free was switched on but is not running (the app was closed or updated, or the phone
+     * restarted): start it again. Called when a screen of the app comes to the front, which is the
+     * only time Android lets a microphone service start.
+     */
+    public static void resumeIfWanted(Context ctx) {
+        try {
+            if (running || !AppGraph.get().settings.bool(Settings.HANDS_FREE, false)) return;
+            start(ctx);
+        } catch (RuntimeException ignored) {
+            // App graph not ready yet.
+        }
     }
 
     public static void stop(Context ctx) {
@@ -92,13 +128,12 @@ public final class HandsFreeService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null && ACTION_STOP.equals(intent.getAction())) {
-            stopSelf();
-            return START_NOT_STICKY;
-        }
         AppGraph g = AppGraph.get();
-        if (!g.settings.bool(Settings.ALLOW_BACKGROUND_LISTENING, false)
-                || checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        boolean stopAsked = intent != null && ACTION_STOP.equals(intent.getAction());
+        if (stopAsked) {
+            // Stopped from the notification (a plain service start, already foreground if running):
+            // stays off until switched on again.
+            g.settings.put(Settings.HANDS_FREE, false);
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -122,6 +157,13 @@ public final class HandsFreeService extends Service {
             }
         } catch (RuntimeException e) {
             // Android refused (e.g. started from the background): do not record.
+            stopReason = e.getMessage();
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        // startForeground() has been called, so stopping now is safe.
+        if (!canRun(this)) {
+            stopReason = getString(R.string.handsfree_mic_needed);
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -220,6 +262,10 @@ public final class HandsFreeService extends Service {
                 // Only give up on real failures (no permission, no recognizer); recognition
                 // errors on single sentences just keep listening.
                 if (fatal || consecutiveErrors >= 30) {
+                    // Real failure: switch it off, so the switch shows the truth and it does not
+                    // restart into the same error every time the app opens.
+                    g.settings.put(Settings.HANDS_FREE, false);
+                    stopReason = message;
                     stopSelf();
                 }
             }
@@ -237,7 +283,8 @@ public final class HandsFreeService extends Service {
             if (speechListener != null) g.speech.removeListener(speechListener);
         } catch (IllegalStateException ignored) {
         }
-        publish(getString(R.string.handsfree_stopped));
+        // Keep the reason it stopped visible (Voice settings shows the last status).
+        publish(stopReason == null ? getString(R.string.handsfree_stopped) : getString(R.string.handsfree_stopped) + " — " + stopReason);
         super.onDestroy();
     }
 

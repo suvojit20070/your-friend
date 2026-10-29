@@ -28,6 +28,11 @@ public final class Widgets {
     /** On = primary track, onPrimary thumb; off = tonal track with a muted thumb and outline. */
     public static com.google.android.material.materialswitch.MaterialSwitch styleSwitch(com.google.android.material.materialswitch.MaterialSwitch s) {
         Palette p = Palette.of(s.getContext());
+        // Setting the tints rebuilds the thumb drawable, which requests a new layout; the screen
+        // re-themes after every layout, so doing it again each time kept the screen re-laying out
+        // every frame (laggy switches and lists). Style each switch once per palette.
+        if (s.getTag(R.id.theme_tint) == p) return s;
+        s.setTag(R.id.theme_tint, p);
         int off = p.surfaceHighest;
         int outline = Palette.alpha(p.onSurfaceVariant, 0.75f);
         int disabled = Palette.alpha(p.onSurface, 0.12f);

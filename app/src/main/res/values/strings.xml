@@ -908,4 +908,13 @@
         <item quantity="one">%d message</item>
         <item quantity="other">%d messages</item>
     </plurals>
+    <!-- Side drawer (replaces the More sheet) -->
+    <string name="drawer_this_chat">This chat</string>
+    <string name="drawer_go_to">Go to</string>
+    <string name="drawer_open">Open menu</string>
+    <!-- Files: long folders are shown in pages -->
+    <string name="files_show_more">Show more</string>
+    <string name="files_show_more_count">Show %1$d more</string>
+    <!-- Hands-free -->
+    <string name="handsfree_mic_needed">Microphone permission is needed for hands-free</string>
 </resources>

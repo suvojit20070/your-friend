@@ -15,6 +15,11 @@ public final class ExecResult {
     public final long durationMs;
     /** Backend-level failure (backend unavailable, permission missing...), empty when the command ran. */
     public final String error;
+    /**
+     * Termux only: the command was still running when the wait ended and goes on in the
+     * background as this job (see the termux_job tool). Empty otherwise.
+     */
+    public String jobId = "";
 
     public ExecResult(String backend, int exitCode, String stdout, String stderr, boolean timedOut, boolean cancelled,
                       long durationMs, String error) {
@@ -44,7 +49,11 @@ public final class ExecResult {
         JSONObject o = new JSONObject();
         try {
             o.put("backend", backend).put("exit_code", exitCode).put("duration_ms", durationMs);
-            if (timedOut) o.put("timed_out", true);
+            if (!jobId.isEmpty()) {
+                o.put("still_running", true).put("job_id", jobId);
+            } else if (timedOut) {
+                o.put("timed_out", true);
+            }
             if (cancelled) o.put("cancelled", true);
             if (!error.isEmpty()) o.put("error", error);
             o.put("stdout", com.suvo.agent.core.util.TextUtil.headTail(stdout, maxChars));

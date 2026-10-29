@@ -80,6 +80,17 @@ public final class ChatActivity extends BaseActivity {
         boolean expanded;
         boolean dim;
         String status = "";
+        /** Stable list id (so a row being selected is kept by the list while it updates). */
+        long id;
+        /** First answer of a turn: shows the companion's name above it. */
+        boolean header;
+
+        /** Everything the row shows; a row bound to an item with the same signature is left alone. */
+        int signature() {
+            int h = java.util.Objects.hash(type, key, title, text, detail, status, expanded, dim, time, header);
+            for (Item c : children) h = 31 * h + java.util.Objects.hash(c.key, c.title, c.text, c.status, c.expanded, c.detail.length());
+            return h;
+        }
     }
 
     private final List<Item> items = new ArrayList<>();
@@ -92,6 +103,20 @@ public final class ChatActivity extends BaseActivity {
     private SpeechInput speechInput;
     /** Accordion state that survives list rebuilds while streaming. */
     private final java.util.Set<String> openKeys = new java.util.HashSet<>();
+    /** True while the user selects text in the list: rebuilds and auto-scroll wait until they finish. */
+    private boolean selecting;
+    private boolean reloadPending;
+    /** The last run's error, kept as a card under the conversation until the next message. */
+    private String lastError;
+    private long lastErrorAt;
+    private long lastErrorConversation = -1;
+    private final MarkdownViews.SelectionHook selectionHook = active -> {
+        selecting = active;
+        if (!active && reloadPending) {
+            reloadPending = false;
+            reloadSoon();
+        }
+    };
 
     private final AgentListener agentListener = new AgentListener() {
         @Override
@@ -106,6 +131,8 @@ public final class ChatActivity extends BaseActivity {
                 streamItem = new Item();
                 streamItem.type = STREAM;
                 streamItem.time = System.currentTimeMillis();
+                streamItem.id = Long.MAX_VALUE - 1;
+                streamItem.header = needsHeader(items.size());
                 items.add(streamItem);
                 streamJustStarted = true;
             }
@@ -141,16 +168,12 @@ public final class ChatActivity extends BaseActivity {
         @Override
         public void onFinished(TaskState task) {
             if (task.conversationId != conversationId) return;
-            reload();
             if (task.status != TaskState.Status.COMPLETED && !task.error.isEmpty()) {
-                Item e = new Item();
-                e.type = ERROR;
-                e.text = task.error;
-                e.time = System.currentTimeMillis();
-                items.add(e);
-                adapter.notifyDataSetChanged();
-                scrollToEnd();
+                lastError = task.error;
+                lastErrorAt = System.currentTimeMillis();
+                lastErrorConversation = conversationId;
             }
+            reload();
             updateRunState(null);
             showMemoryChip();
         }
@@ -778,6 +801,7 @@ public final class ChatActivity extends BaseActivity {
         input.setText("");
         pending.clear();
         updateAttachmentHint();
+        lastError = null;
         streamItem = null;
         reload();
         scrollToEnd();
@@ -796,6 +820,11 @@ public final class ChatActivity extends BaseActivity {
     /** Rebuilds the list from the database (the single source of truth). */
     private void reload() {
         uiHandler.removeCallbacks(reloadRunnable);
+        if (selecting) {
+            // Rebuilding now would end the selection the user is making; do it when they finish.
+            reloadPending = true;
+            return;
+        }
         uiHandler.removeCallbacks(streamRender);
         streamRenderQueued = false;
         // Stay where the user is reading if they scrolled up; follow the end only when already there.
@@ -878,8 +907,47 @@ public final class ChatActivity extends BaseActivity {
             }
         }
         groupTools();
+        if (lastError != null && lastErrorConversation == conversationId) {
+            Item e = new Item();
+            e.type = ERROR;
+            e.text = lastError;
+            e.time = lastErrorAt;
+            items.add(e);
+        }
+        assignIds();
         adapter.notifyDataSetChanged();
         if (follow) scrollToEnd();
+    }
+
+    /** Stable ids from what each row is, and the companion's name on the first answer of each turn. */
+    private void assignIds() {
+        java.util.Set<Long> used = new java.util.HashSet<>();
+        for (int i = 0; i < items.size(); i++) {
+            Item it = items.get(i);
+            long id = ((long) it.type << 58) ^ (it.time * 1_000_003L) ^ (it.key.hashCode() * 31L);
+            while (!used.add(id)) id++;
+            it.id = id;
+            it.header = it.type == ASSISTANT && needsHeader(i);
+        }
+    }
+
+    /** True when no answer was shown since the last message of yours before {@code index}. */
+    private boolean needsHeader(int index) {
+        for (int i = index - 1; i >= 0; i--) {
+            int t = items.get(i).type;
+            if (t == USER) return true;
+            if (t == ASSISTANT || t == STREAM) return false;
+        }
+        return true;
+    }
+
+    private String companionName() {
+        try {
+            CharacterSpec c = g.characters.active();
+            if (c != null && c.name != null && !c.name.trim().isEmpty()) return c.name.trim();
+        } catch (RuntimeException ignored) {
+        }
+        return getString(R.string.app_name);
     }
 
     /** Consecutive tool calls become one "N tools" card that opens like an accordion. */
@@ -946,7 +1014,7 @@ public final class ChatActivity extends BaseActivity {
         public void run() {
             streamRenderQueued = false;
             lastStreamRender = android.os.SystemClock.uptimeMillis();
-            boolean follow = streamJustStarted || !list.canScrollVertically(1);
+            boolean follow = !selecting && (streamJustStarted || !list.canScrollVertically(1));
             streamJustStarted = false;
             adapter.notifyDataSetChanged();
             if (follow) scrollToEnd();
@@ -979,28 +1047,6 @@ public final class ChatActivity extends BaseActivity {
         });
     }
 
-    /** The whole message in a sheet where any part can be selected and copied. */
-    private void selectTextSheet(Item it) {
-        TextView t = new TextView(this, null, 0, R.style.YF_Body);
-        if (it.type == ASSISTANT) {
-            if (mdStyle == null) mdStyle = Markdown.styleFor(this);
-            t.setText(Markdown.render(it.text, mdStyle));
-        } else {
-            t.setText(it.text);
-        }
-        t.setTextSize(16f);
-        t.setTextIsSelectable(true);
-        t.setMovementMethod(SelectLinkMovement.get());
-        t.setLinkTextColor(Ui.accent(this));
-        android.widget.ScrollView sv = new android.widget.ScrollView(this);
-        sv.addView(t);
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-                Math.min(Ui.dp(this, 460), (int) (getResources().getDisplayMetrics().heightPixels * 0.6f))));
-        Fx.sheet(this, getString(R.string.chat_select_text), box);
-    }
-
     private static String toolsText(Item group) {
         StringBuilder sb = new StringBuilder();
         for (Item c : group.children) sb.append(c.title).append(" — ").append(c.text).append('\n').append(c.detail).append("\n\n");
@@ -1010,13 +1056,11 @@ public final class ChatActivity extends BaseActivity {
     private void itemMenu(Item it) {
         List<String> opts = new ArrayList<>();
         opts.add(getString(R.string.copy));
-        if (it.type == ASSISTANT || it.type == USER) opts.add(getString(R.string.chat_select_text));
         if (it.type == ASSISTANT) opts.add(getString(R.string.speak));
         if (it.type == USER || it.type == ERROR) opts.add(getString(R.string.retry));
         Ui.show(Ui.dialog(this).setItems(opts.toArray(new String[0]), (d, which) -> {
             String o = opts.get(which);
             if (o.equals(getString(R.string.copy))) Ui.copy(this, it.type == TOOL ? it.detail : it.type == TOOLS ? toolsText(it) : it.text);
-            else if (o.equals(getString(R.string.chat_select_text))) selectTextSheet(it);
             else if (o.equals(getString(R.string.speak))) g.speech.speak(it.text);
             else if (o.equals(getString(R.string.retry))) {
                 if (it.type == USER) submit(it.text);
@@ -1116,36 +1160,25 @@ public final class ChatActivity extends BaseActivity {
         });
     }
 
+    /**
+     * The side drawer (glass, like the dialogs): this chat's actions on top, then every section
+     * of the app. It replaced the "more" popover menu.
+     */
     private void showMenu() {
         com.suvo.agent.core.llm.ProviderConfig p = g.providers.active();
-        String[] items = {
-                getString(R.string.chat_new),
-                getString(R.string.chat_switch_character),
-                getString(R.string.chat_thinking) + (p == null ? "" : ": " + thinkingLabel(p.reasoningEffort)),
-                getString(R.string.section_agent),
-                getString(R.string.section_settings)};
-        int[] icons = {R.drawable.ic_add, R.drawable.ic_character, R.drawable.ic_lesson, R.drawable.ic_agent, R.drawable.ic_settings};
-        List<Fx.Item> menu = new ArrayList<>();
-        for (int i = 0; i < items.length; i++) menu.add(new Fx.Item(items[i], icons[i], false));
-        Fx.menu(this, findViewById(R.id.chat_menu), null, menu, which -> {
-            switch (which) {
-                case 0:
-                    conversationId = g.agent.newConversation();
-                    reload();
-                    break;
-                case 1:
-                    switchCharacter();
-                    break;
-                case 2:
-                    pickThinking();
-                    break;
-                case 3:
-                    open(LiveAgentActivity.class);
-                    break;
-                default:
-                    open(SettingsActivity.class);
-            }
+        GlassDrawer d = Nav.drawer(this);
+        d.section(getString(R.string.drawer_this_chat));
+        d.item(R.drawable.ic_add, getString(R.string.chat_new), false, () -> {
+            conversationId = g.agent.newConversation();
+            lastError = null;
+            reload();
         });
+        d.item(R.drawable.ic_history, getString(R.string.chat_history), false, this::showHistory);
+        d.item(R.drawable.ic_character, getString(R.string.chat_switch_character), false, this::switchCharacter);
+        d.item(R.drawable.ic_lesson, getString(R.string.chat_thinking) + (p == null ? "" : ": " + thinkingLabel(p.reasoningEffort)),
+                false, this::pickThinking);
+        d.item(R.drawable.ic_provider, getString(R.string.section_providers), false, this::pickProvider);
+        Nav.addSections(this, d).show();
     }
 
     static final String[] THINKING_VALUES = {"", "none", "low", "medium", "high"};
@@ -1252,6 +1285,24 @@ public final class ChatActivity extends BaseActivity {
         return b;
     }
 
+    /** A streaming answer: the same blocks (no syntax colours yet) with a caret after the last text. */
+    private List<Markdown.Block> streamBlocks(String src) {
+        List<Markdown.Block> blocks = Markdown.blocks(src, mdStyle, false);
+        Markdown.Block caret = new Markdown.Block();
+        caret.type = Markdown.Block.TEXT;
+        android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
+        if (!blocks.isEmpty() && blocks.get(blocks.size() - 1).type == Markdown.Block.TEXT) {
+            sb.append(blocks.remove(blocks.size() - 1).text);
+            sb.append(' ');
+        }
+        int s0 = sb.length();
+        sb.append('\u258D');
+        sb.setSpan(new android.text.style.ForegroundColorSpan(mdStyle.marker), s0, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        caret.text = new android.text.SpannedString(sb);
+        blocks.add(caret);
+        return blocks;
+    }
+
     private final class Adapter extends BaseAdapter {
         @Override
         public int getCount() {
@@ -1265,13 +1316,28 @@ public final class ChatActivity extends BaseActivity {
 
         @Override
         public long getItemId(int position) {
-            return position;
+            return items.get(position).id;
+        }
+
+        @Override
+        public boolean hasStableIds() {
+            // With stable ids the list keeps a row whose text is being selected (transient state).
+            return true;
         }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            View v = convertView != null ? convertView : getLayoutInflater().inflate(R.layout.item_message, parent, false);
             Item it = items.get(position);
+            if (convertView != null) {
+                Object bound = convertView.getTag(R.id.chat_bound);
+                if (bound instanceof long[] && ((long[]) bound)[0] == it.id && ((long[]) bound)[1] == it.signature()) {
+                    // Same row, same content: leave it as it is (keeps a text selection and scroll).
+                    return convertView;
+                }
+            }
+            View v = convertView != null ? convertView : getLayoutInflater().inflate(R.layout.item_message, parent, false);
+            v.setTag(R.id.chat_bound, new long[]{it.id, it.signature()});
+            Palette pal = Palette.of(ChatActivity.this);
             LinearLayout row = v.findViewById(R.id.msg_row);
             LinearLayout bubble = v.findViewById(R.id.msg_bubble);
             TextView title = v.findViewById(R.id.msg_title);
@@ -1287,7 +1353,6 @@ public final class ChatActivity extends BaseActivity {
             LinearLayout toolsBox = v.findViewById(R.id.msg_tools);
             LinearLayout mdBox = v.findViewById(R.id.msg_md);
             mdBox.setVisibility(View.GONE);
-            mdBox.removeAllViews();
             chevron.setVisibility(View.GONE);
             chevron.animate().cancel();
             toolsBox.setVisibility(View.GONE);
@@ -1297,7 +1362,9 @@ public final class ChatActivity extends BaseActivity {
             bubble.setClickable(false);
             bubble.setLongClickable(false);
             text.setVisibility(View.VISIBLE);
-            text.setTextColor(getColor(R.color.text_primary));
+            text.setMaxLines(Integer.MAX_VALUE);
+            title.setTextSize(13f);
+            text.setTextColor(pal.onSurface);
             text.setTextSize(16f);
             text.setLineSpacing(Ui.dp(ChatActivity.this, 5), 1f);
             row.setGravity(Gravity.START);
@@ -1306,7 +1373,6 @@ public final class ChatActivity extends BaseActivity {
             int padH = Ui.dp(ChatActivity.this, 16), padV = Ui.dp(ChatActivity.this, 11);
             bubble.setPadding(padH, padV, padH, padV);
             bubble.setBackgroundTintList(null);
-            Palette pal = Palette.of(ChatActivity.this);
             switch (it.type) {
                 case USER:
                     // Soft primary-tinted bubble on the right with a small tail at the bottom-end.
@@ -1364,42 +1430,40 @@ public final class ChatActivity extends BaseActivity {
             boolean prose = it.type == ASSISTANT || it.type == STREAM;
             if (prose) {
                 if (mdStyle == null) mdStyle = Markdown.styleFor(ChatActivity.this);
+                if (it.header) {
+                    // The companion's name above the first answer of a turn, in the theme's primary.
+                    title.setVisibility(View.VISIBLE);
+                    title.setText("\u2726  " + companionName());
+                    title.setTextColor(pal.primary);
+                    title.setTextSize(13f);
+                }
                 // Thinking a proxy left inside the text (<thought>…</thought>) is not part of the answer.
                 String[] parts = com.suvo.agent.core.llm.ThinkTags.split(it.text);
                 if (it.type == STREAM && parts[1].isEmpty() && !parts[0].isEmpty()) {
                     text.setText(getString(R.string.status_thinking));
-                    text.setTextColor(Palette.of(ChatActivity.this).onSurfaceVariant);
-                } else if (it.type == STREAM) {
-                    // Still streaming: one cheap styled text (code and tables as monospace text).
-                    CharSequence md = Markdown.render(parts[1], mdStyle);
-                    text.setText(new android.text.SpannableStringBuilder(md).append(" ▍"));
+                    text.setTextColor(pal.onSurfaceVariant);
                 } else {
-                    // Finished answer: text, code blocks (scroll sideways, copy button) and tables as views.
-                    List<Markdown.Block> blocks = blocksFor(parts[1]);
-                    boolean simple = blocks.isEmpty() || (blocks.size() == 1 && blocks.get(0).type == Markdown.Block.TEXT);
-                    if (simple) {
-                        text.setText(blocks.isEmpty() ? "" : blocks.get(0).text);
-                    } else {
-                        text.setText("");
-                        text.setVisibility(View.GONE);
-                        mdBox.setVisibility(View.VISIBLE);
-                        MarkdownViews.fill(mdBox, blocks, mdStyle, 17f, Ui.dp(ChatActivity.this, 6.5f), getColor(R.color.text_primary));
-                    }
+                    // Text, code cards and tables as views; a still-streaming answer uses the same
+                    // views (updated in place), so nothing jumps when it finishes.
+                    List<Markdown.Block> blocks = it.type == STREAM ? streamBlocks(parts[1]) : blocksFor(parts[1]);
+                    text.setText("");
+                    text.setVisibility(View.GONE);
+                    mdBox.setVisibility(View.VISIBLE);
+                    MarkdownViews.fill(mdBox, blocks, mdStyle, 17f, Ui.dp(ChatActivity.this, 6.5f), pal.onSurface,
+                            it.type != STREAM, selectionHook);
                 }
             } else if (it.type != TOOLS) {
                 text.setText(it.text);
             }
             // Message text (answers and your own messages) can be selected and copied; links in
             // answers still open on a tap.
-            boolean selectable = (prose || it.type == USER || it.type == NOTICE) && it.type != STREAM;
-            text.setTextIsSelectable(selectable);
+            boolean selectable = (it.type == USER || it.type == NOTICE) && text.getVisibility() == View.VISIBLE;
+            text.setLinkTextColor(pal.primary);
+            text.setHighlightColor(Palette.alpha(pal.primary, 0.28f));
             if (selectable) {
-                text.setLinkTextColor(Ui.accent(ChatActivity.this));
-                text.setMovementMethod(SelectLinkMovement.get());
-                text.setFocusable(true);
-                text.setFocusableInTouchMode(true);
-                text.setLongClickable(true);
+                MarkdownViews.makeSelectable(text, true, selectionHook);
             } else {
+                text.setTextIsSelectable(false);
                 text.setMovementMethod(null);
                 text.setFocusable(false);
             }

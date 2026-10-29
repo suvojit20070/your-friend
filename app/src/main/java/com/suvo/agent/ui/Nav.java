@@ -25,8 +25,11 @@ public final class Nav {
             {R.drawable.ic_chat, R.string.section_chat},
             {R.drawable.ic_agent, R.string.section_agent},
             {R.drawable.ic_memory, R.string.section_memory},
-            {R.drawable.ic_more, R.string.section_more},
+            {R.drawable.ic_menu, R.string.section_more},
     };
+
+    /** Screens of the first four nav items (the fifth opens the drawer). */
+    static final Class<?>[] PRIMARY_SCREENS = {MainActivity.class, ChatActivity.class, LiveAgentActivity.class, MemoryActivity.class};
 
     /**
      * Floating pill navigation: the selected section shows its icon and label on a soft accent
@@ -109,24 +112,38 @@ public final class Nav {
             {R.drawable.ic_info, R.string.section_about, AboutActivity.class},
     };
 
-    /** Frosted bottom sheet with every section as a tile. */
-    @SuppressWarnings("unchecked")
+    /** The side drawer with every section (it replaced the "More" sheet). */
     public static void showMore(Activity a) {
-        GridLayout grid = new GridLayout(a);
-        grid.setColumnCount(3);
-        final Overlay[] sheet = new Overlay[1];
-        for (Object[] m : MORE) {
-            View tile = Fx.tile(a, (Integer) m[0], a.getString((Integer) m[1]), v -> {
-                if (sheet[0] != null) sheet[0].dismiss();
-                a.startActivity(new Intent(a, (Class<? extends Activity>) m[2]));
-            });
-            GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
-            lp.width = 0;
-            lp.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
-            lp.setMargins(Ui.dp(a, 5), Ui.dp(a, 5), Ui.dp(a, 5), Ui.dp(a, 5));
-            grid.addView(tile, lp);
+        addSections(a, drawer(a)).show();
+    }
+
+    /** A drawer with the app header; screens can add their own rows, then {@link #addSections}. */
+    public static GlassDrawer drawer(Activity a) {
+        String sub = "";
+        try {
+            com.suvo.agent.character.CharacterSpec c = com.suvo.agent.AppGraph.get().characters.active();
+            if (c != null && c.name != null) sub = c.name;
+        } catch (RuntimeException ignored) {
         }
-        sheet[0] = Fx.sheet(a, a.getString(R.string.section_more), grid);
+        GlassDrawer d = new GlassDrawer(a, a.getString(R.string.app_name), sub);
+        return d;
+    }
+
+    /** Every section of the app; the screen you are on is highlighted. */
+    @SuppressWarnings("unchecked")
+    public static GlassDrawer addSections(Activity a, GlassDrawer d) {
+        d.section(a.getString(R.string.drawer_go_to));
+        for (int i = 0; i < PRIMARY_SCREENS.length; i++) {
+            final int idx = i;
+            boolean current = a.getClass() == PRIMARY_SCREENS[i];
+            d.item(PRIMARY[i][0], a.getString(PRIMARY[i][1]), current, current ? null : () -> go(a, idx, -1));
+        }
+        for (Object[] m : MORE) {
+            Class<? extends Activity> cls = (Class<? extends Activity>) m[2];
+            boolean current = a.getClass() == cls;
+            d.item((Integer) m[0], a.getString((Integer) m[1]), current, current ? null : () -> a.startActivity(new Intent(a, cls)));
+        }
+        return d;
     }
 
     /** Builds a status chip (used on Home). */

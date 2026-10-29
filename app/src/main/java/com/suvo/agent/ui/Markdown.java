@@ -2,6 +2,8 @@ package com.suvo.agent.ui;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.view.View;
 import android.text.Layout;
@@ -13,6 +15,8 @@ import android.text.style.BackgroundColorSpan;
 import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.LeadingMarginSpan;
+import android.text.style.LineBackgroundSpan;
+import android.text.style.MetricAffectingSpan;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StrikethroughSpan;
 import android.text.style.StyleSpan;
@@ -20,7 +24,10 @@ import android.text.style.TypefaceSpan;
 import android.text.style.URLSpan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,27 +35,44 @@ import java.util.regex.Pattern;
  * Your Friend — Original project by Suvo.
  *
  * Markdown renderer for chat: headings, bold, italic, strikethrough, inline code, fenced code
- * blocks, bullet / numbered / task lists (nested by indent, wrapped lines stay aligned), block
- * quotes, links, horizontal rules and tables. Unknown syntax is left as plain text, so nothing the
- * model writes is ever lost.
+ * blocks (with light syntax colours), bullet / numbered / task lists (nested by indent, wrapped
+ * lines stay aligned), block quotes, links, horizontal rules and tables. Unknown syntax is left as
+ * plain text, so nothing the model writes is ever lost.
+ *
+ * Every colour comes from the app's tonal {@link Palette} (the seed the user picked, or the
+ * wallpaper), so answers follow the theme: headings in the serif face and primary colour, list
+ * markers drawn in primary, quotes on a soft primary tint, code on a tonal card.
  *
  * Two ways to use it:
  * <ul>
- *   <li>{@link #render} gives one {@link CharSequence} (code blocks and tables are monospace text).
- *       Cheap; used while an answer is still streaming and in the "select text" sheet.</li>
+ *   <li>{@link #render} gives one {@link CharSequence} (code blocks and tables are monospace text).</li>
  *   <li>{@link #blocks} splits the answer into text, code and table blocks so the chat can show
  *       code with its own horizontal scroll and a copy button, and tables as real grids.</li>
  * </ul>
  */
 public final class Markdown {
 
-    /** Colors used for code and quotes; chosen by the caller for light/dark theme. */
+    /** Colours and faces used by the renderer; {@link #styleFor} fills them from the palette. */
     public static final class Style {
         public int codeBackground = 0x22888888;
         public int codeText = 0;
+        public int inlineCodeBackground = 0x22888888;
+        public int inlineCodeText = 0;
         public int quoteStripe = 0xFF7C5CFF;
+        public int quoteBackground = 0x147C5CFF;
         public int link = 0;
         public int muted = 0x99888888;
+        public int heading = 0;
+        public int marker = 0xFF7C5CFF;
+        public int onMarker = 0xFFFFFFFF;
+        public int rule = 0x55888888;
+        public int keyword = 0;
+        public int string = 0;
+        public int comment = 0;
+        public int number = 0;
+        public int type = 0;
+        /** Serif face for headings (null = the text's own face). */
+        public Typeface headingFont;
         public float density = 2f;
     }
 
@@ -61,9 +85,29 @@ public final class Markdown {
         /** CODE: language label (may be empty) and the code itself. */
         public String lang = "";
         public String code = "";
+        /** CODE: the code with syntax colours (null when not highlighted, e.g. while streaming). */
+        public CharSequence styledCode;
         /** TABLE: rows of styled cells, the first row is the header; align per column: 0 left, 1 centre, 2 right. */
         public List<CharSequence[]> rows = new ArrayList<>();
         public int[] align = new int[0];
+
+        /** Text that identifies the content (used to skip rebuilding a view that shows the same thing). */
+        public String signature() {
+            switch (type) {
+                case CODE:
+                    return "c:" + lang + "\u0000" + code + (styledCode != null ? "\u0001" : "");
+                case TABLE: {
+                    StringBuilder sb = new StringBuilder("t:");
+                    for (CharSequence[] r : rows) {
+                        for (CharSequence c : r) sb.append(c).append('\u0002');
+                        sb.append('\u0003');
+                    }
+                    return sb.toString();
+                }
+                default:
+                    return "x:" + text;
+            }
+        }
     }
 
     // Kinds of block, used to decide the spacing between them.
@@ -77,36 +121,70 @@ public final class Markdown {
     private static final Pattern RULE_RE = Pattern.compile("^\\s*([-*_])(\\s*\\1){2,}\\s*$");
     private static final Pattern TABLE_SEP = Pattern.compile("^\\s*\\|?\\s*:?-{1,}:?\\s*(\\|\\s*:?-{1,}:?\\s*)*\\|?\\s*$");
 
+    /** Marker kinds drawn by {@link ListSpan}. */
+    static final int DOT = 0, RING = 1, SQUARE = 2, NUMBER = 3, BOX = 4, BOX_DONE = 5;
+
     private Markdown() {
     }
 
-    /** Theme-aware style for chat bubbles. */
+    /** Theme-aware style for the chat, from the current palette. */
     public static Style styleFor(android.content.Context ctx) {
+        Palette p = Palette.of(ctx);
         Style st = new Style();
-        st.codeBackground = ctx.getColor(com.suvo.agent.R.color.code_bg);
-        st.codeText = ctx.getColor(com.suvo.agent.R.color.code_text);
-        st.quoteStripe = Ui.accent(ctx);
-        st.link = Ui.accent(ctx);
-        st.muted = ctx.getColor(com.suvo.agent.R.color.text_secondary);
+        st.codeBackground = p.surfaceHigh;
+        st.codeText = p.onSurface;
+        st.inlineCodeBackground = Palette.alpha(p.primary, p.dark ? 0.20f : 0.12f);
+        st.inlineCodeText = p.dark ? p.onPrimaryContainer : p.primary;
+        st.quoteStripe = p.primary;
+        st.quoteBackground = Palette.alpha(p.primary, p.dark ? 0.10f : 0.07f);
+        st.link = p.primary;
+        st.muted = p.onSurfaceVariant;
+        st.heading = p.primary;
+        st.marker = p.primary;
+        st.onMarker = p.onPrimary;
+        st.rule = Palette.alpha(p.outlineVariant, 0.9f);
+        st.keyword = p.primary;
+        st.string = p.tertiary;
+        st.comment = Palette.alpha(p.onSurfaceVariant, 0.75f);
+        st.number = hueShift(p.primary, -150f);
+        st.type = Palette.alpha(p.tertiary, 0.9f);
+        try {
+            st.headingFont = androidx.core.content.res.ResourcesCompat.getFont(ctx, com.suvo.agent.R.font.anthropic_serif);
+        } catch (RuntimeException e) {
+            st.headingFont = null;
+        }
         st.density = ctx.getResources().getDisplayMetrics().density;
         return st;
     }
 
-    /** Everything as one styled text (code blocks and tables as monospace text). */
-    public static CharSequence render(String src, Style st) {
-        return build(src, st, null);
+    /** The colour with its hue turned by {@code deg} (same lightness feel), for a distinct code colour. */
+    private static int hueShift(int color, float deg) {
+        float[] hsv = new float[3];
+        android.graphics.Color.colorToHSV(color, hsv);
+        hsv[0] = ((hsv[0] + deg) % 360f + 360f) % 360f;
+        return android.graphics.Color.HSVToColor(android.graphics.Color.alpha(color), hsv);
     }
 
-    /** The answer split into text, code and table blocks. */
+    /** Everything as one styled text (code blocks and tables as monospace text). */
+    public static CharSequence render(String src, Style st) {
+        return build(src, st, null, false);
+    }
+
+    /** The answer split into text, code and table blocks, code with syntax colours. */
     public static List<Block> blocks(String src, Style st) {
+        return blocks(src, st, true);
+    }
+
+    /** As {@link #blocks(String, Style)}; {@code highlight} false skips syntax colours (cheaper while streaming). */
+    public static List<Block> blocks(String src, Style st, boolean highlight) {
         List<Block> blocks = new ArrayList<>();
-        build(src, st, blocks);
+        build(src, st, blocks, highlight);
         return blocks;
     }
 
     // ---- Block parser ----------------------------------------------------------------------------
 
-    private static CharSequence build(String src, Style st, List<Block> blocks) {
+    private static CharSequence build(String src, Style st, List<Block> blocks, boolean highlight) {
         SpannableStringBuilder out = new SpannableStringBuilder();
         if (src == null || src.isEmpty()) return out;
         String[] lines = src.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
@@ -138,6 +216,7 @@ public final class Markdown {
                     b.type = Block.CODE;
                     b.lang = lang;
                     b.code = code.toString();
+                    if (highlight) b.styledCode = CodeColors.highlight(b.code, lang, st);
                     blocks.add(b);
                 } else {
                     gap(out, prev, CODE, blank);
@@ -198,8 +277,8 @@ public final class Markdown {
             if (RULE_RE.matcher(line).matches()) {
                 gap(out, prev, RULE, blank);
                 int s = out.length();
-                out.append("────────────");
-                out.setSpan(new ForegroundColorSpan(st.muted), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                out.append(' ');
+                out.setSpan(new RuleSpan(st.rule, st.density), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 prev = RULE;
                 lastItem = null;
             } else if (h.matches()) {
@@ -207,9 +286,14 @@ public final class Markdown {
                 int level = h.group(1).length();
                 int s = out.length();
                 inline(out, h.group(2), st);
-                float size = level == 1 ? 1.35f : level == 2 ? 1.22f : level == 3 ? 1.1f : 1.0f;
+                float size = level == 1 ? 1.38f : level == 2 ? 1.24f : level == 3 ? 1.12f : 1.0f;
                 out.setSpan(new RelativeSizeSpan(size), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 out.setSpan(new StyleSpan(Typeface.BOLD), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                if (st.headingFont != null && level <= 3) {
+                    out.setSpan(new FontSpan(st.headingFont), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+                int color = level <= 2 ? st.heading : 0;
+                if (color != 0) out.setSpan(new ForegroundColorSpan(color), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 prev = HEAD;
                 lastItem = null;
             } else if (b.matches() || n.matches()) {
@@ -218,20 +302,32 @@ public final class Markdown {
                 int depth = indentDepth(ws);
                 gap(out, prev, LIST, blank);
                 int s = out.length();
-                String marker;
+                int kind;
+                String label = "";
                 String body;
+                boolean done = false;
                 if (bullet) {
                     String box = b.group(3);
-                    marker = box == null ? (depth % 2 == 0 ? "•" : "◦") : (box.trim().isEmpty() ? "☐" : "☑");
+                    if (box == null) {
+                        kind = depth % 3 == 0 ? DOT : depth % 3 == 1 ? RING : SQUARE;
+                    } else {
+                        done = !box.trim().isEmpty();
+                        kind = done ? BOX_DONE : BOX;
+                    }
                     body = b.group(4);
                 } else {
-                    marker = n.group(2) + ".";
+                    kind = NUMBER;
+                    label = n.group(2) + ".";
                     body = n.group(3);
                 }
                 inline(out, body, st);
                 if (out.length() == s) out.append(' ');
-                float indent = marker.length() > 3 ? 34 : bullet ? 22 : 28;
-                lastItem = new ListSpan(marker, st.density, depth * 20 + indent, depth * 20, st.muted);
+                if (done) {
+                    out.setSpan(new StrikethroughSpan(), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    out.setSpan(new ForegroundColorSpan(st.muted), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+                float indent = kind == NUMBER ? (label.length() > 3 ? 34 : 28) : kind >= BOX ? 30 : 22;
+                lastItem = new ListSpan(kind, label, st.density, depth * 20 + indent, depth * 20, st.marker, st.onMarker);
                 lastItemStart = s;
                 out.setSpan(lastItem, s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 prev = LIST;
@@ -240,7 +336,17 @@ public final class Markdown {
                 int s = out.length();
                 inline(out, q.group(1), st);
                 if (out.length() == s) out.append(' ');
-                out.setSpan(new QuoteBar(st.quoteStripe, st.density), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                // One span over all consecutive quote lines, so the tinted block has rounded ends.
+                QuoteBar bar = null;
+                QuoteBar[] near = s >= 2 ? out.getSpans(s - 2, s - 1, QuoteBar.class) : new QuoteBar[0];
+                if (prev == QUOTE && near.length > 0) bar = near[near.length - 1];
+                if (bar != null) {
+                    int bs = out.getSpanStart(bar);
+                    out.removeSpan(bar);
+                    out.setSpan(bar, bs, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                } else {
+                    out.setSpan(new QuoteBar(st.quoteStripe, st.quoteBackground, st.density), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
                 out.setSpan(new ForegroundColorSpan(st.muted), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 prev = QUOTE;
                 lastItem = null;
@@ -280,12 +386,13 @@ public final class Markdown {
         boolean together = (kind == prev && (kind == LIST || kind == QUOTE || kind == PARA))
                 || (prev == HEAD && !blank)
                 || (prev == PARA && kind == LIST && !blank);
+        if (kind == QUOTE && prev == QUOTE) together = true; // a quote stays one block
         out.append('\n');
-        if (together && !blank) return;
+        if (together && !(blank && kind != QUOTE)) return;
         int s = out.length();
         out.append('\n');
         // The extra line is half height, so paragraphs are separated without big holes.
-        out.setSpan(new RelativeSizeSpan(0.55f), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        out.setSpan(new RelativeSizeSpan(kind == HEAD ? 0.75f : 0.55f), s, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
     }
 
     private static int indentDepth(String ws) {
@@ -400,8 +507,10 @@ public final class Markdown {
                     int st0 = out.length();
                     out.append(s.substring(i + ticks, end).trim());
                     out.setSpan(new TypefaceSpan("monospace"), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    out.setSpan(new BackgroundColorSpan(st.codeBackground), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    if (st.codeText != 0) out.setSpan(new ForegroundColorSpan(st.codeText), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    out.setSpan(new RelativeSizeSpan(0.92f), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    out.setSpan(new BackgroundColorSpan(st.inlineCodeBackground), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    int fg = st.inlineCodeText != 0 ? st.inlineCodeText : st.codeText;
+                    if (fg != 0) out.setSpan(new ForegroundColorSpan(fg), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     i = end + ticks;
                     continue;
                 }
@@ -467,9 +576,9 @@ public final class Markdown {
                         // A button that opens a screen of this app: [Open Voice](yf://open/voice)
                         String key = url.substring(url.lastIndexOf('/') + 1);
                         int b0 = out.length();
-                        out.append('\u00A0');
+                        out.append(' ');
                         inline(out, label.isEmpty() ? key : label, st);
-                        out.append(" \u2197\u00A0");
+                        out.append(" ↗ ");
                         if (AppScreens.find(key) != null) {
                             int accent = st.link != 0 ? st.link : 0xFF7C5CFF;
                             out.setSpan(new AppLink(key, accent), b0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -526,25 +635,186 @@ public final class Markdown {
         }
     }
 
+    // ---- Code colours ----------------------------------------------------------------------------
+
+    /**
+     * Small, language-agnostic syntax colouring: comments, strings, numbers, keywords, types
+     * (Capitalised words) and annotations. Good enough for chat; never changes the text.
+     */
+    static final class CodeColors {
+        private static final int MAX = 24_000;
+        private static final Set<String> KEYWORDS = new HashSet<>(Arrays.asList(
+                "abstract", "and", "as", "async", "await", "break", "case", "catch", "class", "const", "continue", "def",
+                "default", "del", "do", "elif", "else", "enum", "except", "export", "extends", "false", "final", "finally",
+                "fn", "for", "from", "func", "function", "global", "go", "if", "impl", "implements", "import", "in",
+                "include", "instanceof", "interface", "is", "lambda", "let", "match", "mod", "module", "mut", "namespace",
+                "new", "nil", "none", "None", "not", "null", "nullptr", "or", "override", "package", "pass", "private",
+                "protected", "pub", "public", "raise", "return", "self", "static", "struct", "super", "switch", "synchronized",
+                "this", "throw", "throws", "trait", "True", "False", "true", "try", "type", "typedef", "typeof", "use",
+                "using", "val", "var", "void", "volatile", "when", "where", "while", "with", "yield", "int", "long", "float",
+                "double", "char", "boolean", "bool", "byte", "short", "string", "auto", "unsigned", "signed", "virtual",
+                "template", "typename", "echo", "then", "fi", "esac", "done", "local", "readonly", "unset", "elsif",
+                "end", "begin", "select", "insert", "update", "delete", "create", "table", "values", "into", "join", "on",
+                "group", "order", "by", "limit", "having", "union", "set", "drop", "alter", "suspend", "inline", "constexpr"));
+        private static final Set<String> HASH = new HashSet<>(Arrays.asList(
+                "py", "python", "python3", "sh", "bash", "shell", "zsh", "console", "yaml", "yml", "toml", "rb", "ruby", "r",
+                "perl", "pl", "dockerfile", "docker", "makefile", "make", "cmake", "conf", "properties", "ps1", "powershell",
+                "nix", "elixir", "ex", "gitignore", "env", "ini"));
+        private static final Set<String> NO_SLASH = new HashSet<>(Arrays.asList(
+                "py", "python", "python3", "sh", "bash", "shell", "zsh", "console", "yaml", "yml", "toml", "rb", "ruby", "r",
+                "json", "ini", "properties", "conf", "sql", "html", "xml", "md", "markdown", "text", "txt", "csv", "env"));
+
+        private CodeColors() {
+        }
+
+        static CharSequence highlight(String code, String lang, Style st) {
+            if (code == null || code.isEmpty() || code.length() > MAX) return code == null ? "" : code;
+            String l = lang == null ? "" : lang.toLowerCase(java.util.Locale.ROOT);
+            if (l.equals("text") || l.equals("txt") || l.equals("plain") || l.equals("output") || l.equals("log")) return code;
+            boolean hash = HASH.contains(l) || l.isEmpty() && code.startsWith("#!");
+            boolean slash = !NO_SLASH.contains(l);
+            boolean dash = l.equals("sql") || l.equals("lua") || l.equals("haskell") || l.equals("hs");
+            boolean markup = l.equals("html") || l.equals("xml") || l.equals("svg") || l.equals("vue");
+            SpannableStringBuilder out = new SpannableStringBuilder(code);
+            int n = code.length();
+            int i = 0;
+            while (i < n) {
+                char c = code.charAt(i);
+                // Comments.
+                if (slash && c == '/' && i + 1 < n && code.charAt(i + 1) == '/') {
+                    int e = lineEnd(code, i);
+                    color(out, st.comment, i, e, true);
+                    i = e;
+                    continue;
+                }
+                if (slash && c == '/' && i + 1 < n && code.charAt(i + 1) == '*') {
+                    int e = code.indexOf("*/", i + 2);
+                    e = e < 0 ? n : e + 2;
+                    color(out, st.comment, i, e, true);
+                    i = e;
+                    continue;
+                }
+                if (hash && c == '#' && (i == 0 || code.charAt(i - 1) != '$')) {
+                    int e = lineEnd(code, i);
+                    color(out, st.comment, i, e, true);
+                    i = e;
+                    continue;
+                }
+                if (dash && c == '-' && i + 1 < n && code.charAt(i + 1) == '-') {
+                    int e = lineEnd(code, i);
+                    color(out, st.comment, i, e, true);
+                    i = e;
+                    continue;
+                }
+                if (markup && code.startsWith("<!--", i)) {
+                    int e = code.indexOf("-->", i + 4);
+                    e = e < 0 ? n : e + 3;
+                    color(out, st.comment, i, e, true);
+                    i = e;
+                    continue;
+                }
+                // Strings.
+                if (c == '"' || c == '\'' || c == '`') {
+                    if (c == '\'' && i > 0 && Character.isLetterOrDigit(code.charAt(i - 1)) && !markup) {
+                        i++; // an apostrophe inside a word (don't, it's)
+                        continue;
+                    }
+                    int e = i + 1;
+                    boolean triple = code.startsWith("" + c + c + c, i);
+                    if (triple) {
+                        int t = code.indexOf("" + c + c + c, i + 3);
+                        e = t < 0 ? n : t + 3;
+                    } else {
+                        while (e < n) {
+                            char d = code.charAt(e);
+                            if (d == '\\') {
+                                e += 2;
+                                continue;
+                            }
+                            if (d == c) {
+                                e++;
+                                break;
+                            }
+                            if (d == '\n' && c != '`') break;
+                            e++;
+                        }
+                    }
+                    e = Math.min(e, n);
+                    color(out, st.string, i, e, false);
+                    i = e;
+                    continue;
+                }
+                // Numbers.
+                if (Character.isDigit(c) && (i == 0 || !Character.isLetterOrDigit(code.charAt(i - 1)) && code.charAt(i - 1) != '_')) {
+                    int e = i + 1;
+                    while (e < n && (Character.isLetterOrDigit(code.charAt(e)) || code.charAt(e) == '.' || code.charAt(e) == '_')) e++;
+                    color(out, st.number, i, e, false);
+                    i = e;
+                    continue;
+                }
+                // Annotations / decorators.
+                if (c == '@' && i + 1 < n && Character.isLetter(code.charAt(i + 1))) {
+                    int e = i + 1;
+                    while (e < n && (Character.isLetterOrDigit(code.charAt(e)) || code.charAt(e) == '_' || code.charAt(e) == '.')) e++;
+                    color(out, st.type, i, e, false);
+                    i = e;
+                    continue;
+                }
+                // Words.
+                if (Character.isLetter(c) || c == '_' || c == '$') {
+                    int e = i + 1;
+                    while (e < n && (Character.isLetterOrDigit(code.charAt(e)) || code.charAt(e) == '_')) e++;
+                    String w = code.substring(i, e);
+                    if (KEYWORDS.contains(w)) {
+                        color(out, st.keyword, i, e, false);
+                        out.setSpan(new StyleSpan(Typeface.BOLD), i, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    } else if (Character.isUpperCase(c) && w.length() > 1 && !w.equals(w.toUpperCase(java.util.Locale.ROOT))) {
+                        color(out, st.type, i, e, false);
+                    }
+                    i = e;
+                    continue;
+                }
+                i++;
+            }
+            return new SpannedString(out);
+        }
+
+        private static int lineEnd(String s, int from) {
+            int e = s.indexOf('\n', from);
+            return e < 0 ? s.length() : e;
+        }
+
+        private static void color(SpannableStringBuilder out, int color, int s, int e, boolean italic) {
+            if (color == 0 || e <= s) return;
+            out.setSpan(new ForegroundColorSpan(color), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if (italic) out.setSpan(new StyleSpan(Typeface.ITALIC), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+    }
+
     // ---- Paragraph spans ---------------------------------------------------------------------------
 
     /**
-     * A list item: the marker (•, ◦, 1., ☐, ☑) is drawn in the margin and every line of the item,
-     * including wrapped lines, starts at the same x, so the text lines up exactly.
+     * A list item: the marker (filled dot, ring, square, number, checkbox) is drawn in the margin in
+     * the primary colour and every line of the item, including wrapped lines, starts at the same x,
+     * so the text lines up exactly.
      */
     static final class ListSpan implements LeadingMarginSpan {
-        private final String marker;
+        private final int kind;
+        private final String label;
         private final float density;
         private final float marginDp;
         private final float markerStartDp;
         private final int color;
+        private final int onColor;
 
-        ListSpan(String marker, float density, float marginDp, float markerStartDp, int color) {
-            this.marker = marker;
+        ListSpan(int kind, String label, float density, float marginDp, float markerStartDp, int color, int onColor) {
+            this.kind = kind;
+            this.label = label;
             this.density = density;
             this.marginDp = marginDp;
             this.markerStartDp = markerStartDp;
             this.color = color;
+            this.onColor = onColor;
         }
 
         @Override
@@ -558,11 +828,71 @@ public final class Markdown {
             // Only on the item's own first line (a continuation paragraph inside the item has none).
             if (!(text instanceof Spanned) || ((Spanned) text).getSpanStart(this) != start) return;
             int oldColor = p.getColor();
+            Paint.Style oldStyle = p.getStyle();
+            float oldStroke = p.getStrokeWidth();
+            boolean oldFake = p.isFakeBoldText();
             p.setColor(color);
-            float w = p.measureText(marker);
-            float gap = 6f * density;
+            float gap = 7f * density;
             float right = x + dir * (marginDp * density - gap);
-            c.drawText(marker, dir > 0 ? right - w : right, baseline, p);
+            // Vertical centre of the first line's x-height, so shapes sit on the text.
+            Paint.FontMetrics fm = p.getFontMetrics();
+            float cy = baseline + (fm.ascent * 0.36f);
+            switch (kind) {
+                case NUMBER: {
+                    p.setFakeBoldText(true);
+                    float w = p.measureText(label);
+                    c.drawText(label, dir > 0 ? right - w : right, baseline, p);
+                    break;
+                }
+                case DOT:
+                case RING:
+                case SQUARE: {
+                    float r = 3.1f * density;
+                    float cx = dir > 0 ? right - r : right + r;
+                    if (kind == DOT) {
+                        p.setStyle(Paint.Style.FILL);
+                        c.drawCircle(cx, cy, r, p);
+                    } else if (kind == RING) {
+                        p.setStyle(Paint.Style.STROKE);
+                        p.setStrokeWidth(1.4f * density);
+                        c.drawCircle(cx, cy, r * 0.9f, p);
+                    } else {
+                        p.setStyle(Paint.Style.FILL);
+                        float s = r * 0.8f;
+                        c.drawRect(cx - s, cy - s, cx + s, cy + s, p);
+                    }
+                    break;
+                }
+                default: { // BOX / BOX_DONE
+                    float s = 8f * density;
+                    float l = dir > 0 ? right - 2 * s : right;
+                    RectF box = new RectF(l, cy - s, l + 2 * s, cy + s);
+                    float rr = 4f * density;
+                    if (kind == BOX_DONE) {
+                        p.setStyle(Paint.Style.FILL);
+                        c.drawRoundRect(box, rr, rr, p);
+                        p.setColor(onColor);
+                        p.setStyle(Paint.Style.STROKE);
+                        p.setStrokeWidth(1.8f * density);
+                        p.setStrokeCap(Paint.Cap.ROUND);
+                        Path tick = new Path();
+                        tick.moveTo(box.left + s * 0.45f, box.centerY());
+                        tick.lineTo(box.left + s * 0.85f, box.centerY() + s * 0.42f);
+                        tick.lineTo(box.right - s * 0.42f, box.centerY() - s * 0.45f);
+                        c.drawPath(tick, p);
+                        p.setStrokeCap(Paint.Cap.BUTT);
+                    } else {
+                        p.setStyle(Paint.Style.STROKE);
+                        p.setStrokeWidth(1.6f * density);
+                        box.inset(0.8f * density, 0.8f * density);
+                        c.drawRoundRect(box, rr, rr, p);
+                    }
+                    break;
+                }
+            }
+            p.setFakeBoldText(oldFake);
+            p.setStrokeWidth(oldStroke);
+            p.setStyle(oldStyle);
             p.setColor(oldColor);
         }
     }
@@ -589,19 +919,26 @@ public final class Markdown {
         }
     }
 
-    /** Stripe on the left of a quote (on every line, also wrapped ones). */
-    static final class QuoteBar implements LeadingMarginSpan {
+    /**
+     * A quote: soft primary-tinted block with rounded ends and a primary stripe on the left (on
+     * every line, also wrapped ones). One span covers all consecutive quote lines.
+     */
+    static final class QuoteBar implements LeadingMarginSpan, LineBackgroundSpan {
         private final int color;
+        private final int background;
         private final float density;
+        private final RectF rect = new RectF();
+        private final Path path = new Path();
 
-        QuoteBar(int color, float density) {
+        QuoteBar(int color, int background, float density) {
             this.color = color;
+            this.background = background;
             this.density = density;
         }
 
         @Override
         public int getLeadingMargin(boolean first) {
-            return Math.round(14f * density);
+            return Math.round(16f * density);
         }
 
         @Override
@@ -612,9 +949,96 @@ public final class Markdown {
             p.setStyle(Paint.Style.FILL);
             p.setColor(color);
             float bar = 3f * density;
-            c.drawRect(Math.min(x, x + dir * bar), top, Math.max(x, x + dir * bar), bottom, p);
+            float inset = 0f;
+            if (text instanceof Spanned) {
+                Spanned sp = (Spanned) text;
+                // Shorter at the very top and bottom, so the stripe follows the rounded block.
+                if (sp.getSpanStart(this) == start) inset = 4f * density;
+                if (sp.getSpanEnd(this) <= end) bottom -= Math.round(4f * density);
+            }
+            c.drawRect(Math.min(x, x + dir * bar), top + inset, Math.max(x, x + dir * bar), bottom, p);
             p.setStyle(oldStyle);
             p.setColor(oldColor);
+        }
+
+        @Override
+        public void drawBackground(Canvas c, Paint p, int left, int right, int top, int baseline, int bottom,
+                                   CharSequence text, int start, int end, int lineNumber) {
+            if (background == 0) return;
+            boolean firstLine = true, lastLine = true;
+            if (text instanceof Spanned) {
+                Spanned sp = (Spanned) text;
+                firstLine = sp.getSpanStart(this) == start;
+                lastLine = sp.getSpanEnd(this) <= end;
+            }
+            int old = p.getColor();
+            Paint.Style oldStyle = p.getStyle();
+            p.setColor(background);
+            p.setStyle(Paint.Style.FILL);
+            float r = 10f * density;
+            rect.set(left, top, right, bottom);
+            float[] radii = {
+                    firstLine ? r : 0, firstLine ? r : 0, firstLine ? r : 0, firstLine ? r : 0,
+                    lastLine ? r : 0, lastLine ? r : 0, lastLine ? r : 0, lastLine ? r : 0};
+            path.reset();
+            path.addRoundRect(rect, radii, Path.Direction.CW);
+            c.drawPath(path, p);
+            p.setColor(old);
+            p.setStyle(oldStyle);
+        }
+    }
+
+    /** Horizontal rule: a thin line across the whole width, on a line of its own. */
+    static final class RuleSpan implements LineBackgroundSpan {
+        private final int color;
+        private final float density;
+
+        RuleSpan(int color, float density) {
+            this.color = color;
+            this.density = density;
+        }
+
+        @Override
+        public void drawBackground(Canvas c, Paint p, int left, int right, int top, int baseline, int bottom,
+                                   CharSequence text, int start, int end, int lineNumber) {
+            int old = p.getColor();
+            Paint.Style oldStyle = p.getStyle();
+            p.setColor(color);
+            p.setStyle(Paint.Style.FILL);
+            float h = Math.max(1f, density);
+            float y = (top + baseline) / 2f;
+            c.drawRect(left, y - h / 2f, right, y + h / 2f, p);
+            p.setColor(old);
+            p.setStyle(oldStyle);
+        }
+    }
+
+    /** A custom typeface (the serif heading face) that also works below Android 9. */
+    static final class FontSpan extends MetricAffectingSpan {
+        private final Typeface face;
+
+        FontSpan(Typeface face) {
+            this.face = face;
+        }
+
+        private void apply(TextPaint p) {
+            Typeface old = p.getTypeface();
+            int style = old == null ? 0 : old.getStyle();
+            Typeface tf = Typeface.create(face, style);
+            int fake = style & ~tf.getStyle();
+            if ((fake & Typeface.BOLD) != 0) p.setFakeBoldText(true);
+            if ((fake & Typeface.ITALIC) != 0) p.setTextSkewX(-0.25f);
+            p.setTypeface(tf);
+        }
+
+        @Override
+        public void updateDrawState(TextPaint tp) {
+            apply(tp);
+        }
+
+        @Override
+        public void updateMeasureState(TextPaint tp) {
+            apply(tp);
         }
     }
 }

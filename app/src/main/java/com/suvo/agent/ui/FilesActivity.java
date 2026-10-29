@@ -84,22 +84,48 @@ public final class FilesActivity extends BaseActivity {
         return t.substring(0, slash);
     }
 
+    /** Rows shown at first in a folder, and added per "Show more" tap. */
+    private static final int PAGE = 120;
+    /** Rows built per frame, so even a huge folder never freezes the screen. */
+    private static final int ROWS_PER_FRAME = 30;
+    /** Bumped on every rebuild; work for an older screen is dropped. */
+    private int generation;
+    private final java.util.Map<String, Integer> scrollByPath = new java.util.HashMap<>();
+    private String shownPath;
+
     private void build() {
+        int gen = ++generation;
+        android.widget.ScrollView scroll = findViewById(R.id.rows_scroll);
+        if (scroll != null && shownPath != null) scrollByPath.put(shownPath, scroll.getScrollY());
+        String key = path == null ? "" : path;
+        boolean samePath = key.equals(shownPath);
+        shownPath = key;
         LinearLayout box = findViewById(R.id.rows);
         box.removeAllViews();
         Rows r = new Rows(this, box);
         if (path == null) {
-            roots(r);
+            roots(r, gen);
         } else {
-            folder(r);
+            folder(r, gen, box);
         }
         Ui.tintAccent(this, box);
+        if (scroll != null && !samePath) {
+            Integer y = scrollByPath.get(key);
+            scroll.post(() -> scroll.scrollTo(0, y == null ? 0 : y));
+        }
     }
 
-    private void roots(Rows r) {
+    private void roots(Rows r, int gen) {
         r.note(getString(R.string.files_intro));
-        r.row(R.drawable.ic_files, getString(R.string.files_workspace),
-                g.workspace.root().getAbsolutePath() + "\n" + Ui.size(g.workspace.sizeBytes()), null, v -> go("/"));
+        // The workspace size walks every file: measured in the background, shown when ready.
+        TextView wsSub = r.row(R.drawable.ic_files, getString(R.string.files_workspace),
+                g.workspace.root().getAbsolutePath() + "\n…", null, v -> go("/"));
+        g.io.execute(() -> {
+            long size = g.workspace.sizeBytes();
+            runOnUiThread(() -> {
+                if (gen == generation) wsSub.setText(g.workspace.root().getAbsolutePath() + "\n" + Ui.size(size));
+            });
+        });
         r.row(R.drawable.ic_delete, getString(R.string.files_trash), getString(R.string.files_trash_desc), null, v -> go("/.trash"));
         r.section(R.string.files_granted);
         List<SafStore.Grant> grants = g.saf.grants();
@@ -122,7 +148,7 @@ public final class FilesActivity extends BaseActivity {
         build();
     }
 
-    private void folder(Rows r) {
+    private void folder(Rows r, int gen, LinearLayout box) {
         TextView crumb = r.note(path);
         crumb.setTextIsSelectable(true);
         r.row(R.drawable.ic_back, "..", null, null, v -> {
@@ -132,28 +158,83 @@ public final class FilesActivity extends BaseActivity {
         boolean inTrash = !FileAccess.isExternal(path) && (path.equals("/.trash") || path.startsWith("/.trash/"));
         if (inTrash) {
             r.button(R.string.files_empty_trash, false, v -> Ui.confirm(this, R.string.files_empty_trash, getString(R.string.files_empty_trash_confirm), () -> {
-                g.workspace.emptyTrash();
-                build();
+                run(() -> {
+                    g.workspace.emptyTrash();
+                    return null;
+                });
             }));
         }
-        try {
-            List<FileAccess.Entry> list = fa.list(path);
-            if (list.isEmpty()) r.note(getString(R.string.files_empty));
-            for (FileAccess.Entry e : list) {
-                String sub = e.dir ? getString(R.string.files_folder) : Ui.size(e.size) + " · " + Ui.ago(e.modified);
-                TextView row = r.row(e.dir ? R.drawable.ic_files : iconFor(e), e.name, sub, null, v -> {
-                    if (e.dir) go(e.path);
-                    else openFile(e);
-                });
-                View parentRow = (android.view.View) row.getParent().getParent();
-                parentRow.setOnLongClickListener(v -> {
-                    actions(e);
-                    return true;
-                });
+        // Listing (especially a shared folder through the Storage Access Framework) is slow:
+        // never on the main thread.
+        android.widget.ProgressBar spin = new android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleSmall);
+        spin.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(Ui.accent(this)));
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(Ui.dp(this, 24), Ui.dp(this, 24));
+        sp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+        sp.setMargins(0, Ui.dp(this, 24), 0, Ui.dp(this, 24));
+        r.parent().addView(spin, sp);
+        final String at = path;
+        g.io.execute(() -> {
+            List<FileAccess.Entry> list;
+            Exception error = null;
+            try {
+                list = fa.list(at);
+            } catch (Exception ex) {
+                list = null;
+                error = ex;
             }
-        } catch (Exception ex) {
-            r.note(getString(R.string.error_prefix, ex.getMessage()));
+            final List<FileAccess.Entry> got = list;
+            final Exception err = error;
+            runOnUiThread(() -> {
+                if (gen != generation || isFinishing()) return;
+                box.removeView(spin);
+                if (err != null) {
+                    r.note(getString(R.string.error_prefix, err.getMessage()));
+                } else if (got.isEmpty()) {
+                    r.note(getString(R.string.files_empty));
+                } else {
+                    addEntries(r, box, got, 0, gen);
+                }
+            });
+        });
+    }
+
+    /** Adds up to {@link #PAGE} rows from {@code from}, a few per frame, then a "Show more" button. */
+    private void addEntries(Rows r, LinearLayout box, List<FileAccess.Entry> list, int from, int gen) {
+        int end = Math.min(list.size(), from + PAGE);
+        addChunk(r, box, list, from, end, gen);
+    }
+
+    private void addChunk(Rows r, LinearLayout box, List<FileAccess.Entry> list, int from, int end, int gen) {
+        if (gen != generation || isFinishing()) return;
+        int stop = Math.min(end, from + ROWS_PER_FRAME);
+        for (int i = from; i < stop; i++) entryRow(r, list.get(i));
+        if (stop < end) {
+            box.postOnAnimation(() -> addChunk(r, box, list, stop, end, gen));
+            return;
         }
+        if (end < list.size()) {
+            int left = list.size() - end;
+            android.widget.Button more = r.button(R.string.files_show_more, false, null);
+            more.setText(getString(R.string.files_show_more_count, left));
+            more.setOnClickListener(v -> {
+                box.removeView(more);
+                addEntries(r, box, list, end, gen);
+            });
+        }
+        Ui.tintAccent(this, box);
+    }
+
+    private void entryRow(Rows r, FileAccess.Entry e) {
+        String sub = e.dir ? getString(R.string.files_folder) : Ui.size(e.size) + " · " + Ui.ago(e.modified);
+        TextView row = r.row(e.dir ? R.drawable.ic_files : iconFor(e), e.name, sub, null, v -> {
+            if (e.dir) go(e.path);
+            else openFile(e);
+        });
+        View parentRow = (android.view.View) row.getParent().getParent();
+        parentRow.setOnLongClickListener(v -> {
+            actions(e);
+            return true;
+        });
     }
 
     private int iconFor(FileAccess.Entry e) {

@@ -56,6 +56,7 @@ public final class BuiltinTools {
         add(g, () -> new CodeTools.ExecuteCode(g, "python"));
         add(g, () -> new CodeTools.ExecuteCode(g, "cpp"));
         add(g, () -> new CodeTools.ExecuteCode(g, "java"));
+        add(g, () -> new CodeTools.TermuxJob(g));
         add(g, () -> new CodeTools.Ssh(g));
         add(g, () -> new WebTools.WebSearch(g));
         add(g, () -> new WebTools.WebRead(g));

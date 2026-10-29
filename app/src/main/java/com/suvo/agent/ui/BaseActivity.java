@@ -62,6 +62,13 @@ public abstract class BaseActivity extends Activity {
         });
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Hands-free that was on before the app closed starts again (only allowed from the front).
+        com.suvo.agent.voice.HandsFreeService.resumeIfWanted(this);
+    }
+
     protected void applyInsets(View root) {
         final int l = root.getPaddingLeft(), t = root.getPaddingTop(), r = root.getPaddingRight(), b = root.getPaddingBottom();
         root.setOnApplyWindowInsetsListener((v, insets) -> {

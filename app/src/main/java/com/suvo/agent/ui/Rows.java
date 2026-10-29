@@ -28,6 +28,8 @@ public final class Rows {
         void onChange(T value);
     }
 
+    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
+
     private final Activity a;
     private final LinearLayout parent;
     private final Settings settings;
@@ -180,9 +182,18 @@ public final class Rows {
     public com.google.android.material.materialswitch.MaterialSwitch switchRow(int iconRes, int titleRes, int subtitleRes, String key, boolean def, Change<Boolean> change) {
         com.google.android.material.materialswitch.MaterialSwitch sw = Widgets.newSwitch(a);
         sw.setChecked(settings.bool(key, def));
+        final Runnable[] later = new Runnable[1];
         sw.setOnCheckedChangeListener((b, v) -> {
             settings.put(key, v);
-            if (change != null) change.onChange(v);
+            if (change == null) return;
+            // Let the thumb finish sliding first: callbacks often rebuild the whole screen (or start
+            // a service), and doing that in the same frame made every switch stutter.
+            if (later[0] != null) MAIN.removeCallbacks(later[0]);
+            later[0] = () -> {
+                later[0] = null;
+                change.onChange(b.isChecked());
+            };
+            MAIN.postDelayed(later[0], 240);
         });
         row(iconRes, a.getString(titleRes), subtitleRes == 0 ? null : a.getString(subtitleRes), sw, v -> sw.toggle());
         return sw;

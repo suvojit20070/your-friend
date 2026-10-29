@@ -16,7 +16,7 @@ import com.suvo.agent.R;
  * Your Friend — Original project by Suvo.
  *
  * Frosted glass with a real-time Gaussian blur of whatever is behind the view (Android 12+, hardware
- * rendering). Before each frame it records the screen content under the host into a small
+ * rendering). Before each frame that draws anyway it records the screen content under the host into a small
  * RenderNode, blurs it on the GPU with a RenderEffect and draws it clipped to the glass shape, then
  * the glass tint and specular rim on top. Content is recorded at a reduced scale, so the blur is
  * cheap. On older Android it is plain {@link GlassDrawable} glass (slightly more opaque).
@@ -111,8 +111,10 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
             n = new RenderNode("glass-backdrop");
             node = n;
         }
+        int ohx = hostLoc[0], ohy = hostLoc[1], osx = srcLoc[0], osy = srcLoc[1];
         host.getLocationInWindow(hostLoc);
         source.getLocationInWindow(srcLoc);
+        boolean moved = ohx != hostLoc[0] || ohy != hostLoc[1] || osx != srcLoc[0] || osy != srcLoc[1];
         n.setPosition(0, 0, w, h);
         RecordingCanvas rc = n.beginRecording(w, h);
         capturing = true;
@@ -135,9 +137,14 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
                     RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP));
         }
         n.setRenderEffect((RenderEffect) effect);
+        boolean first = !ready;
         ready = true;
         live = true;
-        host.invalidate();
+        // The host's display list draws this node by reference, so a re-recorded node shows on
+        // this frame without redrawing the host. Invalidating the host every time scheduled
+        // another frame from inside every frame: the screen never stopped redrawing (and
+        // re-recording the whole page), which made long lists and switches lag.
+        if (first || moved) host.invalidate();
         return true;
     }
 

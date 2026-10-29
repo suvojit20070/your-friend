@@ -268,8 +268,10 @@ final class Shell {
                         RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP));
             }
             n.setRenderEffect((RenderEffect) effect);
+            // The bar draws this node by reference: re-recording it is enough for this frame.
+            // Invalidating every time asked for a new frame from inside each frame (endless redraw).
+            if (!ready) host.invalidate();
             ready = true;
-            host.invalidate();
             return true;
         }
 

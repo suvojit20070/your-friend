@@ -153,7 +153,8 @@ final class ThemeMap {
             }
         }
         Drawable bgNow = v.getBackground();
-        if (bgNow instanceof android.graphics.drawable.RippleDrawable) {
+        if (bgNow instanceof android.graphics.drawable.RippleDrawable && v.getTag(R.id.theme_done) != bgNow) {
+            v.setTag(R.id.theme_done, bgNow); // once per drawable, not on every layout pass
             android.graphics.drawable.RippleDrawable rd = (android.graphics.drawable.RippleDrawable) bgNow;
             if (rd.getNumberOfLayers() == 0 && v.isClickable()) {
                 // A bare system ripple (selectableItemBackground): the 8% row press instead.

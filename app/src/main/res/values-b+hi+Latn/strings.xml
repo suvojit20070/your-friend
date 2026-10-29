@@ -908,4 +908,10 @@
         <item quantity="one">%d message</item>
         <item quantity="other">%d messages</item>
     </plurals>
+    <string name="drawer_this_chat">Ye chat</string>
+    <string name="drawer_go_to">Kahan jaana hai</string>
+    <string name="drawer_open">Menu kholo</string>
+    <string name="files_show_more">Aur dikhao</string>
+    <string name="files_show_more_count">%1$d aur dikhao</string>
+    <string name="handsfree_mic_needed">Hands-free ke liye microphone permission chahiye</string>
 </resources>
