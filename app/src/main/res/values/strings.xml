@@ -940,4 +940,12 @@
     <string name="usage_deleted_provider">%1$s (deleted)</string>
     <string name="terminal_banner">Welcome to Your Friend terminal\n\nSessions:  app shell · termux · shizuku · ssh\nKeys:      ↑ ↓ history · TAB complete · CTRL+C stop · CTRL+L clear\nEach command runs as its own process (no vim / top).\n</string>
     <string name="terminal_ctrl_hint">CTRL: press C, L, D, U or A</string>
+    <!-- Default assistant -->
+    <string name="assist_default">Default assistant</string>
+    <string name="assist_default_on">Your Friend opens when you long-press Home or use the assistant gesture</string>
+    <string name="assist_default_off">Not set — tap, then choose Your Friend as the digital assistant app</string>
+    <string name="assist_open_chat">Open the full chat</string>
+    <string name="assist_hint">Speak, or type below</string>
+    <string name="assist_listening">Listening…</string>
+    <string name="assist_done">Done</string>
 </resources>

@@ -134,6 +134,28 @@
             </intent-filter>
         </activity>
 
+        <!-- Default digital assistant: long-press Home / corner swipe / power button / headset key. -->
+        <activity
+            android:name=".ui.AssistActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.suvo.agent.assist"
+            android:theme="@style/Theme.YourFriend.Assist"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="com.android.systemui.action_assist_icon"
+                android:resource="@mipmap/ic_launcher" />
+        </activity>
         <activity android:name=".ui.OnboardingActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.LiveAgentActivity" android:exported="false" />
         <activity android:name=".ui.MemoryActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />

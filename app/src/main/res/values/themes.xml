@@ -60,4 +60,13 @@
         <item name="android:letterSpacing">0.08928572</item>
         <item name="fontFamily">@font/anthropic_serif</item>
     </style>
+
+    <!-- The assistant card: the app theme on a see-through window over the current app. -->
+    <style name="Theme.YourFriend.Assist" parent="Theme.YourFriend">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

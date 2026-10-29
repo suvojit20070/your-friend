@@ -197,6 +197,12 @@ public final class SettingsActivity extends BaseActivity {
         r.link(R.drawable.ic_memory, R.string.section_memory, R.string.settings_memory_manage, MemoryActivity.class);
 
         r.section(R.string.settings_device);
+        // Default digital assistant (long-press Home / assistant gesture opens Your Friend).
+        boolean isAssist = AssistActivity.isDefault(this);
+        r.row(R.drawable.ic_agent, getString(R.string.assist_default),
+                getString(isAssist ? R.string.assist_default_on : R.string.assist_default_off),
+                r.chip(isAssist ? "✓" : "Set", isAssist ? getColor(R.color.success) : Ui.accent(this)),
+                v -> AssistActivity.openDefaultSettings(this));
         r.link(R.drawable.ic_screen, R.string.section_screen, R.string.settings_screen_desc, ScreenControlActivity.class);
         r.link(R.drawable.ic_shield, R.string.section_permissions, R.string.settings_permissions_desc, PermissionsActivity.class);
         // The current screen goes along with every request (only while another app is on screen).

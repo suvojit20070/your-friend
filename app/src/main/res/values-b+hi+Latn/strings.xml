@@ -929,4 +929,11 @@
     <string name="usage_reset">Usage reset karo</string>
     <string name="usage_reset_all">Saara usage reset karo</string>
     <string name="terminal_ctrl_hint">CTRL: C, L, D, U ya A dabao</string>
+    <string name="assist_default">Default assistant</string>
+    <string name="assist_default_on">Home lamba dabane ya assistant gesture pe Your Friend khulta hai</string>
+    <string name="assist_default_off">Set nahi hai — tap karo, phir digital assistant app mein Your Friend chuno</string>
+    <string name="assist_open_chat">Poori chat kholo</string>
+    <string name="assist_hint">Bolo, ya neeche likho</string>
+    <string name="assist_listening">Sun rahi hoon…</string>
+    <string name="assist_done">Ho gaya</string>
 </resources>
