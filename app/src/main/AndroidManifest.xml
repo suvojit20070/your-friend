@@ -16,6 +16,8 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Task progress, approvals, notify tool -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Wake word heard while the screen is locked / another app is open: open the assistant card. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Long tasks, hands-free listening, screen capture and the floating companion -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />

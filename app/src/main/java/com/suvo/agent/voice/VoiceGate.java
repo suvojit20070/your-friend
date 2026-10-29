@@ -65,6 +65,10 @@ public final class VoiceGate {
         void onText(String text);
 
         void onError(String message, boolean fatal);
+
+        /** Wake-word mode: the wake word was heard (listening is paused until {@link #pause}(false)). */
+        default void onWake() {
+        }
     }
 
     private final Context ctx;
@@ -73,6 +77,25 @@ public final class VoiceGate {
     private String language = "";
     private volatile boolean running;
     private volatile boolean paused;
+    /**
+     * Wake-word mode: frames go to this offline detector instead of the speech recognizer; nothing
+     * is transcribed until the wake word is heard. Null = every sentence goes to the recognizer.
+     */
+    private volatile WakeDetector wake;
+
+    /** Switches wake-word mode on (detector) or off (null). The previous detector is closed. */
+    public void setWake(WakeDetector d) {
+        WakeDetector old = wake;
+        wake = d;
+        if (old != null && old != d) pendingClose = old;
+    }
+
+    public boolean wakeMode() {
+        return wake != null;
+    }
+
+    /** Closed on the recording thread (it may be feeding the old one right now). */
+    private volatile WakeDetector pendingClose;
     private Thread thread;
 
     // Utterance state (main thread).
@@ -141,6 +164,7 @@ public final class VoiceGate {
                     AudioFormat.ENCODING_PCM_16BIT, Math.max(min, FRAME * 2 * 8));
             if (rec.getState() != AudioRecord.STATE_INITIALIZED) throw new IllegalStateException("Microphone is not available");
             rec.startRecording();
+            boolean recordingNow = true;
             short[] frame = new short[FRAME];
             ArrayDeque<short[]> preRoll = new ArrayDeque<>();
             float noise = 300f;
@@ -149,8 +173,54 @@ public final class VoiceGate {
             int uttFrames = 0;
             boolean inSpeech = false;
             while (running && !Thread.currentThread().isInterrupted()) {
+                WakeDetector closeMe = pendingClose;
+                if (closeMe != null) {
+                    pendingClose = null;
+                    closeMe.close();
+                }
+                if (paused) {
+                    // Paused (an answer is being spoken, the assistant card is listening…): let go
+                    // of the microphone, so the other recorder gets it and we never hear ourselves.
+                    if (recordingNow) {
+                        try {
+                            rec.stop();
+                        } catch (RuntimeException ignored) {
+                        }
+                        recordingNow = false;
+                    }
+                    inSpeech = false;
+                    loud = 0;
+                    preRoll.clear();
+                    try {
+                        Thread.sleep(60);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                    continue;
+                }
+                if (!recordingNow) {
+                    rec.startRecording();
+                    recordingNow = true;
+                    WakeDetector w = wake;
+                    if (w != null) w.reset();
+                }
                 int n = rec.read(frame, 0, FRAME);
                 if (n <= 0) continue;
+                WakeDetector w = wake;
+                if (w != null) {
+                    final float lvl = Math.min(1f, rms(frame, n) / 6000f);
+                    main.post(() -> {
+                        if (cb != null) cb.onLevel(lvl);
+                    });
+                    if (w.feed(frame, n)) {
+                        w.reset();
+                        paused = true;
+                        main.post(() -> {
+                            if (cb != null) cb.onWake();
+                        });
+                    }
+                    continue;
+                }
                 float rms = rms(frame, n);
                 final float level = Math.min(1f, rms / 6000f);
                 main.post(() -> {
@@ -214,6 +284,15 @@ public final class VoiceGate {
                 } catch (RuntimeException ignored) {
                 }
                 rec.release();
+            }
+            WakeDetector pc = pendingClose;
+            pendingClose = null;
+            if (pc != null) pc.close();
+            // Stopped for good (not restarted): the detector goes too.
+            if (!running) {
+                WakeDetector w = wake;
+                wake = null;
+                if (w != null) w.close();
             }
         }
     }

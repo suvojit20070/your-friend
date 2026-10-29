@@ -114,13 +114,28 @@ public final class VoiceActivity extends BaseActivity {
                     build();
                 } else {
                     startHandsFree();
+                    offerWakeEngine();
                 }
             } else {
                 HandsFreeService.stop(this);
             }
         });
-        r.textRow(R.drawable.ic_voice, R.string.voice_wake_words, Settings.HANDS_FREE_WAKE, "", false, R.string.voice_wake_words_none, null);
-        r.note(getString(R.string.voice_wake_words_note));
+        // One wake word ("tanu"): with the offline engine only this word is listened for.
+        TextView wordRow = r.textRow(R.drawable.ic_voice, R.string.wake_word_single, Settings.HANDS_FREE_WAKE, "", false,
+                R.string.voice_wake_words_none, v -> {
+                    String one = com.suvo.agent.core.util.WakeVariants.single(v);
+                    g.settings.put(Settings.HANDS_FREE_WAKE, one);
+                    HandsFreeService.reloadWake();
+                    build();
+                });
+        if (wordRow != null) {
+            String one = com.suvo.agent.core.util.WakeVariants.single(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
+            if (!one.isEmpty()) wordRow.setText(one);
+        }
+        wakeEngineRow(r);
+        r.sliderRow(R.drawable.ic_mic, R.string.wake_sensitivity, HandsFreeService.SENSITIVITY, 55, 0, 100, "%",
+                v -> HandsFreeService.reloadWake());
+        r.note(getString(R.string.wake_sensitivity_note));
         handsFreeStatus = r.row(R.drawable.ic_eye, getString(R.string.voice_hands_free_status), statusText(), null, null);
         handsFreeLevel = new android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         handsFreeLevel.setMax(100);
@@ -133,6 +148,73 @@ public final class VoiceActivity extends BaseActivity {
         r.section(R.string.voice_license);
         r.note(getString(R.string.voice_license_note));
         Ui.tintAccent(this, box);
+    }
+
+    // ---- Offline wake word engine -------------------------------------------------------------
+
+    private volatile CancellationToken wakeDownload;
+    private TextView wakeSub;
+
+    /** The engine row: download (with progress), or remove when it is there. */
+    private void wakeEngineRow(Rows r) {
+        String word = com.suvo.agent.core.util.WakeVariants.single(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
+        boolean ready = com.suvo.agent.voice.WakeModel.isReady(this);
+        String sub;
+        if (wakeDownload != null) sub = getString(R.string.wake_engine_downloading, "");
+        else if (!ready) sub = getString(R.string.wake_engine_missing, com.suvo.agent.voice.WakeModel.SIZE_MB);
+        else if (word.isEmpty()) sub = getString(R.string.wake_engine_no_word);
+        else sub = getString(R.string.wake_engine_ready, "“" + word + "”");
+        TextView chip = r.chip(ready ? "✓" : "↓ " + com.suvo.agent.voice.WakeModel.SIZE_MB + " MB",
+                ready ? getColor(R.color.success) : Ui.accent(this));
+        wakeSub = r.row(R.drawable.ic_download, getString(R.string.wake_engine), sub, chip, v -> {
+            if (wakeDownload != null) return;
+            if (com.suvo.agent.voice.WakeModel.isReady(this)) {
+                Ui.confirm(this, R.string.wake_remove_title, getString(R.string.wake_engine), () -> {
+                    com.suvo.agent.voice.WakeModel.delete(this);
+                    HandsFreeService.reloadWake();
+                    build();
+                });
+            } else {
+                downloadWakeEngine();
+            }
+        });
+    }
+
+    /** Switching hands-free on without the engine: suggest downloading it (once per screen visit). */
+    private boolean wakeOffered;
+
+    private void offerWakeEngine() {
+        if (wakeOffered || com.suvo.agent.voice.WakeModel.isReady(this) || wakeDownload != null) return;
+        wakeOffered = true;
+        Ui.show(Ui.dialog(this).setTitle(R.string.wake_download_title)
+                .setMessage(getString(R.string.wake_download_message, com.suvo.agent.voice.WakeModel.SIZE_MB))
+                .setPositiveButton(R.string.wake_download, (d, w) -> downloadWakeEngine())
+                .setNegativeButton(R.string.wake_later, null));
+    }
+
+    private void downloadWakeEngine() {
+        CancellationToken t = new CancellationToken();
+        wakeDownload = t;
+        if (wakeSub != null) wakeSub.setText(getString(R.string.wake_engine_downloading, ""));
+        g.io.execute(() -> {
+            String err = null;
+            try {
+                com.suvo.agent.voice.WakeModel.download(this, (stage, pct) -> runOnUiThread(() -> {
+                    if (wakeSub == null) return;
+                    wakeSub.setText("unpack".equals(stage) ? getString(R.string.wake_engine_unpacking)
+                            : getString(R.string.wake_engine_downloading, pct < 0 ? "" : pct + "%"));
+                }), t);
+            } catch (Exception e) {
+                err = e.getMessage();
+            }
+            String error = err;
+            runOnUiThread(() -> {
+                wakeDownload = null;
+                if (error != null) Ui.toast(this, getString(R.string.wake_engine_failed, error));
+                else HandsFreeService.reloadWake();
+                if (!isFinishing()) build();
+            });
+        });
     }
 
     private TextView handsFreeStatus;

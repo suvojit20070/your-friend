@@ -99,6 +99,10 @@ dependencies {
     implementation 'dev.rikka.shizuku:provider:13.1.5'
     // SSH tool.
     implementation 'com.github.mwiede:jsch:2.28.8'
+    // Offline wake word: Vosk (Kaldi speech engine in C++, called through JNA). The ~40 MB model
+    // is downloaded inside the app when hands-free is switched on; it is not in the APK.
+    implementation 'net.java.dev.jna:jna:5.13.0@aar'
+    implementation 'com.alphacephei:vosk-android:0.3.47@aar'
 
     testImplementation 'junit:junit:4.13.2'
     // Android's org.json is stubbed on the JVM; use the reference implementation in unit tests.

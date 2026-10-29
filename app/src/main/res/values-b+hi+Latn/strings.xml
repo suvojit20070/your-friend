@@ -936,4 +936,15 @@
     <string name="assist_hint">Bolo, ya neeche likho</string>
     <string name="assist_listening">Sun rahi hoon…</string>
     <string name="assist_done">Ho gaya</string>
+    <string name="handsfree_wake_ready">“%1$s” sun rahi hoon (offline)</string>
+    <string name="handsfree_tap_to_talk">Bolne ke liye tap karo</string>
+    <string name="wake_engine">Offline wake word engine</string>
+    <string name="wake_engine_unpacking">Unpack ho raha hai…</string>
+    <string name="wake_download_title">Wake word engine download karein?</string>
+    <string name="wake_download">Download</string>
+    <string name="wake_later">Baad mein</string>
+    <string name="wake_remove_title">Wake word engine hatayein?</string>
+    <string name="wake_sensitivity">Wake word sensitivity</string>
+    <string name="wake_sensitivity_note">Zyada = dheemi awaaz bhi pakdega, par milte-julte words pe bhi trigger hoga.</string>
+    <string name="wake_word_single">Wake word (ek word)</string>
 </resources>

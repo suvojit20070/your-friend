@@ -948,4 +948,23 @@
     <string name="assist_hint">Speak, or type below</string>
     <string name="assist_listening">Listening…</string>
     <string name="assist_done">Done</string>
+    <!-- Offline wake word -->
+    <string name="handsfree_wake_ready">Listening for “%1$s” (offline)</string>
+    <string name="handsfree_wake_failed">Offline wake word could not start: %1$s</string>
+    <string name="handsfree_tap_to_talk">Tap to talk</string>
+    <string name="wake_engine">Offline wake word engine</string>
+    <string name="wake_engine_missing">Not downloaded (~%1$d MB). Tap to download. With it only the wake word is listened for, offline, even when you speak quietly; the rest is recorded after it.</string>
+    <string name="wake_engine_ready">Ready ✓ — listens for: %1$s. Tap to remove.</string>
+    <string name="wake_engine_no_word">Ready ✓ — set a wake word below to use it. Tap to remove.</string>
+    <string name="wake_engine_downloading">Downloading… %1$s</string>
+    <string name="wake_engine_unpacking">Unpacking…</string>
+    <string name="wake_engine_failed">Download failed: %1$s</string>
+    <string name="wake_download_title">Download the wake word engine?</string>
+    <string name="wake_download_message">Hands-free works best with the offline wake word engine (~%1$d MB, downloaded once). It only listens for your wake word — nothing is recorded or sent until you say it. Without it, every sentence goes to the speech recognizer.</string>
+    <string name="wake_download">Download</string>
+    <string name="wake_later">Later</string>
+    <string name="wake_remove_title">Remove the wake word engine?</string>
+    <string name="wake_sensitivity">Wake word sensitivity</string>
+    <string name="wake_sensitivity_note">Higher hears quiet or unclear speech but triggers on similar words more often.</string>
+    <string name="wake_word_single">Wake word (one word)</string>
 </resources>

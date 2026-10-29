@@ -54,6 +54,10 @@ public final class HandsFreeService extends Service {
     private long lastLevelAt;
 
     private static volatile boolean running;
+    private static volatile HandsFreeService instance;
+    /** The assistant card opened by the wake word is on screen: do not listen meanwhile. */
+    private boolean assistOpen;
+    public static final String SENSITIVITY = "hands_free_wake_sensitivity";
     private static final CopyOnWriteArrayList<StateListener> listeners = new CopyOnWriteArrayList<>();
 
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -169,6 +173,7 @@ public final class HandsFreeService extends Service {
         }
         if (!running) {
             running = true;
+            instance = this;
             gate = new VoiceGate(this);
             agentListener = new AgentListener() {
                 @Override
@@ -199,7 +204,7 @@ public final class HandsFreeService extends Service {
     private void listenIfIdle() {
         if (!running || gate == null) return;
         AppGraph g = AppGraph.get();
-        boolean busy = waitingForAgent || g.agent.isRunning() || g.speech.isActive();
+        boolean busy = assistOpen || waitingForAgent || g.agent.isRunning() || g.speech.isActive();
         if (gate.isRunning()) {
             gate.pause(busy);
             if (!busy) publish(getString(R.string.handsfree_listening));
@@ -207,6 +212,7 @@ public final class HandsFreeService extends Service {
         }
         if (busy) return;
         publish(getString(R.string.handsfree_listening));
+        prepareWake();
         gate.start(g.settings.str(Settings.STT_LANGUAGE, ""), new VoiceGate.Callback() {
             @Override
             public void onLevel(float level) {
@@ -219,6 +225,12 @@ public final class HandsFreeService extends Service {
             @Override
             public void onPartial(String text) {
                 publish("… " + text);
+            }
+
+            @Override
+            public void onWake() {
+                consecutiveErrors = 0;
+                openAssistant();
             }
 
             @Override
@@ -272,8 +284,95 @@ public final class HandsFreeService extends Service {
         });
     }
 
+    // ---- Offline wake word (Vosk) -------------------------------------------------------------
+
+    /**
+     * Wake-word mode when the offline model is downloaded and a wake word is set: only the word is
+     * listened for (offline, works when you speak quietly); hearing it opens the assistant card,
+     * which then records the actual request. Loaded in the background; until then (or without the
+     * model) every sentence goes to the recognizer as before.
+     */
+    private void prepareWake() {
+        AppGraph g = AppGraph.get();
+        String word = com.suvo.agent.core.util.WakeVariants.single(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
+        if (word.isEmpty() || !WakeModel.isReady(this)) {
+            if (gate != null) gate.setWake(null);
+            return;
+        }
+        int sens = g.settings.integer(SENSITIVITY, 55);
+        g.io.execute(() -> {
+            try {
+                WakeDetector d = WakeDetector.create(this, word, sens);
+                main.post(() -> {
+                    if (!running || gate == null) {
+                        if (d != null) d.close();
+                        return;
+                    }
+                    gate.setWake(d);
+                    publish(getString(R.string.handsfree_wake_ready, word));
+                });
+            } catch (Throwable e) {
+                // Model broken / native library missing: keep the normal mode.
+                main.post(() -> publish(getString(R.string.handsfree_wake_failed, String.valueOf(e.getMessage()))));
+            }
+        });
+    }
+
+    /** Settings changed (word, sensitivity, model downloaded / deleted): rebuild the detector. */
+    public static void reloadWake() {
+        HandsFreeService s = instance;
+        if (s != null && running) s.main.post(s::prepareWake);
+    }
+
+    /** Wake word heard: the assistant card opens and records the request itself. */
+    private void openAssistant() {
+        assistOpen = true;
+        if (gate != null) gate.pause(true);
+        publish(getString(R.string.handsfree_wake_heard));
+        com.suvo.agent.character.FloatingCompanionService.react();
+        Intent i = new Intent(this, com.suvo.agent.ui.AssistActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(com.suvo.agent.ui.AssistActivity.EXTRA_FROM_WAKE, true);
+        boolean canOpen = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || android.provider.Settings.canDrawOverlays(this);
+        try {
+            if (!canOpen) throw new SecurityException("background start");
+            startActivity(i);
+        } catch (RuntimeException e) {
+            // Android blocks opening screens from the background without "display over other apps":
+            // a heads-up notification that opens the card instead.
+            PendingIntent pi = PendingIntent.getActivity(this, 32, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            Notification n = Notifications.builder(this, Notifications.CHANNEL_LISTEN)
+                    .setSmallIcon(R.drawable.ic_stat_companion)
+                    .setContentTitle(getString(R.string.handsfree_wake_heard))
+                    .setContentText(getString(R.string.handsfree_tap_to_talk))
+                    .setContentIntent(pi)
+                    .setFullScreenIntent(pi, true)
+                    .setAutoCancel(true)
+                    .setCategory(Notification.CATEGORY_CALL)
+                    .build();
+            android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
+            if (nm != null) nm.notify(Notifications.ID_LISTEN + 7, n);
+            // Nobody opened it: listen again after a while.
+            main.postDelayed(() -> {
+                if (assistOpen) assistClosed();
+            }, 10_000);
+        }
+    }
+
+    /** Called by the assistant card when it closes: back to listening for the wake word. */
+    public static void assistClosed() {
+        HandsFreeService s = instance;
+        if (s == null) return;
+        s.main.post(() -> {
+            if (!s.assistOpen) return;
+            s.assistOpen = false;
+            s.main.postDelayed(s::listenIfIdle, 500);
+        });
+    }
+
     @Override
     public void onDestroy() {
+        instance = null;
         running = false;
         if (gate != null) gate.stop();
         gate = null;

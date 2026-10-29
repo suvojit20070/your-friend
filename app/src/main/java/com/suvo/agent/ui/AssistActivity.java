@@ -44,6 +44,8 @@ import com.suvo.agent.voice.SpeechInput;
 public final class AssistActivity extends BaseActivity {
 
     private static final int REQ_MIC = 71;
+    /** Opened by the hands-free wake word (listen at once, a little chime-free). */
+    public static final String EXTRA_FROM_WAKE = "from_wake";
 
     private LinearLayout card;
     private TextView answer;
@@ -403,6 +405,13 @@ public final class AssistActivity extends BaseActivity {
         super.onNewIntent(intent);
         // Assistant gesture again while open: listen again.
         if (!speech.isListening()) toggleMic();
+    }
+
+    @Override
+    protected void onDestroy() {
+        // Hands-free waits while the card is open; it goes back to listening for the wake word now.
+        com.suvo.agent.voice.HandsFreeService.assistClosed();
+        super.onDestroy();
     }
 
     @Override
