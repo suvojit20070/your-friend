@@ -872,6 +872,13 @@ S = {
 "settings_keep_screen_on": "Keep Screen On",
 "settings_keep_screen_on_desc": "Keep the display awake while the agent is running a task.",
 "autonomy_never_ask_long": "Never Ask Anything — All Allowed",
+"settings_attach_tree": "Attach screen tree in every request",
+"settings_attach_tree_desc": "Sends the list of elements on the screen (text and ids) with every request while another app is open. Needs the accessibility service. Uses more tokens.",
+"settings_attach_shot": "Attach screenshot in every request",
+"settings_attach_shot_desc": "Sends a small screenshot with every request while another app is open. The model must support images. Uses more tokens and data.",
+"settings_search_hint": "Search settings",
+"settings_search_screens": "Screens",
+"settings_search_none": "Nothing found. Try another word.",
 }
 
 P = {

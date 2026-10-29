@@ -872,6 +872,13 @@ S = {
 "settings_keep_screen_on": "Screen On Rakhein",
 "settings_keep_screen_on_desc": "Agent ka task chalte waqt screen on rakhein.",
 "autonomy_never_ask_long": "Kabhi Kuch Mat Puchho — Sab Allowed",
+"settings_attach_tree": "Har request me screen tree attach karo",
+"settings_attach_tree_desc": "Jab koi aur app khula ho to har request ke saath screen ke elements (text aur ids) bhejta hai. Accessibility service chahiye. Zyada tokens lagte hain.",
+"settings_attach_shot": "Har request me screenshot attach karo",
+"settings_attach_shot_desc": "Jab koi aur app khula ho to har request ke saath chhota screenshot bhejta hai. Model ko images support karni chahiye. Zyada tokens aur data lagta hai.",
+"settings_search_hint": "Settings search karo",
+"settings_search_screens": "Screens",
+"settings_search_none": "Kuch nahi mila. Doosra word try karo.",
 }
 
 P = {

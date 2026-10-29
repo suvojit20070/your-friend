@@ -12,6 +12,7 @@ available right now and, for anything unavailable, exactly what you need to enab
 | Tool | Base risk | Needs | What it does |
 |---|---|---|---|
 | `list_tools` | read-only | — | Lists usable tools, what is missing for the others, device capabilities and installed runtimes. `name` returns one tool's full schema. |
+| `load_my_app` | read-only | — | Loads the guide to this app: every screen, where it is and what it contains. Optional `query`. The guide tells the model to add a button for the user: a Markdown link `[Open Voice](yf://open/voice)` that the chat shows as a tappable button opening that screen. |
 | `device_status` | read-only | — | Time, timezone, battery, network, storage, screen size, Android version, foreground app. |
 | `find_installed_apps` | read-only | app list | Searches launchable apps by name or package fragment. |
 | `launch_app` | low | app list | Opens an app by package name or visible name. |

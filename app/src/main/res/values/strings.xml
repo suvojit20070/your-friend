@@ -510,6 +510,10 @@
     <string name="settings_ai">AI &amp; agent</string>
     <string name="settings_animation_quality">Animation quality</string>
     <string name="settings_appearance">Appearance</string>
+    <string name="settings_attach_shot">Attach screenshot in every request</string>
+    <string name="settings_attach_shot_desc">Sends a small screenshot with every request while another app is open. The model must support images. Uses more tokens and data.</string>
+    <string name="settings_attach_tree">Attach screen tree in every request</string>
+    <string name="settings_attach_tree_desc">Sends the list of elements on the screen (text and ids) with every request while another app is open. Needs the accessibility service. Uses more tokens.</string>
     <string name="settings_brave_key">Brave Search API key</string>
     <string name="settings_character_size">Character size</string>
     <string name="settings_character_style">Character style</string>
@@ -549,7 +553,10 @@
     <string name="settings_response_language_auto">Same as your message</string>
     <string name="settings_runtime_desc">Shell backends, runtimes, SSH</string>
     <string name="settings_screen_desc">Accessibility, screen capture, Shizuku</string>
+    <string name="settings_search_hint">Search settings</string>
+    <string name="settings_search_none">Nothing found. Try another word.</string>
     <string name="settings_search_provider">Web search</string>
+    <string name="settings_search_screens">Screens</string>
     <string name="settings_searxng_url">SearXNG URL</string>
     <string name="settings_storage_desc">See what uses space and free it</string>
     <string name="settings_summaries">Summarize long conversations</string>

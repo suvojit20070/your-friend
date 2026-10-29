@@ -73,6 +73,9 @@ public final class AndroidAgentHost implements AgentHost {
         List<ChatMessage> out = new ArrayList<>();
         out.add(ChatMessage.system(system));
         out.addAll(HistorySanitizer.sanitize(HistorySanitizer.limitImages(history, 2)));
+        // Optional: the current screen (tree and/or screenshot) goes along with every request.
+        ChatMessage screen = AutoScreenContext.build(g, llm.config().supportsVision);
+        if (screen != null) out.add(screen);
         return out;
     }
 

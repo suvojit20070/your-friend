@@ -872,6 +872,13 @@ S = {
 "settings_keep_screen_on": "画面をオンのままにする",
 "settings_keep_screen_on_desc": "エージェントのタスク実行中は画面をオンに保ちます。",
 "autonomy_never_ask_long": "一切確認しない — すべて許可",
+"settings_attach_tree": "毎回のリクエストに画面ツリーを添付",
+"settings_attach_tree_desc": "他のアプリが開いている間、画面上の要素（テキストとID）を毎回送ります。ユーザー補助サービスが必要です。トークンを多く使います。",
+"settings_attach_shot": "毎回のリクエストにスクリーンショットを添付",
+"settings_attach_shot_desc": "他のアプリが開いている間、小さなスクリーンショットを毎回送ります。モデルが画像に対応している必要があります。トークンとデータを多く使います。",
+"settings_search_hint": "設定を検索",
+"settings_search_screens": "画面",
+"settings_search_none": "見つかりませんでした。別の言葉をお試しください。",
 }
 
 P = {

@@ -510,6 +510,10 @@
     <string name="settings_ai">AI ও এজেন্ট</string>
     <string name="settings_animation_quality">অ্যানিমেশনের মান</string>
     <string name="settings_appearance">চেহারা</string>
+    <string name="settings_attach_shot">প্রতিটি অনুরোধে স্ক্রিনশট যুক্ত করুন</string>
+    <string name="settings_attach_shot_desc">অন্য অ্যাপ খোলা থাকলে প্রতিটি অনুরোধের সাথে ছোট স্ক্রিনশট পাঠায়। মডেলকে ছবি সমর্থন করতে হবে। বেশি টোকেন ও ডেটা লাগে।</string>
+    <string name="settings_attach_tree">প্রতিটি অনুরোধে স্ক্রিন ট্রি যুক্ত করুন</string>
+    <string name="settings_attach_tree_desc">অন্য অ্যাপ খোলা থাকলে প্রতিটি অনুরোধের সাথে স্ক্রিনের উপাদানের তালিকা (টেক্সট ও আইডি) পাঠায়। অ্যাক্সেসিবিলিটি সার্ভিস লাগবে। বেশি টোকেন লাগে।</string>
     <string name="settings_brave_key">Brave Search API কী</string>
     <string name="settings_character_size">ক্যারেক্টারের আকার</string>
     <string name="settings_character_style">ক্যারেক্টারের ধরন</string>
@@ -549,7 +553,10 @@
     <string name="settings_response_language_auto">আপনার মেসেজের মতো</string>
     <string name="settings_runtime_desc">শেল ব্যাকএন্ড, রানটাইম, SSH</string>
     <string name="settings_screen_desc">Accessibility, স্ক্রিন ক্যাপচার, Shizuku</string>
+    <string name="settings_search_hint">সেটিংস খুঁজুন</string>
+    <string name="settings_search_none">কিছু পাওয়া যায়নি। অন্য শব্দ চেষ্টা করুন।</string>
     <string name="settings_search_provider">ওয়েব সার্চ</string>
+    <string name="settings_search_screens">স্ক্রিন</string>
     <string name="settings_searxng_url">SearXNG URL</string>
     <string name="settings_storage_desc">কী জায়গা নিচ্ছে দেখো আর খালি করো</string>
     <string name="settings_summaries">দীর্ঘ কথোপকথনের সারাংশ</string>

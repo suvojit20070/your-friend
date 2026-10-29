@@ -8,7 +8,7 @@ Your Friend — Original project by Suvo.
       approvals, memory ranking/extraction/secret filter, context compaction, history repair,
       skill parser, audio + lip sync, character rig/animator/renderer
 - [x] Android layer: SQLite (v3, FTS4), Keystore secrets, settings, repositories, audit log
-- [x] 35 built-in tools (apps, screen, files, code, SSH, web, memory, skills, custom tools)
+- [x] 36 built-in tools (apps, screen, files, code, SSH, web, memory, skills, custom tools)
 - [x] Accessibility service, MediaProjection capture, Shizuku UserService, camera, speech input,
       hands-free foreground service
 - [x] Termux RUN_COMMAND backend, local shell, SSH with host-key pinning, runtime detection
@@ -253,3 +253,13 @@ Your Friend — Original project by Suvo.
 
 Not verified: none of this has run in Gradle or on a device. JVM tests added in this phase could not
 be run where it was written (no JUnit / org.json available there).
+
+## Phase 2.9 — settings search, screen context, app guide
+
+- [x] Settings search box (filters rows, lists matching app screens); `AppScreens` registry
+- [x] Switches "Attach screen tree in every request" and "Attach screenshot in every request"
+      (`AutoScreenContext`, temporary extra message, skipped while this app is on screen)
+- [x] Tool `load_my_app` (app guide) + prompt rule 13; chat turns `[text](yf://open/key)` into a button
+      that opens the screen (`Markdown.AppLink`, compiled and tested against stubs)
+
+Not verified: not built with Gradle, not run on a device.

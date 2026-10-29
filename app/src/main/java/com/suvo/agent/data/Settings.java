@@ -49,6 +49,9 @@ public final class Settings {
     public static final String MAX_TOOL_CALLS = "max_tool_calls";
     public static final String MAX_TASK_MINUTES = "max_task_minutes";
     /** "No limit" switches: when on, the matching slider is ignored. */
+    /** Add the current screen (accessibility tree and/or a screenshot) to every request while another app is on screen. */
+    public static final String ATTACH_SCREEN_TREE = "attach_screen_tree";
+    public static final String ATTACH_SCREENSHOT = "attach_screenshot";
     public static final String NO_LIMIT_STEPS = "no_limit_steps";
     public static final String NO_LIMIT_TOOL_CALLS = "no_limit_tool_calls";
     public static final String NO_LIMIT_TIME = "no_limit_time";

@@ -3,8 +3,13 @@ package com.suvo.agent.ui;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import com.suvo.agent.R;
 import com.suvo.agent.character.FloatingCompanionService;
@@ -18,6 +23,8 @@ import org.json.JSONObject;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Locale;
 
 /** Application behaviour, personality, memory, appearance, web and developer settings. */
 public final class SettingsActivity extends BaseActivity {
@@ -26,12 +33,39 @@ public final class SettingsActivity extends BaseActivity {
     private static final int REQ_IMPORT = 72;
     private static final int REQ_VRM = 73;
     private String vrmInfo = "";
+    private EditText search;
+    private LinearLayout screensBox;
+    private String query = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rows);
         setTopBar(R.string.section_settings);
+        search = new EditText(this, null, 0, R.style.YF_Input);
+        search.setHint(R.string.settings_search_hint);
+        search.setSingleLine(true);
+        search.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_search, 0, 0, 0);
+        search.setCompoundDrawablePadding(Ui.dp(this, 10));
+        search.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(Palette.of(this).onSurfaceVariant));
+        search.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        search.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable e) {
+                query = e.toString();
+                applyFilter();
+            }
+        });
+        screensBox = new LinearLayout(this);
+        screensBox.setOrientation(LinearLayout.VERTICAL);
     }
 
     @Override
@@ -40,9 +74,89 @@ public final class SettingsActivity extends BaseActivity {
         build();
     }
 
+    /** Hides every row that does not contain all words of the search text, and lists matching screens of the app. */
+    private void applyFilter() {
+        LinearLayout box = findViewById(R.id.rows);
+        if (box == null || search == null) return;
+        String q = query.trim().toLowerCase(Locale.ROOT);
+        boolean filtering = !q.isEmpty();
+        String[] words = q.split("\\s+");
+        java.util.ArrayList<View> heads = new java.util.ArrayList<>();
+        int shown = 0;
+        for (int i = 0; i < box.getChildCount(); i++) {
+            View c = box.getChildAt(i);
+            if (c == search || c == screensBox) continue;
+            if (!(c instanceof LinearLayout)) {
+                // A section title or a note: only shown together with a card that has matches.
+                heads.add(c);
+                c.setVisibility(filtering ? View.GONE : View.VISIBLE);
+                continue;
+            }
+            LinearLayout card = (LinearLayout) c;
+            int visibleRows = 0;
+            View divider = null;
+            for (int k = 0; k < card.getChildCount(); k++) {
+                View v = card.getChildAt(k);
+                if (!(v instanceof ViewGroup)) {
+                    divider = v;
+                    continue;
+                }
+                boolean match = !filtering || matchesAll(textOf(v).toLowerCase(Locale.ROOT), words);
+                v.setVisibility(match ? View.VISIBLE : View.GONE);
+                if (divider != null) {
+                    divider.setVisibility(match && (visibleRows > 0 || !filtering) ? View.VISIBLE : View.GONE);
+                    divider = null;
+                }
+                if (match) visibleRows++;
+            }
+            boolean show = !filtering || visibleRows > 0;
+            card.setVisibility(show ? View.VISIBLE : View.GONE);
+            if (filtering && visibleRows > 0) for (View h : heads) h.setVisibility(View.VISIBLE);
+            shown += filtering ? visibleRows : 0;
+            heads.clear();
+        }
+        // Screens of the app that match (Voice, Memory, Providers…), each opens that screen.
+        screensBox.removeAllViews();
+        if (!filtering) return;
+        List<AppScreens.Screen> found = AppScreens.match(this, q);
+        Rows rr = new Rows(this, screensBox);
+        int count = 0;
+        for (AppScreens.Screen s : found) {
+            if (s.cls == SettingsActivity.class || count >= 6) continue;
+            if (count == 0) rr.section(R.string.settings_search_screens);
+            final Class<? extends android.app.Activity> target = s.cls;
+            rr.row(R.drawable.ic_search, getString(s.titleRes), s.where, null, v -> open(target));
+            count++;
+        }
+        if (shown == 0 && count == 0) rr.note(getString(R.string.settings_search_none));
+    }
+
+    private static boolean matchesAll(String hay, String[] words) {
+        for (String w : words) if (!w.isEmpty() && !hay.contains(w)) return false;
+        return true;
+    }
+
+    /** All visible text of a row (title and summary). */
+    private static String textOf(View v) {
+        StringBuilder sb = new StringBuilder();
+        collect(v, sb);
+        return sb.toString();
+    }
+
+    private static void collect(View v, StringBuilder sb) {
+        if (v instanceof TextView && !(v instanceof EditText)) sb.append(((TextView) v).getText()).append(' ');
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) collect(g.getChildAt(i), sb);
+        }
+    }
+
     private void build() {
         LinearLayout box = findViewById(R.id.rows);
         box.removeAllViews();
+        // Search box first (it stays the same view, so typing is not interrupted), then screen results.
+        box.addView(search, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        box.addView(screensBox, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         Rows r = new Rows(this, box);
 
         r.section(R.string.settings_ai);
@@ -85,6 +199,9 @@ public final class SettingsActivity extends BaseActivity {
         r.section(R.string.settings_device);
         r.link(R.drawable.ic_screen, R.string.section_screen, R.string.settings_screen_desc, ScreenControlActivity.class);
         r.link(R.drawable.ic_shield, R.string.section_permissions, R.string.settings_permissions_desc, PermissionsActivity.class);
+        // The current screen goes along with every request (only while another app is on screen).
+        r.switchRow(R.drawable.ic_screen, R.string.settings_attach_tree, R.string.settings_attach_tree_desc, Settings.ATTACH_SCREEN_TREE, false, null);
+        r.switchRow(R.drawable.ic_eye, R.string.settings_attach_shot, R.string.settings_attach_shot_desc, Settings.ATTACH_SCREENSHOT, false, null);
 
         r.section(R.string.settings_appearance);
         r.choiceRow(R.drawable.ic_eye, R.string.settings_theme, Settings.THEME, "dark",
@@ -153,6 +270,7 @@ public final class SettingsActivity extends BaseActivity {
         r.link(R.drawable.ic_files, R.string.storage_title, R.string.settings_storage_desc, StorageActivity.class);
         r.link(R.drawable.ic_info, R.string.section_about, 0, AboutActivity.class);
         Ui.tintAccent(this, box);
+        applyFilter();
     }
 
     /** Encrypted values (API keys, tokens) only work on this phone and must never leave it. */

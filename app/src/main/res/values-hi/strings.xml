@@ -510,6 +510,10 @@
     <string name="settings_ai">AI और एजेंट</string>
     <string name="settings_animation_quality">एनिमेशन गुणवत्ता</string>
     <string name="settings_appearance">रूप</string>
+    <string name="settings_attach_shot">हर अनुरोध में स्क्रीनशॉट जोड़ें</string>
+    <string name="settings_attach_shot_desc">जब कोई दूसरा ऐप खुला हो तो हर अनुरोध के साथ छोटा स्क्रीनशॉट भेजता है। मॉडल को इमेज सपोर्ट करनी चाहिए। ज़्यादा टोकन और डेटा लगता है।</string>
+    <string name="settings_attach_tree">हर अनुरोध में स्क्रीन ट्री जोड़ें</string>
+    <string name="settings_attach_tree_desc">जब कोई दूसरा ऐप खुला हो तो हर अनुरोध के साथ स्क्रीन के एलिमेंट (टेक्स्ट और आईडी) भेजता है। एक्सेसिबिलिटी सर्विस चाहिए। ज़्यादा टोकन लगते हैं।</string>
     <string name="settings_brave_key">Brave Search API कुंजी</string>
     <string name="settings_character_size">कैरेक्टर का आकार</string>
     <string name="settings_character_style">कैरेक्टर स्टाइल</string>
@@ -549,7 +553,10 @@
     <string name="settings_response_language_auto">आपके संदेश जैसी</string>
     <string name="settings_runtime_desc">शेल बैकएंड, रनटाइम, SSH</string>
     <string name="settings_screen_desc">Accessibility, स्क्रीन कैप्चर, Shizuku</string>
+    <string name="settings_search_hint">सेटिंग्स खोजें</string>
+    <string name="settings_search_none">कुछ नहीं मिला। दूसरा शब्द आज़माएँ।</string>
     <string name="settings_search_provider">वेब खोज</string>
+    <string name="settings_search_screens">स्क्रीन</string>
     <string name="settings_searxng_url">SearXNG URL</string>
     <string name="settings_storage_desc">देखें क्या जगह ले रहा है और खाली करें</string>
     <string name="settings_summaries">लंबी बातचीत का सारांश</string>

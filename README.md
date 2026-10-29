@@ -61,7 +61,7 @@ What each column means:
 | Tool lifecycle, schema validation, approval policy, audit log | ✅ | ✅ | ✅ | ⏳ |
 | Persistent memory (SQLite + FTS), ranking, secret filter, extraction | ✅ | ✅ | ✅ (core logic) | ⏳ |
 | Context compaction and history repair | ✅ | ✅ | ✅ | ⏳ |
-| 35 built-in tools | ✅ | ✅ | partly (web parsing, URL safety) | ⏳ |
+| 36 built-in tools | ✅ | ✅ | partly (web parsing, URL safety) | ⏳ |
 | Accessibility screen reading / control | ✅ | ✅ | — | ⏳ |
 | Screenshots (accessibility API 30+, MediaProjection fallback) | ✅ | ✅ | — | ⏳ |
 | Shizuku shell control | ✅ | ✅ | — | ⏳ |
@@ -99,7 +99,7 @@ app/src/main/java/com/suvo/agent/
 │   └── character/   Rig parameters, animator, renderer over a tiny Gfx abstraction
 ├── data/            SQLite (Db), Keystore SecretStore, Settings, repositories, audit log
 ├── agent/           AgentRuntime, Android host, foreground service, approval notifications
-├── tools/           The 35 built-in tools
+├── tools/           The 36 built-in tools
 ├── device/          Accessibility service, screen capture, Shizuku, camera, capability registry
 ├── files/           Workspace (private files + trash), SAF folders, FileProvider
 ├── terminal/        Local shell, Termux backend, runtime manager
@@ -277,6 +277,17 @@ and snaps to edges.
 
 ---
 
+## Settings search, screen context and app guide
+
+- **Settings → search box** at the top: type a word and only the matching settings stay visible; screens of
+  the app that match (Voice, Memory, Providers…) are listed above them and open on tap.
+- **Settings → Device → Attach screen tree / screenshot in every request:** while another app is on
+  screen, the list of screen elements and/or a small screenshot go along with every model call
+  (temporary, not saved in the chat). Needs the accessibility service; the screenshot needs a vision model
+  and uses accessibility capture (Android 11+) or an already running capture session. Both cost tokens.
+- **`load_my_app` tool:** gives the agent the guide to the app (`AppScreens`). When you ask "where is the voice
+  setting?" it answers and adds a button (`[Open Voice](yf://open/voice)`) that opens the screen.
+
 ## Agent limits
 
 **Settings → AI** has three limits for one autonomous task: steps, tool calls and minutes. Each
@@ -311,11 +322,11 @@ Additional permissions).
 
 ## Tools, custom tools and skills
 
-### Built-in tools (35)
+### Built-in tools (36)
 
 | Risk | Tools |
 |---|---|
-| Read-only | `list_tools`, `device_status`, `find_installed_apps`, `file_list`, `file_read`, `file_search`, `file_info`, `screenshot`, `view_image`, `load_skill`, `py_web_search`, `py_web_read` |
+| Read-only | `list_tools`, `load_my_app`, `device_status`, `find_installed_apps`, `file_list`, `file_read`, `file_search`, `file_info`, `screenshot`, `view_image`, `load_skill`, `py_web_search`, `py_web_read` |
 | Low | `launch_app`, `open_uri`, `notify`, `file_write`, `file_edit`, `memory`, `py_download_file`, `record_mistake`, `delegate_task` |
 | Medium | `shell`, `execute_python`, `execute_cpp`, `execute_java`, `file_manage`, `screen_operation_accessibility`, `screen_operation_shell`, `camera_capture`, `schedule_task`, `install_skill` |
 | High | `ssh`, `py_meta_tools`, `py_install_apk`, `device_admin` (most actions) |

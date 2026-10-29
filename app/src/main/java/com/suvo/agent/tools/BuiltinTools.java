@@ -34,6 +34,7 @@ public final class BuiltinTools {
     public static void registerAll(AppGraph g) {
         add(g, () -> new DiscoveryTools.ListTools(g));
         add(g, () -> new DiscoveryTools.DeviceStatus(g));
+        add(g, () -> new AppGuideTools.LoadMyApp(g));
         add(g, () -> new AppTools.FindInstalledApps(g));
         add(g, () -> new AppTools.LaunchApp(g));
         add(g, () -> new AppTools.OpenUri(g));

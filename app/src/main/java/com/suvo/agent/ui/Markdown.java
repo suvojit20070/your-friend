@@ -3,11 +3,14 @@ package com.suvo.agent.ui;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.view.View;
 import android.text.Layout;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.SpannedString;
+import android.text.TextPaint;
 import android.text.style.BackgroundColorSpan;
+import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.LeadingMarginSpan;
 import android.text.style.RelativeSizeSpan;
@@ -460,6 +463,22 @@ public final class Markdown {
                     String url = s.substring(close + 2, paren).trim();
                     int sp = url.indexOf(' '); // [text](url "title")
                     if (sp > 0) url = url.substring(0, sp);
+                    if (url.startsWith(AppScreens.SCHEME) || url.startsWith("yf://")) {
+                        // A button that opens a screen of this app: [Open Voice](yf://open/voice)
+                        String key = url.substring(url.lastIndexOf('/') + 1);
+                        int b0 = out.length();
+                        out.append('\u00A0');
+                        inline(out, label.isEmpty() ? key : label, st);
+                        out.append(" \u2197\u00A0");
+                        if (AppScreens.find(key) != null) {
+                            int accent = st.link != 0 ? st.link : 0xFF7C5CFF;
+                            out.setSpan(new AppLink(key, accent), b0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            out.setSpan(new BackgroundColorSpan((accent & 0x00FFFFFF) | 0x33000000), b0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            out.setSpan(new StyleSpan(Typeface.BOLD), b0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        }
+                        i = paren + 1;
+                        continue;
+                    }
                     int st0 = out.length();
                     if (label.isEmpty()) out.append(url);
                     else inline(out, label, st);
@@ -545,6 +564,28 @@ public final class Markdown {
             float right = x + dir * (marginDp * density - gap);
             c.drawText(marker, dir > 0 ? right - w : right, baseline, p);
             p.setColor(oldColor);
+        }
+    }
+
+    /** Tappable button that opens a screen of the app (see {@link AppScreens}). */
+    static final class AppLink extends ClickableSpan {
+        private final String key;
+        private final int color;
+
+        AppLink(String key, int color) {
+            this.key = key;
+            this.color = color;
+        }
+
+        @Override
+        public void onClick(View widget) {
+            AppScreens.open(widget.getContext(), key);
+        }
+
+        @Override
+        public void updateDrawState(TextPaint ds) {
+            ds.setColor(color);
+            ds.setUnderlineText(false);
         }
     }
 

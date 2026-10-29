@@ -510,6 +510,10 @@
     <string name="settings_ai">AI とエージェント</string>
     <string name="settings_animation_quality">アニメーション品質</string>
     <string name="settings_appearance">外観</string>
+    <string name="settings_attach_shot">毎回のリクエストにスクリーンショットを添付</string>
+    <string name="settings_attach_shot_desc">他のアプリが開いている間、小さなスクリーンショットを毎回送ります。モデルが画像に対応している必要があります。トークンとデータを多く使います。</string>
+    <string name="settings_attach_tree">毎回のリクエストに画面ツリーを添付</string>
+    <string name="settings_attach_tree_desc">他のアプリが開いている間、画面上の要素（テキストとID）を毎回送ります。ユーザー補助サービスが必要です。トークンを多く使います。</string>
     <string name="settings_brave_key">Brave Search API キー</string>
     <string name="settings_character_size">キャラクターの大きさ</string>
     <string name="settings_character_style">キャラクターの表示</string>
@@ -549,7 +553,10 @@
     <string name="settings_response_language_auto">メッセージと同じ</string>
     <string name="settings_runtime_desc">シェルバックエンド、ランタイム、SSH</string>
     <string name="settings_screen_desc">ユーザー補助、画面キャプチャ、Shizuku</string>
+    <string name="settings_search_hint">設定を検索</string>
+    <string name="settings_search_none">見つかりませんでした。別の言葉をお試しください。</string>
     <string name="settings_search_provider">Web 検索</string>
+    <string name="settings_search_screens">画面</string>
     <string name="settings_searxng_url">SearXNG URL</string>
     <string name="settings_storage_desc">容量の内訳を見て空きを作る</string>
     <string name="settings_summaries">長い会話を要約</string>
