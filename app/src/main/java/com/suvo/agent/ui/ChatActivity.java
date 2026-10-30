@@ -227,6 +227,7 @@ public final class ChatActivity extends BaseActivity {
             LiquidPress.attach(b, LiquidPress.CORNER);
         }
         setUpScrollToBottom();
+        setUpExpandingComposer();
         View bottom = findViewById(R.id.chat_bottom);
         bottom.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             int pad = (b - t) + Ui.dp(this, 8);
@@ -278,6 +279,80 @@ public final class ChatActivity extends BaseActivity {
             pending.add(p);
             updateAttachmentHint();
         });
+    }
+
+    // ---------------------------------------------------------------- expanding composer
+
+    /** The composer's two rows: the input (with the buttons beside it while it is one line) … */
+    private LinearLayout composerTop;
+    /** … and, once the text needs a second line, the buttons below it (input gets the full width). */
+    private LinearLayout composerTools;
+    private boolean composerExpanded;
+    /** Text width the input had on one line, to know when the text fits there again. */
+    private int collapsedTextWidth;
+
+    /**
+     * Zafiro-style composer: one row while the message is one line ([+] text [mic] [send]); as
+     * soon as it needs a new line the text takes the full width on top and the buttons move to a
+     * row below it, and back when it fits on one line again. Only the buttons move (the input
+     * keeps its parent), so the keyboard and the cursor are never disturbed.
+     */
+    private void setUpExpandingComposer() {
+        LinearLayout composer = findViewById(R.id.chat_composer);
+        composerTop = new LinearLayout(this);
+        composerTop.setOrientation(LinearLayout.HORIZONTAL);
+        composerTop.setGravity(Gravity.BOTTOM);
+        composerTools = new LinearLayout(this);
+        composerTools.setOrientation(LinearLayout.HORIZONTAL);
+        composerTools.setGravity(Gravity.CENTER_VERTICAL);
+        composerTools.setVisibility(View.GONE);
+        List<View> kids = new ArrayList<>();
+        for (int i = 0; i < composer.getChildCount(); i++) kids.add(composer.getChildAt(i));
+        composer.removeAllViews();
+        for (View k : kids) composerTop.addView(k);
+        composer.setOrientation(LinearLayout.VERTICAL);
+        composer.addView(composerTop, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tp.topMargin = Ui.dp(this, 6);
+        composer.addView(composerTools, tp);
+        input.addTextChangedListener(new SimpleWatcher(() -> input.post(this::updateComposerShape)));
+    }
+
+    private void updateComposerShape() {
+        if (composerTop == null) return;
+        String t = input.getText().toString();
+        boolean want;
+        if (!composerExpanded) {
+            want = t.indexOf('\n') >= 0 || input.getLineCount() > 1;
+        } else {
+            // Back to one row only when it clearly fits there again (no flip-flopping at the edge).
+            want = !t.isEmpty() && (t.indexOf('\n') >= 0 || input.getPaint().measureText(t) > collapsedTextWidth * 0.9f);
+        }
+        if (want == composerExpanded) return;
+        if (want) collapsedTextWidth = Math.max(1, input.getWidth() - input.getTotalPaddingLeft() - input.getTotalPaddingRight());
+        composerExpanded = want;
+        View plus = findViewById(R.id.chat_plus), mic = findViewById(R.id.chat_mic);
+        android.transition.TransitionManager.beginDelayedTransition((ViewGroup) findViewById(R.id.chat_bottom),
+                new android.transition.AutoTransition().setDuration(220));
+        for (View b : new View[]{plus, mic, send}) ((ViewGroup) b.getParent()).removeView(b);
+        int size = Ui.dp(this, 48);
+        if (want) {
+            composerTools.setVisibility(View.VISIBLE);
+            composerTools.addView(plus, new LinearLayout.LayoutParams(size, size));
+            composerTools.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+            composerTools.addView(mic, new LinearLayout.LayoutParams(size, size));
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(size, size);
+            sp.setMarginStart(Ui.dp(this, 4));
+            composerTools.addView(send, sp);
+        } else {
+            composerTools.removeAllViews();
+            composerTools.setVisibility(View.GONE);
+            composerTop.addView(plus, 0, new LinearLayout.LayoutParams(size, size));
+            composerTop.addView(mic, new LinearLayout.LayoutParams(size, size));
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(size, size);
+            sp.setMarginStart(Ui.dp(this, 4));
+            composerTop.addView(send, sp);
+        }
     }
 
     /** Chips above the composer show what goes with the next message; tap one to remove it. */

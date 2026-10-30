@@ -108,7 +108,6 @@
             android:overScrollMode="ifContentScrolls"
             android:paddingTop="4dp"
             android:paddingBottom="12dp"
-            
             android:scrollbars="none">
 
             <LinearLayout

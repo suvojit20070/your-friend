@@ -34,17 +34,18 @@ public class GlassDrawable extends Drawable {
     /** Glass presets. Radii in dp (-1 = capsule / circle). */
     public enum Preset {
         //        radius blurL blurD  hue   rimL  rimD  shadowR shadowL shadowD
-        BUTTON(-1, 4, 4, 0f, 0f, 1f, 12, 0.20f, 0.08f),
-        POPOVER(20, 24, 20, 0f, 0.4f, 1f, 20, 0.20f, 0.08f),
-        COMPOSER(36, 16, 12, 0.32f, 0.15f, 0.3f, 20, 0.12f, 0.06f),
-        SCROLL(-1, 16, 12, 0f, 0.15f, 0.3f, 20, 0.12f, 0.06f),
-        PILL(-1, 16, 12, 0.32f, 0.15f, 0.3f, 20, 0.12f, 0.06f),
+        // Rims are kept faint (Zafiro look): a bright white ring around every round button looked harsh.
+        BUTTON(-1, 8, 8, 0f, 0f, 0.12f, 12, 0.16f, 0.08f),
+        POPOVER(20, 24, 20, 0f, 0.15f, 0.25f, 20, 0.20f, 0.08f),
+        COMPOSER(36, 16, 12, 0.32f, 0.1f, 0.15f, 20, 0.12f, 0.06f),
+        SCROLL(-1, 16, 12, 0f, 0.1f, 0.15f, 20, 0.12f, 0.06f),
+        PILL(-1, 16, 12, 0.32f, 0.1f, 0.15f, 20, 0.12f, 0.06f),
         TEXTFIELD(36, 2, 2, 0.32f, 0.5f, 0.5f, 0, 0f, 0f),
-        CAPSULE(-1, 2, 2, 0f, 0.4f, 0.6f, 0, 0f, 0f),
+        CAPSULE(-1, 2, 2, 0f, 0.15f, 0.25f, 0, 0f, 0f),
         DIALOG(48, 12, 8, 0.18f, 0f, 0f, 16, 0.24f, 0.16f),
         SHEET(32, 12, 8, 0.18f, 0f, 0f, 24, 0.20f, 0.14f),
         TOPBAR(0, 16, 16, 0f, 0f, 0f, 0, 0f, 0f),
-        TILE(20, 6, 6, 0f, 0.3f, 0.5f, 0, 0f, 0f);
+        TILE(20, 6, 6, 0f, 0.12f, 0.2f, 0, 0f, 0f);
 
         final float radiusDp, blurLightDp, blurDarkDp, hueTint, rimLight, rimDark, shadowDp, shadowLight, shadowDark;
 
@@ -220,8 +221,9 @@ public class GlassDrawable extends Drawable {
         Squircle.build(path, rect, radii, Squircle.SMOOTHING);
         int h = Math.max(1, b.height());
         float rimA = pal.dark ? preset.rimDark : preset.rimLight;
-        int top = Palette.alpha(Color.WHITE, Math.max(0.08f, 0.6f * rimA + (pal.dark ? 0.06f : 0.25f)));
-        int bottom = Palette.alpha(Color.WHITE, 0.15f * rimA);
+        // A hairline that catches a little light at the top and fades out: present, never a ring.
+        int top = Palette.alpha(Color.WHITE, Math.min(0.32f, 0.4f * rimA + (pal.dark ? 0.06f : 0.14f)));
+        int bottom = Palette.alpha(Color.WHITE, 0.05f * rimA);
         rim.setShader(new LinearGradient(0, b.top, 0, b.top + Math.min(h, 64 * density), top, bottom, Shader.TileMode.CLAMP));
         int hl = Palette.alpha(Color.WHITE, pal.dark ? 0.08f : 0.15f);
         topLine.setShader(new LinearGradient(b.left, 0, b.right, 0, new int[]{0, hl, hl, 0}, new float[]{0f, 0.2f, 0.8f, 1f}, Shader.TileMode.CLAMP));
