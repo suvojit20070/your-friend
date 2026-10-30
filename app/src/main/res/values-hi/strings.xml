@@ -524,6 +524,8 @@
     <string name="settings_export_config_desc">API कुंजी या सीक्रेट के बिना</string>
     <string name="settings_floating">फ़्लोटिंग साथी</string>
     <string name="settings_floating_desc">ऐप से बाहर जाने पर कैरेक्टर स्क्रीन पर तैरेगा। \"दूसरे ऐप्स के ऊपर दिखाएँ\" अनुमति चाहिए।</string>
+    <string name="settings_companion_brain">जीवंत साथी (AI)</string>
+    <string name="settings_companion_brain_desc">फ़्लोटिंग कैरेक्टर स्क्रीन पर जो है उसे देखकर खुद ही कभी-कभी मूड, बैठना, खड़ा होना, कहीं चलना, सोना तय करेगा। हर एक-दो मिनट में आपके AI प्रोवाइडर को एक छोटा अलग अनुरोध जाता है (टोकन लगते हैं)। जो चीज़ गायब हो जाए, उससे वह हमेशा नीचे गिर जाता है।</string>
     <string name="settings_import_config">सेटिंग्स आयात करें</string>
     <string name="settings_imported">सेटिंग्स आयात हुईं</string>
     <string name="settings_keep_screen_on">स्क्रीन चालू रखें</string>

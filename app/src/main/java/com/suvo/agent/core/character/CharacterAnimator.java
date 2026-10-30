@@ -71,6 +71,18 @@ public final class CharacterAnimator {
         }
     }
 
+    private boolean asleep;
+
+    /** Asleep: eyes stay closed, the head droops, breathing slows; no blinking or glancing. */
+    public void setAsleep(boolean a) {
+        asleep = a;
+        if (a) blinkPhase = -1f;
+    }
+
+    public boolean isAsleep() {
+        return asleep;
+    }
+
     public void setExpression(Expression e) {
         baseExpression = e == null ? Expression.NEUTRAL : e;
     }
@@ -147,7 +159,7 @@ public final class CharacterAnimator {
         }
 
         // --- Base targets -----------------------------------------------------------------
-        float breathe = (float) (0.5 + 0.5 * Math.sin(time * 2 * Math.PI / (activity == Activity.SPEAKING ? 3.0 : 3.8)));
+        float breathe = (float) (0.5 + 0.5 * Math.sin(time * 2 * Math.PI / (activity == Activity.SPEAKING ? 3.0 : asleep ? 5.2 : 3.8)));
         target.breath = breathe;
         target.angleX = motion * (0.10f * (float) Math.sin(time * 0.53) + 0.05f * (float) Math.sin(time * 1.31 + 1.2));
         target.angleY = motion * (0.06f * (float) Math.sin(time * 0.41 + 0.4));
@@ -244,6 +256,18 @@ public final class CharacterAnimator {
                 break;
         }
 
+        if (asleep) {
+            target.eyeLOpen = target.eyeROpen = 0f;
+            target.eyeSmile = 0f;
+            target.browY = -0.15f;
+            target.browForm = 0f;
+            target.mouthForm = 0.2f;
+            target.angleY += -0.25f;
+            target.angleZ += 0.12f;
+            target.sparkle = 0f;
+            target.thinkDots = 0f;
+        }
+
         // --- Gaze: look-at overrides saccades ------------------------------------------------------
         if (lookActive) {
             lookTimeLeft -= dt;
@@ -275,7 +299,7 @@ public final class CharacterAnimator {
         boolean eyesShut = expression() == Expression.HAPPY && target.eyeSmile > 0.6f;
         if (blinkPhase < 0) {
             nextBlink -= dt * blinkRate;
-            if (nextBlink <= 0 && !eyesShut) {
+            if (nextBlink <= 0 && !eyesShut && !asleep) {
                 blinkPhase = 0f;
                 doubleBlink = rnd.nextFloat() < 0.15f;
                 nextBlink = 1.8f + rnd.nextFloat() * 4.2f;

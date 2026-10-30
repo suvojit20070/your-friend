@@ -28,6 +28,18 @@ final class SpringSim {
     private final float[] o4 = new float[4];
     /** Extra force in model space (m/s²-ish), e.g. from dragging the floating window. */
     final float[] wind = new float[3];
+    /**
+     * Joints hanging from the hips (skirt, coat tails) — not hair. While sitting they get pushed
+     * forward over the thighs ({@link #lowerForce}) and kept outside the thighs
+     * ({@link #legPush}), so the skirt drapes over the lap instead of hanging open between the legs.
+     */
+    private final boolean[] lower;
+    final float[] lowerForce = new float[3];
+    /** 0..1: how strongly the thighs push the skirt (the sitting amount). */
+    float legPush;
+    /** Thigh capsule radius in model units. */
+    float legRadius = 0.07f;
+    private final int legL0, legL1, legR0, legR1;
 
     SpringSim(VrmModel m) {
         this.m = m;
@@ -37,6 +49,23 @@ final class SpringSim {
         boneAxis = new float[count][3];
         tailLocal = new float[count][3];
         length = new float[count];
+        lower = new boolean[count];
+        java.util.Set<Integer> humanoid = new java.util.HashSet<>(m.bones.values());
+        java.util.Set<Integer> lowerRoots = new java.util.HashSet<>();
+        for (String b : new String[]{"hips", "spine", "leftUpperLeg", "rightUpperLeg", "leftLowerLeg", "rightLowerLeg"}) {
+            Integer idx = m.bones.get(b);
+            if (idx != null) lowerRoots.add(idx);
+        }
+        legL0 = bone("leftUpperLeg");
+        legL1 = bone("leftLowerLeg");
+        legR0 = bone("rightUpperLeg");
+        legR1 = bone("rightLowerLeg");
+        for (int i = 0; i < count; i++) {
+            // First humanoid bone above the joint: hips/spine/legs = clothes on the lower body.
+            int p = m.nodes.get(m.springs.get(i).node).parent, guard = 0;
+            while (p >= 0 && !humanoid.contains(p) && guard++ < 64) p = m.nodes.get(p).parent;
+            lower[i] = p >= 0 && lowerRoots.contains(p);
+        }
         for (int i = 0; i < count; i++) {
             VrmModel.SpringJoint j = m.springs.get(i);
             float[] t;
@@ -51,6 +80,11 @@ final class SpringSim {
             tailLocal[i] = t;
             boneAxis[i] = VrmMath.norm3(t);
         }
+    }
+
+    private int bone(String name) {
+        Integer idx = m.bones.get(name);
+        return idx == null || idx < 0 || idx >= m.nodes.size() ? -1 : idx;
     }
 
     boolean isEmpty() {
@@ -113,10 +147,14 @@ final class SpringSim {
             for (int k = 0; k < 3; k++) {
                 float inertia = (currTail[i][k] - prevTail[i][k]) * (1f - drag);
                 next[k] = currTail[i][k] + inertia + axisWorld[k] * stiff + j.gravityDir[k] * grav
-                        + wind[k] * dt * dt;
+                        + (wind[k] + (lower[i] ? lowerForce[k] : 0f)) * dt * dt;
             }
             constrain(head, next, length[i]);
             collide(j, world, head, next, length[i]);
+            if (lower[i] && legPush > 0.05f) {
+                pushOut(world, legL0, legL1, head, next, length[i]);
+                pushOut(world, legR0, legR1, head, next, length[i]);
+            }
             System.arraycopy(currTail[i], 0, prevTail[i], 0, 3);
             System.arraycopy(next, 0, currTail[i], 0, 3);
 
@@ -130,6 +168,35 @@ final class SpringSim {
             if (parent >= 0) Matrix.multiplyMM(world, n * 16, world, parent * 16, local, 0);
             else System.arraycopy(local, 0, world, n * 16, 16);
         }
+    }
+
+    /** Keeps a skirt tail outside the thigh (capsule from hip to knee). */
+    private void pushOut(float[] world, int a, int b, float[] head, float[] tail, float len) {
+        if (a < 0 || b < 0) return;
+        float ax = world[a * 16 + 12], ay = world[a * 16 + 13], az = world[a * 16 + 14];
+        float bx = world[b * 16 + 12], by = world[b * 16 + 13], bz = world[b * 16 + 14];
+        float abx = bx - ax, aby = by - ay, abz = bz - az;
+        float l2 = abx * abx + aby * aby + abz * abz;
+        if (l2 < 1e-9f) return;
+        float t = ((tail[0] - ax) * abx + (tail[1] - ay) * aby + (tail[2] - az) * abz) / l2;
+        t = Math.max(0f, Math.min(1f, t));
+        float cx = ax + abx * t, cy = ay + aby * t, cz = az + abz * t;
+        float r = legRadius * legPush;
+        float dx = tail[0] - cx, dy = tail[1] - cy, dz = tail[2] - cz;
+        float d = VrmMath.len(dx, dy, dz);
+        if (d >= r) return;
+        if (d < 1e-5f) {
+            // Exactly on the axis: push up, over the thigh.
+            dx = 0;
+            dy = 1;
+            dz = 0;
+            d = 1;
+        }
+        float s = r / d;
+        tail[0] = cx + dx * s;
+        tail[1] = cy + dy * s;
+        tail[2] = cz + dz * s;
+        constrain(head, tail, len);
     }
 
     private static float[] rotate(float[] q, float[] v) {

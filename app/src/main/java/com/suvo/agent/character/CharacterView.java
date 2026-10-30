@@ -232,6 +232,25 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
         if (vrm != null) vrm.setAirborne(a);
     }
 
+    /** Walk toward the left (-1) or right (+1) of the screen, or stop (0) (floating mode, 3D only). */
+    public void setWalking(float dir) {
+        if (vrm != null) vrm.setWalking(dir);
+    }
+
+    /** Sitting style (a {@link com.suvo.agent.character.vrm.SitStyles} constant; -1 = chosen by mood). */
+    public void setSitStyle(int style) {
+        if (vrm != null) vrm.setSitStyle(style);
+    }
+
+    /** Asleep: eyes closed, slow breathing, no glancing around. */
+    public void setAsleep(boolean asleep) {
+        animator.setAsleep(asleep);
+    }
+
+    public boolean isAsleep() {
+        return animator.isAsleep();
+    }
+
     /** Hair/cloth force while the window is dragged (screen axes). */
     public void setWind(float x, float y) {
         if (vrm != null) vrm.setWind(x, y);

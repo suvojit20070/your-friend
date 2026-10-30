@@ -524,6 +524,8 @@
     <string name="settings_export_config_desc">Without API keys or secrets</string>
     <string name="settings_floating">Floating companion</string>
     <string name="settings_floating_desc">When you leave the app, the character floats on screen. Needs \"Display over other apps\".</string>
+    <string name="settings_companion_brain">Lively companion (AI)</string>
+    <string name="settings_companion_brain_desc">The floating character decides on its own now and then — mood, sit, stand, walk somewhere, sleep — from what is on screen. Sends a small separate request to your AI provider every minute or two (uses tokens). It always falls off things that disappear.</string>
     <string name="settings_import_config">Import settings</string>
     <string name="settings_imported">Settings imported</string>
     <string name="settings_keep_screen_on">Keep Screen On</string>

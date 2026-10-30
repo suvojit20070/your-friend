@@ -540,6 +540,10 @@ final class VrmRenderer {
     private final SitStyles sitStyles = new SitStyles(rnd);
     private final SitStyles.Mood mood = new SitStyles.Mood();
     private float moodSad, moodSleepy, moodShy;
+    // Walking along a surface (floating mode): -1 left, +1 right, 0 standing still.
+    private volatile float walkTarget;
+    private volatile int forcedStyle = -1;
+    private float walk, walkPhase, walkDir = 1f;
 
     static final int IDLE_LOOK_AROUND = 0, IDLE_HAIR = 1, IDLE_HANDS = 2, IDLE_SWAY = 3, IDLE_GLANCE = 4, IDLE_STRETCH = 5;
 
@@ -551,6 +555,16 @@ final class VrmRenderer {
     /** Held in the air or falling. */
     void setAirborne(boolean a) {
         airTarget = a;
+    }
+
+    /** Walk toward the left (-1) or right (+1) of the screen, or stop (0). */
+    void setWalking(float dir) {
+        walkTarget = dir;
+    }
+
+    /** Sit in this {@link SitStyles} style (-1 = choose by mood). */
+    void setSitStyle(int style) {
+        forcedStyle = style;
     }
 
     /** External force for hair and clothes, in model-space units (e.g. from dragging the window). */
@@ -615,7 +629,14 @@ final class VrmRenderer {
         mood.think = think;
         mood.sleepy = moodSleepy;
         mood.shy = moodShy;
+        sitStyles.force(forcedStyle);
         float[] st = sitStyles.update(time, dt, sitTarget, mood);
+        // Walking: a stroll cycle, the body turned toward where it goes.
+        float wt = walkTarget;
+        if (wt != 0f) walkDir = wt > 0 ? 1f : -1f;
+        walk = approach(walk, wt != 0f && !sitTarget && !airTarget ? 1f : 0f, 6f, dt);
+        walkPhase += dt * 2f * (float) Math.PI * 1.6f * Math.max(0.15f, walk);
+        float wPh = (float) Math.sin(walkPhase), wCos = (float) Math.cos(walkPhase);
         float breath = p.breath - 0.5f;
         boolean busy = speak > 0.3f || think > 0.3f || listen > 0.3f || air > 0.3f;
 
@@ -640,22 +661,25 @@ final class VrmRenderer {
             weightTarget = weightTarget > 0 ? -(0.55f + rnd.nextFloat() * 0.45f) : (0.55f + rnd.nextFloat() * 0.45f);
             weightNextAt = time + 4f + rnd.nextFloat() * 5f;
         }
-        weight = approach(weight, weightTarget * (1f - 0.5f * think) * (1f - sit) * (1f - air), 0.9f, dt);
+        weight = approach(weight, weightTarget * (1f - 0.5f * think) * (1f - sit) * (1f - air) * (1f - walk), 0.9f, dt);
         float sway = aSway * (float) Math.sin(idleT * 2.2f) * 0.8f * (1f - air);
         float shift = weight + sway;
         float stand = (1f - sit) * (1f - air);
+        float wk = walk * stand;
 
         // ---- Hips
         float bounce = happy * stand * (float) Math.abs(Math.sin(time * 5.5)) * 0.014f;
-        moveBone("hips", shift * 0.022f * stand, (breath * 0.004f + bounce - listen * 0.004f - Math.abs(shift) * 0.006f) * stand, listen * 0.01f);
+        moveBone("hips", shift * 0.022f * stand, (breath * 0.004f + bounce - listen * 0.004f - Math.abs(shift) * 0.006f) * stand
+                + (Math.abs(wPh) * 0.014f - 0.012f) * wk, listen * 0.01f);
         rotateBone("hips", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, shift * 5.5f * stand * DEG),
-                VrmMath.axisAngle(0, 1, 0, (shift * 6f + aLook * (float) Math.sin(idleT * 1.6f) * 6f) * DEG)));
+                VrmMath.axisAngle(0, 1, 0, (shift * 6f + aLook * (float) Math.sin(idleT * 1.6f) * 6f + walkDir * 58f * wk + wPh * 4f * wk) * DEG)));
 
         // ---- Legs: standing leg straight, the other relaxed at the knee (contrapposto); or sitting.
         // Sitting uses the blended style table (swinging legs, crossed, leaning back, hugging the
         // knees, chin in hand); held in the air the legs hang a little apart and trail the motion.
         float relaxL = Math.max(0f, -shift), relaxR = Math.max(0f, shift);
-        float legFree = Math.max(air, sit * 0.6f);
+        // Sitting the legs swing only a little sideways, so the knees stay together.
+        float legFree = Math.max(air, sit * 0.25f);
         float swLL = limbs.upperX(LimbSwing.LEFT_LEG) * 34f * legFree, swRL = limbs.upperX(LimbSwing.RIGHT_LEG) * 34f * legFree;
         float upLL = limbs.upperY(LimbSwing.LEFT_LEG) * legFree, upRL = limbs.upperY(LimbSwing.RIGHT_LEG) * legFree;
         kickPhase += dt * (st[SitStyles.KICK_SPEED] + 0.2f) * (1f + happy * 0.8f);
@@ -663,19 +687,22 @@ final class VrmRenderer {
         float crossKick = sit * (float) Math.sin(kickPhase * 1.1f) * st[SitStyles.CROSS_KICK];
         float zL = -shift * 5.5f * stand + sit * st[SitStyles.UL_Z_L] + air * 4f + swLL;
         float zR = -shift * 5.5f * stand + sit * st[SitStyles.UL_Z_R] - air * 4f + swRL;
-        rotateBone("leftUpperLeg", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, zL * DEG),
-                VrmMath.axisAngle(1, 0, 0, (-relaxL * 9f * stand + sit * st[SitStyles.UL_X_L] - air * 6f - upLL * 14f) * DEG)));
-        rotateBone("rightUpperLeg", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, zR * DEG),
-                VrmMath.axisAngle(1, 0, 0, (-relaxR * 9f * stand + sit * st[SitStyles.UL_X_R] - air * 4f - upRL * 14f) * DEG)));
-        float bendL = Math.max(0f, upLL) * 40f + limbs.whip(LimbSwing.LEFT_LEG) * 25f * legFree;
-        float bendR = Math.max(0f, upRL) * 40f + limbs.whip(LimbSwing.RIGHT_LEG) * 25f * legFree;
+        // Thighs turned inward around the vertical axis (applied last) keep the knees together.
+        float inL = sit * st[SitStyles.KNEE_IN_L], inR = sit * st[SitStyles.KNEE_IN_R];
+        rotateBone("leftUpperLeg", VrmMath.mul(VrmMath.axisAngle(0, 1, 0, -inL * DEG), VrmMath.mul(VrmMath.axisAngle(0, 0, 1, zL * DEG),
+                VrmMath.axisAngle(1, 0, 0, (-relaxL * 9f * stand + sit * st[SitStyles.UL_X_L] - air * 6f - upLL * 14f - wPh * 26f * wk) * DEG))));
+        rotateBone("rightUpperLeg", VrmMath.mul(VrmMath.axisAngle(0, 1, 0, inR * DEG), VrmMath.mul(VrmMath.axisAngle(0, 0, 1, zR * DEG),
+                VrmMath.axisAngle(1, 0, 0, (-relaxR * 9f * stand + sit * st[SitStyles.UL_X_R] - air * 4f - upRL * 14f + wPh * 26f * wk) * DEG))));
+        // Walking: the knee bends while that leg swings forward.
+        float bendL = Math.max(0f, upLL) * 40f + limbs.whip(LimbSwing.LEFT_LEG) * 25f * legFree + (Math.max(0f, wCos) * 42f + 5f) * wk;
+        float bendR = Math.max(0f, upRL) * 40f + limbs.whip(LimbSwing.RIGHT_LEG) * 25f * legFree + (Math.max(0f, -wCos) * 42f + 5f) * wk;
         rotateBone("leftLowerLeg", VrmMath.axisAngle(1, 0, 0, (relaxL * 16f * stand + sit * st[SitStyles.LL_X_L] + kick + air * 10f + bendL) * DEG));
         rotateBone("rightLowerLeg", VrmMath.axisAngle(1, 0, 0, (relaxR * 16f * stand + sit * st[SitStyles.LL_X_R] - kick + crossKick + air * 14f + bendR) * DEG));
         rotateBone("leftFoot", VrmMath.axisAngle(1, 0, 0, (relaxL * 6f * stand + air * 22f + sit * st[SitStyles.FOOT_X]) * DEG));
         rotateBone("rightFoot", VrmMath.axisAngle(1, 0, 0, (relaxR * 6f * stand + air * 22f + sit * st[SitStyles.FOOT_X]) * DEG));
 
         // ---- Spine, chest, shoulders
-        float lean = listen * 6f + think * 2f + sit * st[SitStyles.SPINE_X] + aStretch * -8f - air * 3f;
+        float lean = listen * 6f + think * 2f + sit * st[SitStyles.SPINE_X] + aStretch * -8f - air * 3f + wk * 3f;
         rotateBone("spine", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (-shift * 7f * stand - p.bodyX * 4f + sway * 3f) * DEG),
                 VrmMath.axisAngle(1, 0, 0, (lean + breath * 2.2f) * DEG)));
         rotateBone("chest", VrmMath.mul(VrmMath.axisAngle(0, 1, 0, (speak * (float) Math.sin(time * 1.7) * 4f + p.angleX * 8f) * DEG),
@@ -686,7 +713,7 @@ final class VrmRenderer {
         rotateBone("rightShoulder", VrmMath.axisAngle(0, 0, 1, -shrug * DEG));
 
         // ---- Arms
-        float swing = (float) Math.sin(time * 0.9) * 3f * stand;
+        float swing = (float) Math.sin(time * 0.9) * 3f * stand * (1f - walk) - wPh * 18f * wk; // arms swing against the legs
         float gestL = speak * Math.max(0f, (float) Math.sin(time * 2.3 + 1.0)) * (1f - think);
         float gestR = speak * Math.max(0f, (float) Math.sin(time * 2.3 + 2.9)) * (1f - think);
         // The sitting "chin in hand" style already holds the thinking arm pose.
@@ -706,8 +733,8 @@ final class VrmRenderer {
         rotateBone("rightUpperArm", VrmMath.axisAngle(0, 1, 0, (thinkArm * 18f + aHands * 26f + sit * st[SitStyles.UA_Y_R]) * DEG));
         // Elbows (in the rest frame: bending forward around the vertical axis)
         float whipLA = limbs.whip(LimbSwing.LEFT_ARM) * 30f * armFree, whipRA = limbs.whip(LimbSwing.RIGHT_ARM) * 30f * armFree;
-        float elbowL = 18f + gestL * 55f + listen * 6f + aHands * 70f + sit * st[SitStyles.ELBOW_L] + aStretch * -10f + air * 14f + whipLA;
-        float elbowR = 18f + gestR * 55f + thinkArm * 105f + listen * 6f + aHands * 70f + aHair * 25f + sit * st[SitStyles.ELBOW_R] + aStretch * -10f + air * 14f + whipRA;
+        float elbowL = 18f + wk * 10f + gestL * 55f + listen * 6f + aHands * 70f + sit * st[SitStyles.ELBOW_L] + aStretch * -10f + air * 14f + whipLA;
+        float elbowR = 18f + wk * 10f + gestR * 55f + thinkArm * 105f + listen * 6f + aHands * 70f + aHair * 25f + sit * st[SitStyles.ELBOW_R] + aStretch * -10f + air * 14f + whipRA;
         rotateBone("leftLowerArm", VrmMath.axisAngle(0, 1, 0, -elbowL * DEG));
         rotateBone("rightLowerArm", VrmMath.axisAngle(0, 1, 0, elbowR * DEG));
         // Touching the hair: the forearm folds up toward the head (around the forward axis).
@@ -733,7 +760,8 @@ final class VrmRenderer {
         float lookAround = aLook * (float) Math.sin(idleT * 1.6f) * 35f;
         lookYawExtra = approach(lookYawExtra, lookAround, 3f, dt);
         lookPitchExtra = approach(lookPitchExtra, aLook * -4f + aGlance * 2f + aStretch * -12f, 3f, dt);
-        float yaw = (p.angleX * 55f - think * 10f + lookYawExtra) * DEG;
+        // While walking the head turns back toward you a little.
+        float yaw = (p.angleX * 55f - think * 10f + lookYawExtra - walkDir * 26f * wk) * DEG;
         float pitch = (p.angleY * 30f + nod - think * 8f - listen * 2f + lookPitchExtra + sit * st[SitStyles.HEAD_PITCH] + air * 5f) * DEG;
         float roll = (-p.angleZ * 14f + think * 7f + listen * 6f + aGlance * 8f + aHair * -6f + shift * 3f * stand + sit * st[SitStyles.HEAD_ROLL]
                 - limbs.upperX(LimbSwing.LEFT_ARM) * 6f * air) * DEG;
@@ -748,8 +776,13 @@ final class VrmRenderer {
         rotateBone("rightEye", eye);
 
         computeWorld(world, localRot);
-        // Hair, skirt and accessories follow with physics.
+        // Hair, skirt and accessories follow with physics. Sitting, the skirt is drawn forward
+        // over the thighs and kept outside them.
         if (!springs.isEmpty()) {
+            springs.legPush = sit;
+            springs.legRadius = height * 0.046f;
+            springs.lowerForce[1] = -sit * 4f;
+            springs.lowerForce[2] = (m.vrm0 ? -1f : 1f) * sit * 14f;
             springs.step(dt, world, localPos, localRot);
             computeWorld(world, localRot);
         }

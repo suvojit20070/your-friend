@@ -103,12 +103,10 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:fadingEdgeLength="24dp"
             android:fillViewport="true"
             android:overScrollMode="ifContentScrolls"
             android:paddingTop="4dp"
             android:paddingBottom="12dp"
-            android:requiresFadingEdge="vertical"
             android:scrollbars="none">
 
             <LinearLayout

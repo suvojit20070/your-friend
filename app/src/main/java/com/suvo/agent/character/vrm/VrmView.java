@@ -47,6 +47,18 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
     private volatile boolean sitting;
     private volatile float windX, windY;
     private volatile boolean airborne;
+    private volatile float walking;
+    private volatile int sitStyle = -1;
+
+    /** Walk toward the left (-1) or right (+1), or stand still (0). */
+    public void setWalking(float dir) {
+        walking = dir;
+    }
+
+    /** Sitting style ({@link SitStyles} constant, -1 = by mood). */
+    public void setSitStyle(int style) {
+        sitStyle = style;
+    }
 
     /** Held in the air or falling: legs hang down and the limbs swing with the motion. */
     public void setAirborne(boolean a) {
@@ -218,6 +230,8 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
                     }
                     r.setSitting(sitting);
                     r.setAirborne(airborne);
+                    r.setWalking(walking);
+                    r.setSitStyle(sitStyle);
                     r.setWind(windX, -windY, 0f);
                     r.draw(local, (t0 - start) / 1e9f);
                     if (!EGL14.eglSwapBuffers(display, eglSurface)) {

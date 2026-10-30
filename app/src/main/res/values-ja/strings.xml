@@ -524,6 +524,8 @@
     <string name="settings_export_config_desc">API キーやシークレットは含みません</string>
     <string name="settings_floating">フローティングコンパニオン</string>
     <string name="settings_floating_desc">アプリを離れるとキャラクターが画面上に浮かびます。「他のアプリの上に重ねて表示」の許可が必要です。</string>
+    <string name="settings_companion_brain">生き生きコンパニオン (AI)</string>
+    <string name="settings_companion_brain_desc">フローティングキャラクターが画面の内容を見て、気分・座る・立つ・歩く・眠るを時々自分で決めます。1〜2分ごとにAIプロバイダーへ小さな別リクエストを送ります（トークンを使います）。乗っている物が消えると必ず下へ落ちます。</string>
     <string name="settings_import_config">設定をインポート</string>
     <string name="settings_imported">設定をインポートしました</string>
     <string name="settings_keep_screen_on">画面をオンのままにする</string>

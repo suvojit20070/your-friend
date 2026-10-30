@@ -85,6 +85,8 @@ public final class AgentAccessibilityService extends AccessibilityService {
             if (pkg != null) foregroundPackage = pkg.toString();
             if (cls != null) foregroundClass = cls.toString();
             lastContentChange = System.currentTimeMillis();
+            // The floating character checks that what it sits on is still there.
+            if (pkg != null && !getPackageName().contentEquals(pkg)) com.suvo.agent.character.FloatingCompanionService.screenChanged();
             if (cls != null && cls.toString().contains("Toast")) {
                 ToastLog.record(ToastLog.TOAST, str(pkg), joined(event), System.currentTimeMillis());
             }

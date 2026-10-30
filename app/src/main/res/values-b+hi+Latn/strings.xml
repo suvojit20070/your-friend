@@ -524,6 +524,8 @@
     <string name="settings_export_config_desc">API keys ya secrets ke bina</string>
     <string name="settings_floating">Floating companion</string>
     <string name="settings_floating_desc">App se bahar jaane par character screen par float karega. \"Display over other apps\" permission chahiye.</string>
+    <string name="settings_companion_brain">Zinda companion (AI)</string>
+    <string name="settings_companion_brain_desc">Floating character khud se mood, baithna, khada hona, kahin chalna, sona tay karega — screen par jo hai uske hisaab se. Har minute-do minute AI provider ko ek chhoti alag request jaati hai (tokens lagte hain). Jo cheez gayab ho jaye usse woh hamesha neeche gir jaata hai.</string>
     <string name="settings_import_config">Settings import karo</string>
     <string name="settings_imported">Settings import ho gayi</string>
     <string name="settings_keep_screen_on">Screen On Rakhein</string>

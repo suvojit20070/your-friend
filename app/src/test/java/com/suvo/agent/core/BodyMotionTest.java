@@ -66,4 +66,45 @@ public class BodyMotionTest {
         assertEquals(1f, sum, 1e-3f);
         assertTrue(last[SitStyles.UL_X_L] < -60f); // still a sitting pose
     }
+
+    @Test
+    public void forcedStyleHoldsAndReleases() {
+        SitStyles s = new SitStyles(new Random(1));
+        SitStyles.Mood calm = new SitStyles.Mood();
+        s.force(SitStyles.SLEEP);
+        float t = 0;
+        for (int i = 0; i < 30 * 60; i++, t += 1 / 30f) s.update(t, 1 / 30f, true, calm);
+        assertEquals(SitStyles.SLEEP, s.current());
+        assertTrue(s.weight(SitStyles.SLEEP) > 0.95f);
+        s.force(-1);
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        for (int i = 0; i < 30 * 90; i++, t += 1 / 30f) {
+            s.update(t, 1 / 30f, true, calm);
+            seen.add(s.current());
+        }
+        assertTrue("chooses by mood again: " + seen, seen.size() >= 2);
+        assertTrue("no sleeping while awake: " + seen, !seen.contains(SitStyles.SLEEP) || seen.size() > 2);
+    }
+
+    @Test
+    public void everyStyleKeepsTheKneesTogether() {
+        for (int k = 0; k < SitStyles.COUNT; k++) {
+            SitStyles s = new SitStyles(new Random(k));
+            s.force(k);
+            float[] a = null;
+            float t = 0;
+            for (int i = 0; i < 30 * 10; i++, t += 1 / 30f) a = s.update(t, 1 / 30f, true, new SitStyles.Mood());
+            assertTrue("style " + k + " left knee in", a[SitStyles.KNEE_IN_L] >= 3f);
+            assertTrue("style " + k + " right knee in", a[SitStyles.KNEE_IN_R] >= 3f);
+            assertTrue("style " + k + " no spread", a[SitStyles.UL_Z_L] <= 1f && a[SitStyles.UL_Z_R] >= -1f);
+        }
+    }
+
+    @Test
+    public void namesParse() {
+        assertEquals(SitStyles.CROSSED, SitStyles.parse("crossed"));
+        assertEquals(SitStyles.HUG_KNEES, SitStyles.parse(" Hug_Knees "));
+        assertEquals(-1, SitStyles.parse("auto"));
+        assertEquals(-1, SitStyles.parse(null));
+    }
 }

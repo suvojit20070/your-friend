@@ -524,6 +524,8 @@
     <string name="settings_export_config_desc">API কী বা সিক্রেট ছাড়া</string>
     <string name="settings_floating">ফ্লোটিং সঙ্গী</string>
     <string name="settings_floating_desc">অ্যাপ থেকে বেরোলে ক্যারেক্টার স্ক্রিনে ভাসবে। \"অন্য অ্যাপের উপরে দেখান\" অনুমতি লাগবে।</string>
+    <string name="settings_companion_brain">জীবন্ত সঙ্গী (AI)</string>
+    <string name="settings_companion_brain_desc">ভাসমান ক্যারেক্টার স্ক্রিনে যা আছে দেখে নিজেই মাঝে মাঝে মুড, বসা, দাঁড়ানো, কোথাও হাঁটা, ঘুমানো ঠিক করবে। প্রতি এক-দুই মিনিটে আপনার AI প্রোভাইডারে একটা ছোট আলাদা অনুরোধ যায় (টোকেন খরচ হয়)। যা সরে যায় তার উপর থেকে সে সবসময় নিচে পড়ে যায়।</string>
     <string name="settings_import_config">সেটিংস ইমপোর্ট</string>
     <string name="settings_imported">সেটিংস ইমপোর্ট হয়েছে</string>
     <string name="settings_keep_screen_on">স্ক্রিন চালু রাখুন</string>

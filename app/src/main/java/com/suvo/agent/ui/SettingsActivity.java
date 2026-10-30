@@ -247,6 +247,8 @@ public final class SettingsActivity extends BaseActivity {
                 FloatingCompanionService.stop(this);
             }
         });
+        r.switchRow(R.drawable.ic_character, R.string.settings_companion_brain, R.string.settings_companion_brain_desc,
+                Settings.COMPANION_BRAIN, true, null);
         r.switchRow(R.drawable.ic_screen, R.string.settings_tap_cursor, R.string.settings_tap_cursor_desc,
                 com.suvo.agent.device.TapIndicator.SETTING, true, null);
 

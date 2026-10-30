@@ -100,4 +100,16 @@ public class CharacterAnimatorTest {
         run(a, 6f);
         assertTrue(Math.abs(a.params().hairSide) < 0.1f);
     }
+
+    @Test
+    public void asleepKeepsEyesClosedUntilWoken() {
+        CharacterAnimator a = new CharacterAnimator(7);
+        a.setAsleep(true);
+        for (int i = 0; i < 90; i++) a.update(1 / 30f);
+        RigParams p = a.params();
+        assertTrue("eyes closed " + p.eyeLOpen, p.eyeLOpen < 0.1f && p.eyeROpen < 0.1f);
+        a.setAsleep(false);
+        for (int i = 0; i < 30; i++) a.update(1 / 30f);
+        assertTrue("eyes open again", a.params().eyeLOpen > 0.6f || a.params().eyeROpen > 0.6f);
+    }
 }
