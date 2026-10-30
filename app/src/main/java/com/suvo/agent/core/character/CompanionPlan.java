@@ -97,6 +97,8 @@ public final class CompanionPlan {
         public int screenIdle;
         public boolean screenChanged;
         public boolean agentBusy;
+        /** The on-screen keyboard is showing (the user is typing). */
+        public boolean keyboard;
         /** Local time "HH:mm". */
         public String clock = "";
     }
@@ -118,6 +120,9 @@ public final class CompanionPlan {
                 + "downward) and the character's size, position, pose, mood and recent history.\n"
                 + "Rules:\n"
                 + "- Only stand or sit on elements with \"stand\":true, or on \"bottom\" (the bottom of the screen). Nothing else exists.\n"
+                + "- STRICT: when the keyboard is showing (\"keyboard_visible\":true), never stand, sit, walk or sleep on or "
+                + "over the keyboard or on \"bottom\"; stay above it on an element, away from the text field being typed in. "
+                + "The user is typing: keep still, maybe look at the text field.\n"
                 + "- Don't cover what the user is using: avoid the focused text field, the keyboard, video, and the middle of "
                 + "the content they are reading. Prefer edges, toolbars, tops of cards and buttons near the sides.\n"
                 + "- Be natural and calm: most of the time stay or make a small change; move only now and then. Don't repeat the "
@@ -154,7 +159,7 @@ public final class CompanionPlan {
             JSONObject o = new JSONObject();
             JSONObject screen = new JSONObject();
             screen.put("w", st.screenW).put("h", st.screenH).put("app", st.app)
-                    .put("changed_since_last_time", st.screenChanged).put("idle_s", st.screenIdle).put("local_time", st.clock);
+                    .put("changed_since_last_time", st.screenChanged).put("keyboard_visible", st.keyboard).put("idle_s", st.screenIdle).put("local_time", st.clock);
             o.put("screen", screen);
             JSONObject me = new JSONObject();
             me.put("body_w", st.bodyW).put("body_h", st.bodyH).put("x", st.x).put("feet_y", st.feetY)

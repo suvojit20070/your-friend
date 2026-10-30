@@ -60,6 +60,22 @@ final class ScreenSurfaces {
         }
     }
 
+    /** The keyboard's bounds when it is showing (cheap: windows only, no node tree), else null. */
+    static Rect keyboard() {
+        AgentAccessibilityService svc = AgentAccessibilityService.get();
+        if (svc == null) return null;
+        try {
+            for (AccessibilityWindowInfo win : svc.getWindows()) {
+                if (win.getType() != AccessibilityWindowInfo.TYPE_INPUT_METHOD) continue;
+                Rect b = new Rect();
+                win.getBoundsInScreen(b);
+                if (b.height() > 0) return b;
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return null;
+    }
+
     /**
      * Reads the screen. {@code ownPackage}'s windows (the app itself, the floating character) are
      * left out. At most {@code maxVisit} nodes are visited.

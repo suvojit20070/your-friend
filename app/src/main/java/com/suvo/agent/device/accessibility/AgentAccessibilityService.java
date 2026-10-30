@@ -103,6 +103,17 @@ public final class AgentAccessibilityService extends AccessibilityService {
             }
         } else if (type == AccessibilityEvent.TYPE_ANNOUNCEMENT) {
             ToastLog.record(ToastLog.ANNOUNCEMENT, str(event.getPackageName()), joined(event), System.currentTimeMillis());
+        } else if (type == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED || type == AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED) {
+            // The floating character glances at the cursor while you type (its position only).
+            if (!getPackageName().contentEquals(String.valueOf(event.getPackageName()))
+                    && com.suvo.agent.character.FloatingCompanionService.isRunning()) {
+                long now = android.os.SystemClock.uptimeMillis();
+                if (now - lastCaretLook > 150) {
+                    lastCaretLook = now;
+                    android.graphics.Rect caret = caretBounds(event.getSource());
+                    if (caret != null) com.suvo.agent.character.FloatingCompanionService.watchTyping(caret.centerX(), caret.centerY());
+                }
+            }
         } else if (type == AccessibilityEvent.TYPE_VIEW_CLICKED || type == AccessibilityEvent.TYPE_VIEW_LONG_CLICKED) {
             // The floating character glances at whatever the user taps (only the position is used).
             android.view.accessibility.AccessibilityNodeInfo src = event.getSource();
@@ -111,6 +122,44 @@ public final class AgentAccessibilityService extends AccessibilityService {
                 src.getBoundsInScreen(r);
                 if (!r.isEmpty()) com.suvo.agent.character.FloatingCompanionService.lookAtScreen(r.centerX(), r.centerY());
             }
+        }
+    }
+
+    private long lastCaretLook;
+
+    /**
+     * Where the cursor is in a text field (screen coordinates), from the character just before it;
+     * the field's own centre when the app does not report character positions. Null for password
+     * fields or anything that is not editable.
+     */
+    private static android.graphics.Rect caretBounds(AccessibilityNodeInfo n) {
+        if (n == null) return null;
+        try {
+            if (n.isPassword() || !n.isEditable()) return null;
+            android.graphics.Rect field = new android.graphics.Rect();
+            n.getBoundsInScreen(field);
+            if (field.isEmpty()) return null;
+            CharSequence text = n.getText();
+            int len = text == null ? 0 : text.length();
+            int end = n.getTextSelectionEnd();
+            int idx = (end > 0 ? end : len) - 1;
+            if (idx >= 0 && n.getAvailableExtraData().contains(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY)) {
+                android.os.Bundle args = new android.os.Bundle();
+                args.putInt(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_START_INDEX, idx);
+                args.putInt(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_ARG_LENGTH, 1);
+                if (n.refreshWithExtraData(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY, args)) {
+                    android.os.Parcelable[] rs = n.getExtras().getParcelableArray(AccessibilityNodeInfo.EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY);
+                    if (rs != null && rs.length > 0 && rs[0] instanceof android.graphics.RectF) {
+                        android.graphics.RectF r = (android.graphics.RectF) rs[0];
+                        android.graphics.Rect out = new android.graphics.Rect();
+                        r.roundOut(out);
+                        if (!out.isEmpty() && field.intersects(out.left, out.top, out.right, out.bottom)) return out;
+                    }
+                }
+            }
+            return field;
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 

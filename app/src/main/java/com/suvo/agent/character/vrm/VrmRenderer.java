@@ -437,6 +437,13 @@ final class VrmRenderer {
         headY = head != null ? head[1] : lo[1] + height * 0.88f;
     }
 
+    /** Fraction of the view height kept free above the character (room for raised arms). */
+    private float headroom;
+
+    void setHeadroom(float h) {
+        headroom = Math.max(0f, Math.min(0.5f, h));
+    }
+
     void resize(int w, int h) {
         viewW = Math.max(1, w);
         viewH = Math.max(1, h);
@@ -455,6 +462,12 @@ final class VrmRenderer {
             targetY = center[1];
             // The rest pose is a T/A-pose; the arms are lowered when drawn, so fit to the body, not the arm span.
             fitW = Math.min(width * 1.04f, height * 0.42f);
+            if (headroom > 0f) {
+                // Same body size, the extra space above it: the feet stay at the bottom edge.
+                float bottom = targetY - fitH / 2f;
+                fitH = fitH / (1f - headroom);
+                targetY = bottom + fitH / 2f;
+            }
         }
         float dist = Math.max(fitH / 2f / tanHalf, fitW / 2f / (tanHalf * aspect));
         Matrix.setLookAtM(view, 0, center[0], targetY, center[2] + dist, center[0], targetY, center[2], 0, 1, 0);

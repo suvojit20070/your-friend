@@ -66,6 +66,9 @@ final class CompanionBrain {
         /** Main: the brain just asked the agent to do {@code text}. */
         void saidToAgent(String text);
 
+        /** Main: the keyboard is showing at {@code kb} (null = hidden). Called every check. */
+        void keyboard(Rect kb);
+
         /** Main: what the character rested on is gone. */
         void supportLost();
 
@@ -177,6 +180,8 @@ final class CompanionBrain {
     };
 
     private void check() {
+        Rect kb = ScreenSurfaces.keyboard();
+        main.post(() -> body.keyboard(kb));
         int[] rest = body.rest();
         boolean onElement = rest != null && rest[3] == 1 && rest[4] == 1;
         if (!onElement && !enabled()) return; // nothing to keep track of: save the battery
@@ -381,15 +386,26 @@ final class CompanionBrain {
             if (!dup) kept.add(it);
         }
         int top = Math.round(40 * density);
+        int kbTop = Integer.MAX_VALUE;
+        for (ScreenSurfaces.Item it : kept) if (it.keyboard) kbTop = Math.min(kbTop, it.r.top);
+        st.keyboard = kbTop != Integer.MAX_VALUE;
         List<ScreenSurfaces.Item> stand = new ArrayList<>(), other = new ArrayList<>();
         for (ScreenSurfaces.Item it : kept) {
-            boolean holds = it.keyboard || (it.canHold(st.bodyW, minSize()) && it.r.top > top && it.r.top > st.bodyH * 0.45f);
+            // Nothing on or under the keyboard can be stood on (the keyboard itself is listed, not standable).
+            boolean holds = !it.keyboard && it.canHold(st.bodyW, minSize()) && it.r.top > top && it.r.top > st.bodyH * 0.45f
+                    && it.r.top < kbTop - Math.round(8 * density);
+            if (it.keyboard) {
+                other.add(0, it);
+                continue;
+            }
             if (holds) stand.add(it);
             else if (!it.label.isEmpty()) other.add(it);
         }
         java.util.Comparator<ScreenSurfaces.Item> byPos = (a, b) -> a.r.top != b.r.top ? Integer.compare(a.r.top, b.r.top) : Integer.compare(a.r.left, b.r.left);
         Collections.sort(stand, byPos);
+        ScreenSurfaces.Item kbItem = !other.isEmpty() && other.get(0).keyboard ? other.remove(0) : null;
         Collections.sort(other, byPos);
+        if (kbItem != null) other.add(0, kbItem);
         List<CompanionPlan.Surface> out = new ArrayList<>();
         int n = 0;
         for (ScreenSurfaces.Item it : stand) {
@@ -405,7 +421,7 @@ final class CompanionBrain {
             String id = "e" + (++n);
             ids.put(id, it.r);
             out.add(new CompanionPlan.Surface(id, it.label, it.type, it.r.left, it.r.top, it.r.width(), it.r.height(),
-                    false, it.clickable, it.editable, false));
+                    false, it.clickable, it.editable, it.keyboard));
         }
         return out;
     }

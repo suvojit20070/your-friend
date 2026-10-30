@@ -57,12 +57,12 @@ import java.util.Random;
  * agent for small things; whenever what it rests on disappears (another screen, scrolled away) it
  * falls to what is below instead of sitting on nothing.
  *
- * Smoothness: the 3D view always keeps the same size (so its GL surface is never re-created,
- * which used to flicker), and is wider than the character so swinging arms and legs are never cut
- * off. At rest the window is only as wide as the character. For a fall, walk or jump the window is
- * set once to cover the whole way and the character glides inside it by translation (drawn by the
- * render thread, every frame), instead of moving the window frame by frame. The speech bubble has
- * its own small window, so showing it never resizes the character's.
+ * Smoothness: the window and the 3D view inside it never change size (a new size re-creates the
+ * GL surface, which flickers), and the character is never shifted inside the window (that and the
+ * window's own move land on different frames, which made it jump). The window is wider than the
+ * character and has room above its head, so swinging or raised arms and legs are never cut off;
+ * it only ever moves. On Android 13+ only the character's own body takes touches. The speech
+ * bubble has its own small window.
  *
  * The service is started while the app is in the foreground (Android 15 does not allow starting it
  * from the background) and then stays running; only the overlay's visibility follows the app.
@@ -74,7 +74,9 @@ public final class FloatingCompanionService extends Service {
     private static volatile FloatingCompanionService instance;
     private static volatile boolean appVisible = true;
     /** Width of the 3D view relative to the character's own width (room for swinging limbs). */
-    private static final float WIDE = 2.1f;
+    private static final float WIDE = 1.9f;
+    /** Room above the head, relative to the character's height (for raised arms). */
+    private static final float HEADROOM = 0.24f;
 
     private WindowManager wm;
     private FrameLayout container;
@@ -89,16 +91,13 @@ public final class FloatingCompanionService extends Service {
     private SpeechController.Listener speechListener;
     private CompanionBrain brain;
 
-    // Geometry: the character's own box (bodyW × bodyH), placed by its centre x and its top.
+    // Geometry: the character's own box is bodyW × bodyH; the window/view is viewW × viewH with
+    // `headroom` px above the body. Placed by the centre x and the window's top (bodyTop).
     private float density;
     private boolean is3d;
-    private int bodyW, bodyH, viewW;
+    private int bodyW, bodyH, viewW, viewH, headroom;
     private volatile float cx;
     private volatile int bodyTop;
-    /** Rest window wide (limbs still settling) or narrow. */
-    private boolean wide;
-    /** While gliding: the window covers this whole box and stays put. */
-    private Rect pathBox;
 
     // What it rests on (top edge, horizontal extent), and whether that is an element on screen.
     private volatile int restTop = -1, restLeft, restRight;
@@ -231,7 +230,9 @@ public final class FloatingCompanionService extends Service {
         is3d = CharacterView.modelSource(this) != null;
         bodyW = (int) ((is3d ? 120 : 110) * density * size / 100f);
         bodyH = (int) ((is3d ? 240 : 132) * density * size / 100f);
-        viewW = Math.round(bodyW * WIDE);
+        viewW = is3d ? Math.round(bodyW * WIDE) : bodyW;
+        headroom = is3d ? Math.round(bodyH * HEADROOM) : 0;
+        viewH = bodyH + headroom;
         // Intercept every touch at the window level; otherwise the character view consumes them
         // and the window can never be dragged.
         container = new FrameLayout(this) {
@@ -246,12 +247,13 @@ public final class FloatingCompanionService extends Service {
         character.setCharacter(g.characters.active());
         character.setQuality(g.settings.str(com.suvo.agent.data.Settings.ANIMATION_QUALITY, "medium"),
                 g.settings.bool(com.suvo.agent.data.Settings.REDUCED_MOTION, false));
-        // Always the same size: the GL surface is never re-created (no flicker); placed by translation.
-        container.addView(character, new FrameLayout.LayoutParams(viewW, bodyH, Gravity.TOP | Gravity.START));
+        // Always the same size: the GL surface is never re-created (no flicker).
+        character.setHeadroom(headroom / (float) viewH);
+        container.addView(character, new FrameLayout.LayoutParams(viewW, viewH, Gravity.TOP | Gravity.START));
         DisplayMetrics dm = getResources().getDisplayMetrics();
         cx = dm.widthPixels - bodyW / 2f;
         bodyTop = dm.heightPixels / 2;
-        lp = new WindowManager.LayoutParams(bodyW, bodyH,
+        lp = new WindowManager.LayoutParams(viewW, viewH,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                         | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
@@ -260,6 +262,7 @@ public final class FloatingCompanionService extends Service {
         container.setOnTouchListener(new DragTouch());
         layoutWindow(false);
         wm.addView(container, lp);
+        container.post(this::limitTouchToBody);
         makeBubble();
         applyVisibility();
         // Drop in from the middle of the screen and land on something.
@@ -315,39 +318,37 @@ public final class FloatingCompanionService extends Service {
 
     // ------------------------------------------------------------------ window geometry
 
-    /**
-     * Sets the window (around the character at rest, or the whole way while gliding) and places
-     * the character inside it. The window is only updated when it really changes.
-     */
+    /** Moves the window to the character's position (it never changes size). */
     private void layoutWindow(boolean update) {
         if (lp == null || character == null) return;
-        int x, y, w, h;
-        if (pathBox != null) {
-            x = pathBox.left;
-            y = pathBox.top;
-            w = pathBox.width();
-            h = pathBox.height();
-        } else {
-            w = wide ? viewW : bodyW;
-            h = bodyH;
-            x = Math.round(cx - w / 2f);
-            y = bodyTop;
-        }
-        boolean changed = lp.x != x || lp.y != y || lp.width != w || lp.height != h;
+        int x = Math.round(cx - viewW / 2f), y = bodyTop;
+        boolean changed = lp.x != x || lp.y != y;
         lp.x = x;
         lp.y = y;
-        lp.width = w;
-        lp.height = h;
-        placeCharacter();
+        lp.width = viewW;
+        lp.height = viewH;
+        if (moving) motionWind();
+        if (bubbleShown) placeBubble();
         if (update && changed) safeUpdate();
     }
 
-    /** The character inside the window: by translation only (cheap, smooth, every frame). */
     private void placeCharacter() {
-        character.setTranslationX(cx - viewW / 2f - lp.x);
-        character.setTranslationY(bodyTop - lp.y);
-        if (moving) motionWind();
-        if (bubbleShown) placeBubble();
+        layoutWindow(true);
+    }
+
+    /**
+     * Android 13+: only the character's body takes touches; the empty room around it (for the
+     * limbs) lets taps through where the system allows it.
+     */
+    private void limitTouchToBody() {
+        if (Build.VERSION.SDK_INT < 33 || container == null) return;
+        try {
+            android.view.AttachedSurfaceControl sc = container.getRootSurfaceControl();
+            if (sc == null) return;
+            int l = (viewW - bodyW) / 2;
+            sc.setTouchableRegion(new android.graphics.Region(l, headroom, l + bodyW, viewH));
+        } catch (RuntimeException ignored) {
+        }
     }
 
     /** Moving the character pushes on its hair and clothes (they trail behind). */
@@ -369,40 +370,6 @@ public final class FloatingCompanionService extends Service {
         lastWindNs = 0;
         windVx = windVy = 0;
         if (character != null) character.setWind(0f, 0f);
-    }
-
-    /** From now until {@link #endPath}, the window covers this whole way (character-sized boxes at both ends). */
-    private void beginPath(float x0, int top0, float x1, int top1, int extraUp) {
-        int half = viewW / 2;
-        int left = Math.round(Math.min(x0, x1)) - half, right = Math.round(Math.max(x0, x1)) + half;
-        int top = Math.min(top0, top1) - extraUp, bottom = Math.max(top0, top1) + bodyH;
-        pathBox = new Rect(left, top, right, bottom);
-        main.removeCallbacks(narrow);
-        layoutWindow(true);
-    }
-
-    private void endPath() {
-        if (pathBox == null) return;
-        pathBox = null;
-        wide = true; // limbs still swinging; narrow a little later
-        layoutWindow(true);
-    }
-
-    private void setWide(boolean w) {
-        main.removeCallbacks(narrow);
-        if (wide == w) return;
-        wide = w;
-        layoutWindow(true);
-    }
-
-    private final Runnable narrow = () -> {
-        if (!moving && pathBox == null) setWide(false);
-    };
-
-    /** Back to the narrow window once arms and legs have settled. */
-    private void narrowSoon() {
-        main.removeCallbacks(narrow);
-        main.postDelayed(narrow, 1400);
     }
 
     private void safeUpdate() {
@@ -450,7 +417,7 @@ public final class FloatingCompanionService extends Service {
                     downRawX = e.getRawX();
                     downRawY = e.getRawY();
                     // While gliding the window is bigger than the character: only the character itself reacts.
-                    onBody = Math.abs(downRawX - cx) <= bodyW / 2f + dp(8) && downRawY >= bodyTop - dp(8) && downRawY <= bodyTop + bodyH + dp(8);
+                    onBody = Math.abs(downRawX - cx) <= bodyW / 2f + dp(8) && downRawY >= bodyTop + headroom - dp(8) && downRawY <= bodyTop + viewH + dp(8);
                     moved = false;
                     wasMoving = false;
                     if (!onBody) return true;
@@ -468,7 +435,6 @@ public final class FloatingCompanionService extends Service {
                     if (!moved && Math.hypot(dx, dy) > slop) {
                         moved = true;
                         cancelMotion();
-                        pathBox = null;
                         startCx = cx;
                         startTop = bodyTop;
                         downRawX = e.getRawX();
@@ -478,7 +444,6 @@ public final class FloatingCompanionService extends Service {
                         wake(true);
                         stopMumbling();
                         hideBubble();
-                        wide = true;
                         if (brain != null) brain.userInteracted();
                     }
                     if (moved) {
@@ -590,7 +555,7 @@ public final class FloatingCompanionService extends Service {
         int bw = bubble.getMeasuredWidth(), bh = bubble.getMeasuredHeight();
         int x = Math.round(cx - bw / 2f);
         x = Math.max(dp(4), Math.min(screenW() - bw - dp(4), x));
-        int y = Math.max(0, bodyTop + Math.round(bodyH * 0.02f) - bh - dp(2));
+        int y = Math.max(0, bodyTop + headroom + Math.round(bodyH * 0.02f) - bh - dp(2));
         if (bubbleLp.x == x && bubbleLp.y == y) return;
         bubbleLp.x = x;
         bubbleLp.y = y;
@@ -654,10 +619,18 @@ public final class FloatingCompanionService extends Service {
         }
     }
 
-    /** Shows {@code text} above the head with the lips moving. */
+    /**
+     * Shows {@code text} above the head; with voice output on (Settings) it is also spoken aloud
+     * (lip-synced), otherwise the lips just move.
+     */
     private void say(String text) {
         showBubble(text, Math.max(3000, Math.min(7000, text.length() * 120L)));
-        mumble(text);
+        AppGraph g = AppGraph.get();
+        if (g.settings.bool(com.suvo.agent.data.Settings.VOICE_OUTPUT, false) && !g.agent.isRunning() && !g.speech.isActive()) {
+            g.speech.speak(text);
+        } else {
+            mumble(text);
+        }
     }
 
     // ------------------------------------------------------------------ outside events
@@ -683,11 +656,18 @@ public final class FloatingCompanionService extends Service {
         svc.main.post(() -> svc.lookAt(x, y, 1.8f));
     }
 
+    /** The user is typing: glance at the cursor (screen coordinates). Safe from any thread. */
+    public static void watchTyping(int x, int y) {
+        FloatingCompanionService svc = instance;
+        if (svc == null) return;
+        svc.main.post(() -> svc.lookAt(x, y, 1.3f));
+    }
+
     private void lookAt(int x, int y, float seconds) {
         if (character == null || container == null || container.getVisibility() != View.VISIBLE || character.isAsleep()) return;
         DisplayMetrics dm = getResources().getDisplayMetrics();
         // Eyes are near the top of the full-body 3D character, lower in the 2D bust.
-        float ey = bodyTop + bodyH * (is3d ? 0.15f : 0.35f);
+        float ey = bodyTop + headroom + bodyH * (is3d ? 0.15f : 0.35f);
         float nx = (x - cx) / (dm.widthPixels * 0.5f);
         float ny = (y - ey) / (dm.heightPixels * 0.5f);
         character.animator().lookAt(Math.max(-1f, Math.min(1f, nx)), Math.max(-1f, Math.min(1f, ny)), seconds);
@@ -789,8 +769,69 @@ public final class FloatingCompanionService extends Service {
         }
     }
 
+    /** The keyboard while it shows (main thread), else null. */
+    private Rect kbRect;
+
+    /** The lowest place to stand: the screen bottom, or the keyboard's top edge while it shows. */
     private Surface bottomSurface() {
+        if (kbRect != null) return new Surface(kbRect.top, 0, screenW(), false, "keyboard edge");
         return new Surface(screenBottom(), 0, screenW(), false, "bottom of the screen");
+    }
+
+    /** The character's body on screen (feet line at the bottom), for overlap checks. */
+    private Rect bodyRect() {
+        float[] an = character.anchors();
+        int feet = bodyTop + Math.round(an[0] * viewH);
+        return new Rect(Math.round(cx - bodyW / 2f), bodyTop + headroom, Math.round(cx + bodyW / 2f), feet - dp(2));
+    }
+
+    /** From the brain's watch loop every couple of seconds: keep off the keyboard while it shows. */
+    private void onKeyboard(Rect kb) {
+        boolean appeared = kb != null && kbRect == null;
+        kbRect = kb;
+        if (kb == null || character == null || moving || appVisible) return;
+        Rect body = bodyRect();
+        boolean over = Rect.intersects(body, kb) || (restTop > kb.top + dp(2));
+        if (over) {
+            wake(true);
+            avoidKeyboard(kb, true);
+        } else if (appeared && restTop >= 0 && !restElement) {
+            avoidKeyboard(kb, false); // standing on the keyboard edge: an element above is nicer
+        }
+    }
+
+    /**
+     * Moves somewhere above the keyboard: the nearest element that is not the text field and not
+     * right on top of the keyboard; with {@code force}, the keyboard's top edge at the nearest side
+     * when there is no such element.
+     */
+    private void avoidKeyboard(Rect kb, boolean force) {
+        ScreenSurfaces.Snapshot snap = ScreenSurfaces.scan(getPackageName(), dp(18), 500);
+        Surface best = null;
+        float bestScore = Float.MAX_VALUE;
+        for (ScreenSurfaces.Item it : snap.items) {
+            if (it.keyboard || !it.canHold(bodyW, dp(18))) continue;
+            Rect b = it.r;
+            if (b.top >= kb.top - dp(8) || b.top < dp(48) + Math.round(viewH * 0.5f)) continue;
+            float x = Math.max(b.left + bodyW * 0.35f, Math.min(b.right - bodyW * 0.35f, cx));
+            float score = Math.abs(x - cx) + Math.abs(b.top - kb.top) * 0.2f;
+            if (it.editable) score += dp(600);           // not on the field being typed in
+            if (b.top > kb.top - dp(110)) score += dp(300); // not right above the keyboard
+            if (score < bestScore) {
+                bestScore = score;
+                best = new Surface(b.top, b.left, b.right, true, it.label.isEmpty() ? it.type : it.label);
+            }
+        }
+        if (best != null) {
+            goTo(best, Math.round(cx), null);
+        } else if (force) {
+            int side = cx < screenW() / 2f ? Math.round(bodyW * 0.6f) : Math.round(screenW() - bodyW * 0.6f);
+            Surface edge = new Surface(kb.top, 0, screenW(), false, "keyboard edge");
+            if (sitting) standUp();
+            main.postDelayed(() -> {
+                if (character != null && !moving) hopTo(edge, side, null);
+            }, sitting ? 450 : 0);
+        }
     }
 
     /**
@@ -803,7 +844,8 @@ public final class FloatingCompanionService extends Service {
         int x = Math.round(cx);
         for (ScreenSurfaces.Item it : snap.items) {
             Rect b = it.r;
-            if (!it.canHold(bodyW, dp(18)) && !it.keyboard) continue;
+            if (it.keyboard || !it.canHold(bodyW, dp(18))) continue;
+            if (kbRect != null && b.top >= kbRect.top - dp(4)) continue; // nothing on or under the keyboard
             if (b.left > x || b.right < x) continue;
             if (b.top >= footY - dp(14) && b.top < best.top - dp(24) && b.top > dp(40)) {
                 best = new Surface(b.top, b.left, b.right, true, it.label.isEmpty() ? it.type : it.label);
@@ -818,13 +860,12 @@ public final class FloatingCompanionService extends Service {
         cancelMotion();
         cx = clampCx(cx);
         float[] an = character.anchors();
-        int footY = bodyTop + Math.round(an[0] * bodyH);
+        int footY = bodyTop + Math.round(an[0] * viewH);
         Surface s = findSurface(footY);
         boolean canSit = an[1] > 0 && s.element;
-        final int targetTop = canSit ? s.top - Math.round(an[1] * bodyH) : s.top - Math.round(an[0] * bodyH);
+        final int targetTop = canSit ? s.top - Math.round(an[1] * viewH) : s.top - Math.round(an[0] * viewH);
         final int startTop = bodyTop;
         if (targetTop <= startTop + 2) {
-            pathBox = null;
             bodyTop = targetTop;
             layoutWindow(true);
             settle(s, canSit);
@@ -836,7 +877,6 @@ public final class FloatingCompanionService extends Service {
         character.setSitting(false);
         sitting = false;
         character.setAirborne(true);
-        beginPath(cx, startTop, cx, targetTop, 0);
         ValueAnimator a = ValueAnimator.ofFloat(0f, 1f);
         a.setDuration(Math.max(120, Math.min(1400, ms)));
         a.setInterpolator(new AccelerateInterpolator(1f));
@@ -877,21 +917,18 @@ public final class FloatingCompanionService extends Service {
         restLabel = s.label == null ? "" : s.label;
         moving = false;
         stopWind();
-        endPath();
         sitting = sit;
         character.setAirborne(false);
         character.setSitting(sit);
         character.setPivotY(character.getHeight());
         character.setScaleY(0.93f);
         character.animate().scaleY(1f).setDuration(260).setInterpolator(new OvershootInterpolator(3f)).start();
-        narrowSoon();
     }
 
     /** Moves the character's top to {@code top} smoothly (sitting down / standing up on the spot). */
     private void shiftTop(int top, long ms) {
         final int from = bodyTop;
         if (from == top) return;
-        beginPath(cx, from, cx, top, 0);
         ValueAnimator a = ValueAnimator.ofFloat(0f, 1f);
         a.setDuration(ms);
         a.setInterpolator(new PathInterpolator(0.4f, 0f, 0.2f, 1f));
@@ -907,8 +944,6 @@ public final class FloatingCompanionService extends Service {
             @Override
             public void onAnimationEnd(Animator animation) {
                 if (character == null || moving) return;
-                endPath();
-                narrowSoon();
             }
         });
         motion = a;
@@ -924,7 +959,7 @@ public final class FloatingCompanionService extends Service {
         if (sitting) return true;
         sitting = true;
         character.setSitting(true);
-        shiftTop(restTop - Math.round(an[1] * bodyH), 480);
+        shiftTop(restTop - Math.round(an[1] * viewH), 480);
         return true;
     }
 
@@ -934,7 +969,7 @@ public final class FloatingCompanionService extends Service {
         sitting = false;
         character.setSitting(false);
         character.setSitStyle(-1);
-        shiftTop(restTop - Math.round(an[0] * bodyH), 420);
+        shiftTop(restTop - Math.round(an[0] * viewH), 420);
     }
 
     /** Goes to {@code target} (walking along the same surface, hopping to another), then runs {@code then}. */
@@ -970,7 +1005,6 @@ public final class FloatingCompanionService extends Service {
         cancelMotion();
         moving = true;
         character.setWalking(tx > from ? 1f : -1f);
-        beginPath(from, bodyTop, tx, bodyTop, 0);
         float speed = 0.42f * bodyH; // px/s: a calm stroll for its size
         ValueAnimator a = ValueAnimator.ofFloat(0f, 1f);
         a.setDuration((long) Math.max(600, dist / speed * 1000 + 300));
@@ -1005,8 +1039,6 @@ public final class FloatingCompanionService extends Service {
                 if (cancelled) return;
                 moving = false;
                 stopWind();
-                endPath();
-                narrowSoon();
                 if (then != null) main.postDelayed(then, 300);
             }
         });
@@ -1021,13 +1053,12 @@ public final class FloatingCompanionService extends Service {
         float[] an = character.anchors();
         final float x0 = cx;
         final int y0 = bodyTop;
-        final int y1 = target.top - Math.round(an[0] * bodyH);
+        final int y1 = target.top - Math.round(an[0] * viewH);
         int lift = dp(70);
         final float apex = Math.min(y0, y1) - lift;
         final float ctrl = 2f * apex - (y0 + y1) / 2f; // so the arc's top is about at apex
         moving = true;
         character.setAirborne(true);
-        beginPath(x0, y0, tx, y1, lift + dp(8));
         double d = Math.hypot(tx - x0, y1 - y0);
         ValueAnimator a = ValueAnimator.ofFloat(0f, 1f);
         a.setDuration((long) Math.max(500, Math.min(1200, 420 + d / density * 1.1)));
@@ -1095,6 +1126,8 @@ public final class FloatingCompanionService extends Service {
             if (!plan.say.isEmpty()) say(plan.say);
             Surface to = targetIsBottom ? bottomSurface()
                     : target != null ? new Surface(target.top, target.left, target.right, true, "") : null;
+            // Never onto (or down to) the keyboard while it shows.
+            if (kbRect != null && to != null && (targetIsBottom || to.top >= kbRect.top - dp(8))) to = null;
             int style = SitStyles.parse(plan.sitStyle);
             switch (plan.action) {
                 case "sleep":
@@ -1125,6 +1158,11 @@ public final class FloatingCompanionService extends Service {
         public void saidToAgent(String text) {
             if (character == null) return;
             gesture("nod");
+        }
+
+        @Override
+        public void keyboard(Rect kb) {
+            onKeyboard(kb);
         }
 
         @Override

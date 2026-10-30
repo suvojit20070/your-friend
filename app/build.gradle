@@ -41,6 +41,11 @@ android {
                     storePassword System.getenv('YF_KEYSTORE_PASSWORD')
                     keyAlias System.getenv('YF_KEY_ALIAS')
                     keyPassword System.getenv('YF_KEY_PASSWORD')
+                    // All three schemes: v1 (JAR) for old installers and tools, v2 for speed and
+                    // integrity, v3 for key rotation. (AGP leaves v1 off for minSdk >= 24 unless asked.)
+                    enableV1Signing true
+                    enableV2Signing true
+                    enableV3Signing true
                 }
             }
         }

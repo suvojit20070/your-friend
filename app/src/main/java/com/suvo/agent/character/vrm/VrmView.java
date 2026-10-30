@@ -49,6 +49,14 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
     private volatile boolean airborne;
     private volatile float walking;
     private volatile int sitStyle = -1;
+    private volatile float headroom;
+
+    /** Keeps this fraction of the height free above the character (the body is drawn below it). */
+    public void setHeadroom(float h) {
+        headroom = h;
+        RenderThread t = thread;
+        if (t != null) t.setSize(surfW, surfH);
+    }
 
     /** Walk toward the left (-1) or right (+1), or stand still (0). */
     public void setWalking(float dir) {
@@ -229,6 +237,7 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
                     long t0 = System.nanoTime();
                     if (sizeChanged) {
                         sizeChanged = false;
+                        r.setHeadroom(headroom);
                         r.resize(w, h);
                     }
                     synchronized (lock) {

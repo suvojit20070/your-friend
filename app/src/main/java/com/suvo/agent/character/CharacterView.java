@@ -177,6 +177,7 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
             return;
         }
         vrm = new VrmView(getContext());
+        vrm.setHeadroom(headroom);
         vrm.setFps(frameSkip == 0 ? 60 : 30);
         addView(vrm, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         vrm.setModel(source, framing, new VrmView.Callback() {
@@ -240,6 +241,14 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
     /** Sitting style (a {@link com.suvo.agent.character.vrm.SitStyles} constant; -1 = chosen by mood). */
     public void setSitStyle(int style) {
         if (vrm != null) vrm.setSitStyle(style);
+    }
+
+    private float headroom;
+
+    /** Keeps this fraction of the height free above the 3D character (room for raised arms). */
+    public void setHeadroom(float h) {
+        headroom = h;
+        if (vrm != null) vrm.setHeadroom(h);
     }
 
     /** A body gesture ({@link com.suvo.agent.character.vrm.Gestures}: wave, nod, cheer…; 3D only). */
