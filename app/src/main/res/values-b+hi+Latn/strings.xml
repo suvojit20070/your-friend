@@ -945,7 +945,7 @@
     <string name="wake_later">Baad mein</string>
     <string name="wake_remove_title">Wake word engine hatayein?</string>
     <string name="wake_sensitivity">Wake word sensitivity</string>
-    <string name="wake_sensitivity_note">Zyada = dheemi awaaz bhi pakdega, par milte-julte words pe bhi trigger hoga.</string>
-    <string name="wake_word_single">Wake word (ek word)</string>
+    <string name="wake_sensitivity_note">Zyada = dheemi awaaz bhi pakdega, par milte-julte words pe bhi trigger hoga. Do words (“hey aiko”) ek word se kaafi pakka hai; apne aap trigger ho to ise kam karo.</string>
+    <string name="wake_word_single">Wake phrase (1–3 words, jaise “hey aiko”)</string>
     <string name="md_scale">Markdown size</string>
 </resources>

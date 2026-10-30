@@ -123,17 +123,17 @@ public final class VoiceActivity extends BaseActivity {
         // One wake word ("tanu"): with the offline engine only this word is listened for.
         TextView wordRow = r.textRow(R.drawable.ic_voice, R.string.wake_word_single, Settings.HANDS_FREE_WAKE, "", false,
                 R.string.voice_wake_words_none, v -> {
-                    String one = com.suvo.agent.core.util.WakeVariants.single(v);
+                    String one = com.suvo.agent.core.util.WakeVariants.phrase(v);
                     g.settings.put(Settings.HANDS_FREE_WAKE, one);
                     HandsFreeService.reloadWake();
                     build();
                 });
         if (wordRow != null) {
-            String one = com.suvo.agent.core.util.WakeVariants.single(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
+            String one = com.suvo.agent.core.util.WakeVariants.phrase(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
             if (!one.isEmpty()) wordRow.setText(one);
         }
         wakeEngineRow(r);
-        r.sliderRow(R.drawable.ic_mic, R.string.wake_sensitivity, HandsFreeService.SENSITIVITY, 55, 0, 100, "%",
+        r.sliderRow(R.drawable.ic_mic, R.string.wake_sensitivity, HandsFreeService.SENSITIVITY, 40, 0, 100, "%",
                 v -> HandsFreeService.reloadWake());
         r.note(getString(R.string.wake_sensitivity_note));
         handsFreeStatus = r.row(R.drawable.ic_eye, getString(R.string.voice_hands_free_status), statusText(), null, null);
@@ -157,7 +157,7 @@ public final class VoiceActivity extends BaseActivity {
 
     /** The engine row: download (with progress), or remove when it is there. */
     private void wakeEngineRow(Rows r) {
-        String word = com.suvo.agent.core.util.WakeVariants.single(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
+        String word = com.suvo.agent.core.util.WakeVariants.phrase(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
         boolean ready = com.suvo.agent.voice.WakeModel.isReady(this);
         String sub;
         if (wakeDownload != null) sub = getString(R.string.wake_engine_downloading, "");

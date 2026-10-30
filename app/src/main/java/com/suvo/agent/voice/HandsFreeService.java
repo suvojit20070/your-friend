@@ -294,12 +294,12 @@ public final class HandsFreeService extends Service {
      */
     private void prepareWake() {
         AppGraph g = AppGraph.get();
-        String word = com.suvo.agent.core.util.WakeVariants.single(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
+        String word = com.suvo.agent.core.util.WakeVariants.phrase(g.settings.str(Settings.HANDS_FREE_WAKE, ""));
         if (word.isEmpty() || !WakeModel.isReady(this)) {
             if (gate != null) gate.setWake(null);
             return;
         }
-        int sens = g.settings.integer(SENSITIVITY, 55);
+        int sens = g.settings.integer(SENSITIVITY, 40);
         g.io.execute(() -> {
             try {
                 WakeDetector d = WakeDetector.create(this, word, sens);

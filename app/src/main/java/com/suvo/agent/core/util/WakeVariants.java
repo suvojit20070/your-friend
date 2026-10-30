@@ -19,6 +19,61 @@ public final class WakeVariants {
     private WakeVariants() {
     }
 
+    /** Longest wake phrase used (words). */
+    public static final int MAX_WORDS = 3;
+
+    /**
+     * The wake phrase from the setting: up to {@link #MAX_WORDS} words of the first entry,
+     * letters only, lower case ("hey aiko"; "" = none). Two words are far more reliable than one:
+     * a single short word is easily "found" inside other speech.
+     */
+    public static String phrase(String setting) {
+        if (setting == null) return "";
+        String first = setting.split("[,;\\n|]", 2)[0];
+        StringBuilder sb = new StringBuilder();
+        int n = 0;
+        for (String part : first.trim().toLowerCase(Locale.ROOT).split("[^\\p{L}\\p{N}]+")) {
+            if (part.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(part);
+            if (++n >= MAX_WORDS) break;
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Phrases to listen for a whole wake phrase: every word's sound-alikes combined ("hey aiko" →
+     * "hey eye co", "hey i co", …). Null when a word has no spelling the model knows (with a
+     * known dictionary), so the caller can tell the user instead of listening for half a phrase.
+     */
+    public static List<String> phrasesFor(String setting, Set<String> vocab, int max) {
+        String p = phrase(setting);
+        List<String> out = new ArrayList<>();
+        if (p.isEmpty()) return out;
+        boolean known = vocab != null && !vocab.isEmpty();
+        List<List<String>> per = new ArrayList<>();
+        for (String w : p.split(" ")) {
+            List<String> v = phrases(w, vocab, 6);
+            if (v.isEmpty()) {
+                if (known) return null;
+                v.add(w);
+            }
+            per.add(v);
+        }
+        out.add("");
+        for (List<String> options : per) {
+            List<String> next = new ArrayList<>();
+            for (String head : out) {
+                for (String o : options) {
+                    if (next.size() >= max) break;
+                    next.add(head.isEmpty() ? o : head + " " + o);
+                }
+            }
+            out = next;
+        }
+        return out;
+    }
+
     /** The single wake word from the setting: first word, letters only, lower case ("" = none). */
     public static String single(String setting) {
         if (setting == null) return "";
@@ -44,6 +99,23 @@ public final class WakeVariants {
         for (String[] in : inner) {
             int i = s.indexOf(in[0]);
             if (i >= 0) out.add(s.substring(0, i) + in[1] + s.substring(i + in[0].length()));
+        }
+        // Leading sounds: "aiko" → "eye ko", "i ko"; "ay" → "ai".
+        if (s.startsWith("ai") && s.length() > 2) {
+            out.add("eye" + s.substring(2));
+            out.add("i" + s.substring(2));
+            out.add("ay" + s.substring(2));
+        }
+        if (s.equals("ai")) {
+            out.add("eye");
+            out.add("i");
+            out.add("ay");
+        }
+        if (s.startsWith("ay") && s.length() > 2) out.add("ai" + s.substring(2));
+        if (s.equals("ko")) {
+            out.add("co");
+            out.add("coe");
+            out.add("koh");
         }
         if (s.equals("nu")) {
             out.add("new");

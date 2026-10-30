@@ -965,7 +965,7 @@
     <string name="wake_later">Later</string>
     <string name="wake_remove_title">Remove the wake word engine?</string>
     <string name="wake_sensitivity">Wake word sensitivity</string>
-    <string name="wake_sensitivity_note">Higher hears quiet or unclear speech but triggers on similar words more often.</string>
-    <string name="wake_word_single">Wake word (one word)</string>
+    <string name="wake_sensitivity_note">Higher hears quiet or unclear speech but also triggers on similar words. Two words (“hey aiko”) are much more reliable than one; if it triggers by itself, lower this.</string>
+    <string name="wake_word_single">Wake phrase (1–3 words, e.g. “hey aiko”)</string>
     <string name="md_scale">Markdown scale</string>
 </resources>

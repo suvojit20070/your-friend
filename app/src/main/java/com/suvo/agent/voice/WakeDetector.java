@@ -37,17 +37,24 @@ public final class WakeDetector {
         this.minConfidence = minConfidence;
     }
 
-    /** Sensitivity 0..100 → confidence the match needs (0 → 0.92, 50 → 0.62, 100 → 0.32). */
+    /**
+     * Sensitivity 0..100 → confidence the match needs (0 → 0.95, 40 → 0.79, 100 → 0.55). Even at
+     * 100 the match must be fairly sure: lower than that the restricted model "hears" the wake
+     * phrase inside almost any speech.
+     */
     public static float confidenceFor(int sensitivity) {
         int s = Math.max(0, Math.min(100, sensitivity));
-        return 0.92f - s * 0.006f;
+        return 0.95f - s * 0.004f;
     }
 
     /** Builds a detector for {@code setting}'s word; null when there is no word. Loads the model (slow, off the main thread). */
     public static WakeDetector create(Context c, String setting, int sensitivity) throws IOException {
-        String word = WakeVariants.single(setting);
+        String word = WakeVariants.phrase(setting);
         if (word.isEmpty()) return null;
-        List<String> phrases = WakeVariants.phrases(word, WakeModel.vocabulary(c), 8);
+        List<String> phrases = WakeVariants.phrasesFor(word, WakeModel.vocabulary(c), 12);
+        if (phrases == null) {
+            throw new IOException("a word of “" + word + "” has no spelling the offline model knows — try writing it the way it sounds");
+        }
         if (phrases.isEmpty()) phrases = Arrays.asList(word);
         JSONArray grammar = new JSONArray();
         for (String p : phrases) grammar.put(p);
