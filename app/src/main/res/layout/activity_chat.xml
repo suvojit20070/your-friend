@@ -117,6 +117,83 @@
                 android:orientation="vertical" />
         </ScrollView>
 
+        <!-- The agent's browser (web connectors): shown here while the agent uses a website. -->
+        <LinearLayout
+            android:id="@+id/chat_browser"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="12dp"
+            android:elevation="6dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="14dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_globe"
+                    android:tint="@color/text_primary" />
+
+                <TextView
+                    android:id="@+id/chat_browser_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:ellipsize="middle"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp" />
+
+                <ImageButton
+                    android:id="@+id/chat_browser_size"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginBottom="2dp"
+                    android:background="@null"
+                    android:contentDescription="@string/browser_resize"
+                    android:padding="10dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_expand"
+                    android:tint="@color/text_primary" />
+
+                <ImageButton
+                    android:id="@+id/chat_browser_close"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="2dp"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_marginBottom="2dp"
+                    android:background="@null"
+                    android:contentDescription="@string/browser_close"
+                    android:padding="10dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_close"
+                    android:tint="@color/text_primary" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/chat_browser_slot"
+                android:layout_width="match_parent"
+                android:layout_height="320dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginEnd="6dp"
+                android:layout_marginBottom="6dp" />
+        </LinearLayout>
+
         <LinearLayout
             android:id="@+id/chat_bottom"
             android:layout_width="match_parent"

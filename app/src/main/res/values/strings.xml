@@ -1035,4 +1035,6 @@
     <string name="connector_help_notion">Create an internal integration at https://www.notion.so/my-integrations, paste its secret, then share your pages with the integration in Notion.</string>
     <string name="connector_help_api">Any HTTPS API: its base address and the key. The key is added to every request the agent makes there and is never shown to the AI.</string>
     <string name="connector_help_web">Enter the website; you log in to it next. The agent then uses that site as you (pages, buttons, messages).</string>
+    <string name="browser_resize">Agent browser: bigger or smaller</string>
+    <string name="browser_close">Close the agent browser</string>
 </resources>

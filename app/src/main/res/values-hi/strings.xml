@@ -949,4 +949,6 @@
     <string name="connector_web_title">%1$s में लॉग-इन</string>
     <string name="connector_done">हो गया</string>
     <string name="connector_web_no_login">सेव हो गया। लॉग-इन नहीं किया तो कनेक्टर से फिर खोलें।</string>
+    <string name="browser_resize">एजेंट ब्राउज़र: बड़ा या छोटा</string>
+    <string name="browser_close">एजेंट ब्राउज़र बंद करें</string>
 </resources>

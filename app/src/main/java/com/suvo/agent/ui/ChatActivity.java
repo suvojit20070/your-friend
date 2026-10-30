@@ -192,6 +192,7 @@ public final class ChatActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
+        browserPanel = new AgentBrowserPanel(this);
         list = findViewById(R.id.chat_scroll);
         listBox = findViewById(R.id.chat_list);
         ((android.view.ViewGroup) list.getParent()).setClipChildren(true); // never draw over the top bar
@@ -714,10 +715,14 @@ public final class ChatActivity extends BaseActivity {
         handleShare(intent);
     }
 
+    /** The agent's browser (web connectors) shows above the messages while it is used. */
+    private AgentBrowserPanel browserPanel;
+
     @Override
     protected void onStart() {
         super.onStart();
         g.agent.addListener(agentListener);
+        browserPanel.start();
         // Markdown scale changed in settings: rebuild every row at the new size.
         float k = MarkdownScaleActivity.scale(this);
         if (k != textScale) {
@@ -732,6 +737,7 @@ public final class ChatActivity extends BaseActivity {
     @Override
     protected void onStop() {
         g.agent.removeListener(agentListener);
+        browserPanel.stop();
         if (speechInput.isListening()) speechInput.cancel();
         super.onStop();
     }

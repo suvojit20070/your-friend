@@ -560,16 +560,24 @@ public final class ConnectorTools {
         public Web(AppGraph g) {
             super(g, ToolSpec.builder("web_session")
                     .description("Use a website the user is logged in to (Instagram, Facebook, X, YouTube, Telegram Web, WhatsApp Web, "
-                            + "LinkedIn, Reddit, any site they added) as the user, in a background browser with their session. "
-                            + "Actions: open (url on that site, then you get the page text), text (current page: title, url, text, "
-                            + "links, buttons, inputs), js (run JavaScript in the page as an async function body and return a value — "
-                            + "click: document.querySelector(…).click(); type into inputs with the native value setter + an input "
-                            + "event; scroll: window.scrollBy(0, 2000)), fetch (HTTP request from inside the page with its cookies), "
-                            + "screenshot (picture of the page), url.")
+                            + "LinkedIn, Reddit, any site they added) as the user. The browser is shown to the user while you work. "
+                            + "Actions: open (url on that site; in single-page apps an address that only changes #… switches inside the "
+                            + "page — e.g. Telegram Web chat links from text → links), text (title, url, visible text, links, buttons, "
+                            + "inputs), tap (a real finger tap on the element matching selector, or on the smallest visible element "
+                            + "containing text), type (tap selector/text first if given, then type value like a keyboard), key (Enter, "
+                            + "Tab, Backspace, Escape, ArrowUp, ArrowDown), scroll (dy pixels, page or the scrollable element around "
+                            + "selector/text; negative = up), back, screenshot (picture of the page), url, js (JavaScript: a function "
+                            + "body that returns a value, or an expression; prefer tap/type/key for clicking and typing), fetch "
+                            + "(request from inside the page with its cookies). After tap/type/key/scroll call text to see the result.")
                     .schema("{\"type\":\"object\",\"properties\":{"
                             + "\"connector\":{\"type\":\"string\"},"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"js\",\"fetch\",\"screenshot\",\"url\"]},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\"]},"
                             + "\"url\":{\"type\":\"string\"},"
+                            + "\"selector\":{\"type\":\"string\",\"description\":\"CSS selector\"},"
+                            + "\"text\":{\"type\":\"string\",\"description\":\"Visible text / label of the element\"},"
+                            + "\"value\":{\"type\":\"string\",\"description\":\"Text to type\"},"
+                            + "\"key\":{\"type\":\"string\"},"
+                            + "\"dy\":{\"type\":\"integer\",\"default\":800},"
                             + "\"script\":{\"type\":\"string\",\"maxLength\":20000},"
                             + "\"method\":{\"type\":\"string\",\"default\":\"GET\"},"
                             + "\"headers\":{\"type\":\"object\"},"
@@ -587,7 +595,7 @@ public final class ConnectorTools {
         @Override
         public RiskLevel riskFor(JSONObject args) {
             String a = args.optString("action");
-            if ("js".equals(a)) return RiskLevel.MEDIUM;
+            if ("js".equals(a) || "tap".equals(a) || "type".equals(a) || "key".equals(a)) return RiskLevel.MEDIUM;
             if ("fetch".equals(a)) return "GET".equalsIgnoreCase(args.optString("method", "GET")) ? RiskLevel.READ_ONLY : RiskLevel.MEDIUM;
             return RiskLevel.READ_ONLY;
         }
@@ -596,6 +604,8 @@ public final class ConnectorTools {
         public String describeCall(JSONObject args) {
             String a = args.optString("action");
             if ("js".equals(a)) return "Run in " + args.optString("connector") + ": " + abbreviate(args.optString("script"), 300);
+            if ("tap".equals(a)) return "Tap \"" + args.optString("text", args.optString("selector")) + "\" on " + args.optString("connector");
+            if ("type".equals(a)) return "Type on " + args.optString("connector") + ": " + abbreviate(args.optString("value"), 300);
             return "web_session " + a + " " + args.optString("connector") + " " + args.optString("url");
         }
 
@@ -614,12 +624,34 @@ public final class ConnectorTools {
                 }
                 case "text":
                     return ToolResult.ok("Page", J.obj("page", WebSession.text(g.ctx, c, max)));
+                case "tap": {
+                    String r = WebSession.tap(g.ctx, c, inv.str("selector"), inv.str("text"));
+                    return r.startsWith("ERROR") ? ToolResult.fail(r + " — call text to see what is on the page") : ToolResult.ok(r);
+                }
+                case "type": {
+                    if (!inv.args.has("value")) return ToolResult.fail("value (the text to type) is required");
+                    String r = WebSession.type(g.ctx, c, inv.str("selector"), inv.str("text"), inv.str("value"));
+                    r = r == null ? "null" : r;
+                    return r.contains("ERROR") ? ToolResult.fail(r) : ToolResult.ok(r.replace("\"", ""));
+                }
+                case "key": {
+                    String r = WebSession.key(g.ctx, c, inv.str("key"));
+                    return r.startsWith("ERROR") ? ToolResult.fail(r) : ToolResult.ok(r);
+                }
+                case "scroll": {
+                    String r = WebSession.scroll(g.ctx, c, inv.str("selector"), inv.str("text"), (int) inv.num("dy", 800));
+                    return r != null && r.startsWith("ERROR") ? ToolResult.fail(r) : ToolResult.ok("Scrolled", J.obj("scroll", r));
+                }
+                case "back":
+                    return ToolResult.ok(WebSession.back(g.ctx, c));
                 case "url":
                     return ToolResult.ok(WebSession.url(g.ctx, c));
                 case "js": {
                     String r = WebSession.eval(g.ctx, c, inv.str("script"), 60_000);
                     if (r != null && r.startsWith("ERROR:")) return ToolResult.fail(r);
-                    return ToolResult.ok("Done", J.obj("result", abbreviate(r == null ? "null" : r, max)));
+                    String shown = abbreviate(r == null ? "null" : r, max);
+                    return ToolResult.ok("null".equals(shown) ? "Ran; the script returned nothing (return a value to see one)" : "Ran",
+                            J.obj("result", shown, "url", WebSession.url(g.ctx, c)));
                 }
                 case "fetch": {
                     String url = inv.str("url");

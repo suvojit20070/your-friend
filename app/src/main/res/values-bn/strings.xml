@@ -949,4 +949,6 @@
     <string name="connector_web_title">%1$s-এ লগ-ইন</string>
     <string name="connector_done">হয়ে গেছে</string>
     <string name="connector_web_no_login">সেভ হয়েছে। লগ-ইন না করলে কানেক্টর থেকে আবার খুলুন।</string>
+    <string name="browser_resize">এজেন্ট ব্রাউজার: বড় বা ছোট</string>
+    <string name="browser_close">এজেন্ট ব্রাউজার বন্ধ করুন</string>
 </resources>

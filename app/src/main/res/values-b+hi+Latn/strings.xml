@@ -990,4 +990,6 @@
     <string name="connector_web_title">%1$s mein log-in</string>
     <string name="connector_done">Ho gaya</string>
     <string name="connector_web_no_login">Save ho gaya. Log-in nahi kiya to Connectors se dobara kholo.</string>
+    <string name="browser_resize">Agent browser: bada ya chhota</string>
+    <string name="browser_close">Agent browser band karo</string>
 </resources>

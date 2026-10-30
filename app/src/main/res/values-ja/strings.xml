@@ -942,4 +942,6 @@
     <string name="connector_web_title">%1$s にログイン</string>
     <string name="connector_done">完了</string>
     <string name="connector_web_no_login">保存しました。ログインしていない場合はコネクターから開き直してください。</string>
+    <string name="browser_resize">エージェントのブラウザ: 拡大 / 縮小</string>
+    <string name="browser_close">エージェントのブラウザを閉じる</string>
 </resources>
