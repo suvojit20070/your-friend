@@ -56,8 +56,11 @@ public final class StreamAccumulator {
             content.append((String) c);
             listener.onTextDelta((String) c);
         }
-        String r = delta.optString("reasoning_content", delta.optString("reasoning", ""));
-        if (!r.isEmpty() && !"null".equals(r)) reasoning.append(r);
+        String r = delta.optString("reasoning_content", delta.optString("reasoning", delta.optString("thinking", "")));
+        if (!r.isEmpty() && !"null".equals(r)) {
+            reasoning.append(r);
+            listener.onReasoningDelta(r);
+        }
 
         JSONArray tcs = delta.optJSONArray("tool_calls");
         if (tcs != null) {

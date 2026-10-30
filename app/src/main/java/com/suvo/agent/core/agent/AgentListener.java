@@ -14,6 +14,10 @@ public interface AgentListener {
     default void onTextDelta(TaskState task, String delta) {
     }
 
+    /** The model's thinking while it streams (shown in the chat's thinking card). */
+    default void onReasoningDelta(TaskState task, String delta) {
+    }
+
     /** A streamed tool call's name became known (before arguments finish). */
     default void onToolCallPreparing(TaskState task, String toolName) {
     }

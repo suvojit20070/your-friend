@@ -58,6 +58,12 @@ public final class TrackedLlm implements LlmClient {
             }
 
             @Override
+            public void onReasoningDelta(String delta) {
+                if (first[0] == 0) first[0] = SystemClock.elapsedRealtime();
+                out.onReasoningDelta(delta);
+            }
+
+            @Override
             public void onToolCallStarted(int index, String toolName) {
                 if (first[0] == 0) first[0] = SystemClock.elapsedRealtime();
                 out.onToolCallStarted(index, toolName);

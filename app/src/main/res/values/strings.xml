@@ -1039,4 +1039,6 @@
     <string name="browser_close">Close the agent browser</string>
     <string name="settings_verify_done">Check before \"done\"</string>
     <string name="settings_verify_done_desc">Before the agent says a task is finished, a short separate check compares its answer with what the tools really showed (searched but did not play, typed but did not send…). If something is missing it keeps working. Uses one small extra request per task.</string>
+    <string name="think_live">Thinking…</string>
+    <string name="think_done">Thought · %1$s chars</string>
 </resources>

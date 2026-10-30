@@ -297,6 +297,11 @@ public final class AgentRuntime {
         }
 
         @Override
+        public void onReasoningDelta(TaskState task, String delta) {
+            dispatch(l -> l.onReasoningDelta(task, delta));
+        }
+
+        @Override
         public void onToolCallPreparing(TaskState task, String toolName) {
             AgentTree.action(treeRoot, toolName + "…");
             dispatch(l -> l.onToolCallPreparing(task, toolName));

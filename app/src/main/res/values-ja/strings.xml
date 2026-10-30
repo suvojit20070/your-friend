@@ -946,4 +946,6 @@
     <string name="browser_close">エージェントのブラウザを閉じる</string>
     <string name="settings_verify_done">「完了」の前に確認</string>
     <string name="settings_verify_done_desc">エージェントが完了と言う前に、短い別のチェックがツールの結果で本当に終わったかを確かめます（検索しただけで再生していない、入力しただけで送信していない など）。足りなければ作業を続けます。タスクごとに小さな追加リクエストが1回あります。</string>
+    <string name="think_live">考え中…</string>
+    <string name="think_done">思考 · %1$s 文字</string>
 </resources>

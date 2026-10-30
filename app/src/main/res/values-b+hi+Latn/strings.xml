@@ -994,4 +994,6 @@
     <string name="browser_close">Agent browser band karo</string>
     <string name="settings_verify_done">\"Ho gaya\" bolne se pehle check</string>
     <string name="settings_verify_done_desc">Agent kaam poora bolne se pehle ek chhota alag check dekhta hai ki tools ke results mein kaam sach mein hua ya nahi (search kiya par play nahi kiya, likha par bheja nahi…). Kuch baaki ho to agent kaam jaari rakhta hai. Har task mein ek chhoti extra request.</string>
+    <string name="think_live">Soch raha hai…</string>
+    <string name="think_done">Soch · %1$s chars</string>
 </resources>

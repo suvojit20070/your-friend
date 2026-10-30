@@ -19,6 +19,8 @@ public final class ChatResponse {
     }
 
     public ChatMessage toMessage() {
-        return hasToolCalls() ? ChatMessage.assistant(content, toolCalls) : ChatMessage.assistant(content);
+        ChatMessage m = hasToolCalls() ? ChatMessage.assistant(content, toolCalls) : ChatMessage.assistant(content);
+        m.reasoning = reasoning == null ? "" : reasoning.trim();
+        return m;
     }
 }

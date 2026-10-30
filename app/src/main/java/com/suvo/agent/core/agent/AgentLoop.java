@@ -222,6 +222,11 @@ public final class AgentLoop {
                     }
 
                     @Override
+                    public void onReasoningDelta(String delta) {
+                        listener.onReasoningDelta(task, delta);
+                    }
+
+                    @Override
                     public void onToolCallStarted(int index, String name) {
                         listener.onToolCallPreparing(task, name);
                     }

@@ -953,4 +953,6 @@
     <string name="browser_close">एजेंट ब्राउज़र बंद करें</string>
     <string name="settings_verify_done">\"हो गया\" कहने से पहले जाँच</string>
     <string name="settings_verify_done_desc">एजेंट काम पूरा बताने से पहले एक छोटी अलग जाँच देखती है कि टूल के नतीजों में काम सच में हुआ या नहीं (सर्च किया पर चलाया नहीं, लिखा पर भेजा नहीं…)। कुछ बाकी हो तो एजेंट काम जारी रखता है। हर काम में एक छोटा अतिरिक्त अनुरोध।</string>
+    <string name="think_live">सोच रहा है…</string>
+    <string name="think_done">सोच · %1$s अक्षर</string>
 </resources>

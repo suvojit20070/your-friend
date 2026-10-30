@@ -47,6 +47,67 @@
                 android:visibility="gone" />
         </LinearLayout>
 
+        <!-- The model's thinking (reasoning): a card with a fixed maximum height that scrolls inside. -->
+        <LinearLayout
+            android:id="@+id/msg_think"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="8dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/msg_think_head"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/msg_think_title"
+                    style="@style/YF.Caption"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="6dp"
+                    android:layout_weight="1"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/msg_think_chevron"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="12dp"
+                    android:importantForAccessibility="no"
+                    android:rotation="90"
+                    android:src="@drawable/ic_chevron"
+                    android:tint="@color/text_secondary" />
+            </LinearLayout>
+
+            <com.suvo.agent.ui.ThinkScroll
+                android:id="@+id/msg_think_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:fadeScrollbars="false"
+                android:overScrollMode="never"
+                android:scrollbarSize="2dp"
+                android:scrollbars="vertical">
+
+                <TextView
+                    android:id="@+id/msg_think_text"
+                    style="@style/YF.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
+                    android:lineSpacingMultiplier="1.15" />
+            </com.suvo.agent.ui.ThinkScroll>
+        </LinearLayout>
+
         <TextView
             android:id="@+id/msg_text"
             style="@style/YF.Body"

@@ -85,10 +85,12 @@ public final class ChatActivity extends BaseActivity {
         long id;
         /** First answer of a turn: shows the companion's name above it. */
         boolean header;
+        /** The model's thinking (reasoning_content) for this answer, shown in a thinking card. */
+        String reasoning = "";
 
         /** Everything the row shows; a row bound to an item with the same signature is left alone. */
         int signature() {
-            int h = java.util.Objects.hash(type, key, title, text, detail, status, expanded, dim, time, header);
+            int h = java.util.Objects.hash(type, key, title, text, detail, status, expanded, dim, time, header, reasoning);
             for (Item c : children) h = 31 * h + java.util.Objects.hash(c.key, c.title, c.text, c.status, c.expanded, c.detail.length());
             return h;
         }
@@ -96,6 +98,20 @@ public final class ChatActivity extends BaseActivity {
 
     private final List<Item> items = new ArrayList<>();
     private Adapter adapter;
+    /** Answers whose thinking card the user folded. */
+    private final java.util.Set<Long> thinkClosed = new java.util.HashSet<>();
+
+    /** The live answer row (created on the first streamed text or thinking). */
+    private void ensureStreamItem() {
+        if (streamItem != null) return;
+        streamItem = new Item();
+        streamItem.type = STREAM;
+        streamItem.time = System.currentTimeMillis();
+        streamItem.id = Long.MAX_VALUE - 1;
+        streamItem.header = needsHeader(items.size());
+        items.add(streamItem);
+        streamJustStarted = true;
+    }
     /** The conversation: a scrolling column of message rows (rows are kept, never recycled). */
     private ScrollView list;
     private LinearLayout listBox;
@@ -136,16 +152,16 @@ public final class ChatActivity extends BaseActivity {
         @Override
         public void onTextDelta(TaskState task, String delta) {
             if (task.conversationId != conversationId) return;
-            if (streamItem == null) {
-                streamItem = new Item();
-                streamItem.type = STREAM;
-                streamItem.time = System.currentTimeMillis();
-                streamItem.id = Long.MAX_VALUE - 1;
-                streamItem.header = needsHeader(items.size());
-                items.add(streamItem);
-                streamJustStarted = true;
-            }
+            ensureStreamItem();
             streamItem.text += delta;
+            scheduleStreamRender();
+        }
+
+        @Override
+        public void onReasoningDelta(TaskState task, String delta) {
+            if (task.conversationId != conversationId) return;
+            ensureStreamItem();
+            streamItem.reasoning += delta;
             scheduleStreamRender();
         }
 
@@ -878,10 +894,11 @@ public final class ChatActivity extends BaseActivity {
                     break;
                 }
                 case ASSISTANT: {
-                    if (!m.contentOrEmpty().trim().isEmpty()) {
+                    if (!m.contentOrEmpty().trim().isEmpty() || (m.reasoning != null && !m.reasoning.trim().isEmpty())) {
                         Item it = new Item();
                         it.type = ASSISTANT;
                         it.text = m.contentOrEmpty().trim();
+                        it.reasoning = m.reasoning == null ? "" : m.reasoning.trim();
                         it.time = sm.createdAt;
                         it.dim = sm.compacted;
                         items.add(it);
@@ -1012,6 +1029,46 @@ public final class ChatActivity extends BaseActivity {
     private void reloadSoon() {
         uiHandler.removeCallbacks(reloadRunnable);
         uiHandler.postDelayed(reloadRunnable, 120);
+    }
+
+    /**
+     * The thinking card: "Thinking…" while the model thinks, "Thought" after; the text sits in a box
+     * with a fixed maximum height that scrolls inside (and follows new text while it streams).
+     * Tapping the title folds or opens it.
+     */
+    private void bindThink(View row, Item it, String thinking, boolean live, Palette pal) {
+        View card = row.findViewById(R.id.msg_think);
+        View head = row.findViewById(R.id.msg_think_head);
+        TextView title = row.findViewById(R.id.msg_think_title);
+        ImageView chevron = row.findViewById(R.id.msg_think_chevron);
+        ThinkScroll scroll = row.findViewById(R.id.msg_think_scroll);
+        TextView body = row.findViewById(R.id.msg_think_text);
+        card.setVisibility(View.VISIBLE);
+        card.setBackground(new TonalDrawable(Palette.alpha(pal.surfaceHighest, 0.55f), Ui.dp(this, 18)));
+        float k = Math.max(0.5f, textScale);
+        title.setText(live ? getString(R.string.think_live) : getString(R.string.think_done, thinking.length() < 1000
+                ? thinking.length() + "" : (thinking.length() / 100) / 10f + "k"));
+        title.setTextColor(live ? pal.primary : pal.onSurfaceVariant);
+        title.setTextSize(13f * k);
+        boolean wasBottom = scroll.getChildCount() == 0 || scroll.atBottom();
+        body.setText(thinking);
+        body.setTextColor(Palette.alpha(pal.onSurfaceVariant, 0.92f));
+        body.setTextSize(13.5f * k);
+        scroll.setMaxHeight(Ui.dp(this, 200));
+        boolean closed = thinkClosed.contains(it.id);
+        scroll.setVisibility(closed ? View.GONE : View.VISIBLE);
+        chevron.setRotation(closed ? 0 : 90);
+        final long id = it.id;
+        head.setOnClickListener(x -> {
+            boolean nowClosed = scroll.getVisibility() == View.VISIBLE;
+            if (nowClosed) thinkClosed.add(id);
+            else thinkClosed.remove(id);
+            scroll.setVisibility(nowClosed ? View.GONE : View.VISIBLE);
+            chevron.animate().rotation(nowClosed ? 0 : 90).setDuration(160).start();
+        });
+        if (live && wasBottom) scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
+        if (!live) MarkdownViews.makeSelectable(body, true, selectionHook);
+        else body.setTextIsSelectable(false);
     }
 
     /** Streamed text is drawn at most ~16 times a second, however fast the tokens arrive. */
@@ -1427,6 +1484,8 @@ public final class ChatActivity extends BaseActivity {
             LinearLayout toolsBox = v.findViewById(R.id.msg_tools);
             LinearLayout mdBox = v.findViewById(R.id.msg_md);
             mdBox.setVisibility(View.GONE);
+            View think = v.findViewById(R.id.msg_think);
+            think.setVisibility(View.GONE);
             chevron.setVisibility(View.GONE);
             chevron.animate().cancel();
             toolsBox.setVisibility(View.GONE);
@@ -1515,9 +1574,19 @@ public final class ChatActivity extends BaseActivity {
                 }
                 // Thinking a proxy left inside the text (<thought>…</thought>) is not part of the answer.
                 String[] parts = com.suvo.agent.core.llm.ThinkTags.split(it.text);
-                if (it.type == STREAM && parts[1].isEmpty() && !parts[0].isEmpty()) {
+                String thinking = it.reasoning == null ? "" : it.reasoning.trim();
+                if (!parts[0].isEmpty() && !thinking.contains(parts[0].substring(0, Math.min(40, parts[0].length())))) {
+                    thinking = thinking.isEmpty() ? parts[0] : thinking + "\n\n" + parts[0];
+                }
+                boolean thinkingNow = it.type == STREAM && parts[1].isEmpty();
+                if (!thinking.isEmpty()) bindThink(v, it, thinking, thinkingNow, pal);
+                if (thinkingNow && !thinking.isEmpty()) {
+                    text.setVisibility(View.GONE); // the thinking card shows what is happening
+                } else if (it.type == STREAM && parts[1].isEmpty()) {
                     text.setText(getString(R.string.status_thinking));
                     text.setTextColor(pal.onSurfaceVariant);
+                } else if (parts[1].isEmpty()) {
+                    text.setVisibility(View.GONE); // only thinking (the step went on with tools)
                 } else {
                     // Text, code cards and tables as views; a still-streaming answer uses the same
                     // views (updated in place), so nothing jumps when it finishes.

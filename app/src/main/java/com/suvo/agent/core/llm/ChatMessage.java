@@ -48,6 +48,8 @@ public final class ChatMessage {
     public final String name;
     /** Local database id, -1 when not persisted. Not sent to the provider. */
     public long localId = -1;
+    /** The model's thinking (reasoning_content) for an assistant message: stored and shown, never sent back. */
+    public String reasoning = "";
 
     private ChatMessage(Role role, String content, List<Image> images, List<ToolCall> toolCalls,
                         String toolCallId, String name) {
@@ -155,6 +157,7 @@ public final class ChatMessage {
                 for (Image i : images) imgs.put(new JSONObject().put("url", i.url).put("detail", i.detail));
                 o.put("images", imgs);
             }
+            if (reasoning != null && !reasoning.isEmpty()) o.put("reasoning", reasoning);
         } catch (JSONException e) {
             throw new IllegalStateException(e);
         }
@@ -182,7 +185,9 @@ public final class ChatMessage {
         }
         String toolCallId = o.has("tool_call_id") ? o.optString("tool_call_id") : null;
         String name = o.has("name") ? o.optString("name") : null;
-        return new ChatMessage(role, content, images, calls, toolCallId, name);
+        ChatMessage m = new ChatMessage(role, content, images, calls, toolCallId, name);
+        m.reasoning = o.optString("reasoning", "");
+        return m;
     }
 
     @Override
