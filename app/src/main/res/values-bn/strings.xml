@@ -913,4 +913,40 @@
         <item quantity="one">%dটি মেসেজ</item>
         <item quantity="other">%dটি মেসেজ</item>
     </plurals>
+
+    <!-- Connectors -->
+    <string name="connectors_title">কানেক্টর</string>
+    <string name="connectors_desc">Gmail, YouTube, Telegram, Instagram আর আরও — এজেন্ট আপনার অ্যাকাউন্টে কাজ করবে</string>
+    <string name="connectors_connected">যুক্ত</string>
+    <string name="connectors_none">এখনও কিছু যুক্ত নেই। নিচে থেকে একটা বেছে নিন।</string>
+    <string name="connectors_group_mail">মেইল</string>
+    <string name="connectors_group_google">Google সাইন-ইন</string>
+    <string name="connectors_group_social">সোশ্যাল ও ওয়েবসাইট</string>
+    <string name="connectors_group_api">বট ও API</string>
+    <string name="connector_not_signed_in">সাইন-ইন নেই</string>
+    <string name="connector_check">পরীক্ষা</string>
+    <string name="connector_checking">পরীক্ষা হচ্ছে…</string>
+    <string name="connector_open">খুলুন / লগ-ইন</string>
+    <string name="connector_reconnect">আবার সাইন-ইন</string>
+    <string name="connector_edit">এডিট</string>
+    <string name="connector_rename">নাম বদলান</string>
+    <string name="connector_disconnect">বিচ্ছিন্ন করুন</string>
+    <string name="connector_disconnect_confirm">%1$s সরাবেন? এর চাবিগুলো এই ফোন থেকে মুছে যাবে।</string>
+    <string name="connector_works">%1$s যুক্ত হয়েছে</string>
+    <string name="connector_failed">যুক্ত করা গেল না</string>
+    <string name="connector_fix">ঠিক করুন</string>
+    <string name="connector_save_anyway">তবুও সেভ</string>
+    <string name="connector_connect">যুক্ত করুন</string>
+    <string name="connector_sign_in">সাইন-ইন</string>
+    <string name="connector_log_in">লগ-ইন</string>
+    <string name="connector_browser">ব্রাউজারে সাইন-ইন করে ফিরে আসুন</string>
+    <string name="connector_invalid">কিছু দরকারি ঘর ফাঁকা বা ভুল</string>
+    <string name="connector_keep_secret">সেভ আছে — রাখতে ফাঁকা রাখুন</string>
+    <string name="connector_email">ইমেইল ঠিকানা</string>
+    <string name="connector_app_password">অ্যাপ পাসওয়ার্ড</string>
+    <string name="connector_token">টোকেন / API কী</string>
+    <string name="connector_name">নাম</string>
+    <string name="connector_web_title">%1$s-এ লগ-ইন</string>
+    <string name="connector_done">হয়ে গেছে</string>
+    <string name="connector_web_no_login">সেভ হয়েছে। লগ-ইন না করলে কানেক্টর থেকে আবার খুলুন।</string>
 </resources>

@@ -54,6 +54,8 @@ public final class AppGraph {
     public final AuditLog audit;
     public final ProviderRepo providers;
     public final SshHostRepo sshHosts;
+    /** Accounts the user connected for the agent (Gmail, YouTube, Telegram, Instagram…). */
+    public final com.suvo.agent.connectors.ConnectorRepo connectors;
     public final Workspace workspace;
     public final SafStore saf;
     public final TermuxBackend termux;
@@ -99,6 +101,8 @@ public final class AppGraph {
         audit = new AuditLog(db);
         providers = new ProviderRepo(db, secrets);
         sshHosts = new SshHostRepo(db, secrets);
+        connectors = new com.suvo.agent.connectors.ConnectorRepo(
+                ctx.getSharedPreferences("connectors", Context.MODE_PRIVATE), secrets);
         workspace = new Workspace(ctx);
         saf = new SafStore(ctx);
         termux = new TermuxBackend(ctx);

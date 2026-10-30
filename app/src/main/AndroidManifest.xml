@@ -179,6 +179,9 @@
         <activity android:name=".ui.TeamActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.ScheduleActivity" android:exported="false" />
         <activity android:name=".ui.MarkdownScaleActivity" android:exported="false" />
+        <activity android:name=".ui.ConnectorsActivity" android:exported="false" android:launchMode="singleTop" />
+        <activity android:name=".ui.ConnectorWebActivity" android:exported="false" android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
 
         <activity
             android:name=".device.capture.ProjectionRequestActivity"

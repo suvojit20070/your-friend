@@ -92,6 +92,10 @@ android {
         jniLibs {
             useLegacyPackaging true
         }
+        resources {
+            // Mail libraries ship the same licence files; JavaMail's own META-INF/javamail.* stay.
+            excludes += ['META-INF/LICENSE.md', 'META-INF/NOTICE.md', 'META-INF/LICENSE.txt', 'META-INF/NOTICE.txt']
+        }
     }
 }
 
@@ -108,6 +112,9 @@ dependencies {
     // is downloaded inside the app when hands-free is switched on; it is not in the APK.
     implementation 'net.java.dev.jna:jna:5.13.0@aar'
     implementation 'com.alphacephei:vosk-android:0.3.47@aar'
+    // Email connectors (IMAP + SMTP): JavaMail for Android.
+    implementation 'com.sun.mail:android-mail:1.6.7'
+    implementation 'com.sun.mail:android-activation:1.6.7'
 
     testImplementation 'junit:junit:4.13.2'
     // Android's org.json is stubbed on the JVM; use the reference implementation in unit tests.

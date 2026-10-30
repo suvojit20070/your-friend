@@ -69,6 +69,11 @@ public final class AppScreens {
         add("providers", R.string.section_providers, "Providers", ProvidersActivity.class, "More → Providers, or Settings → AI → Providers",
                 "Add the AI model provider: name, base URL, API key (stored encrypted), model, vision and tools switches, Test and Fetch models. "
                         + "Pick the default provider. Needed before the agent can answer.");
+        add("connectors", R.string.connectors_title, "Connectors", ConnectorsActivity.class, "Settings → AI → Connectors",
+                "Connect the user's accounts for the agent: Gmail / Outlook / Yahoo / any mailbox (app password), Google sign-in "
+                        + "(YouTube, Gmail API, Drive, Calendar), website logins (Instagram, Facebook, X, YouTube, Telegram Web, "
+                        + "WhatsApp Web, LinkedIn, Reddit, any site), Telegram bot, GitHub, Notion, any API key. Tap a connected one "
+                        + "to check, log in again, edit, rename or disconnect.");
         add("system_prompt", R.string.sysprompt_title, "System prompt", SystemPromptActivity.class, "Settings → AI → System prompt",
                 "Edit the instructions the agent always receives (your own rules and style).");
         add("voice", R.string.section_voice, "Voice", VoiceActivity.class, "More → Voice, or Settings → Voice",

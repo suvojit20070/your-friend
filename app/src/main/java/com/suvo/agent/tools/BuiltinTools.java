@@ -62,6 +62,10 @@ public final class BuiltinTools {
         add(g, () -> new WebTools.WebRead(g));
         add(g, () -> new WebTools.Download(g));
         add(g, () -> new WebTools.InstallApk(g));
+        add(g, () -> new ConnectorTools.Connectors(g));
+        add(g, () -> new ConnectorTools.ConnectorApi(g));
+        add(g, () -> new ConnectorTools.Email(g));
+        add(g, () -> new ConnectorTools.Web(g));
         add(g, () -> new MemorySkillTools.Memory(g));
         add(g, () -> new MemorySkillTools.LoadSkill(g));
         add(g, () -> new MemorySkillTools.MetaTools(g));

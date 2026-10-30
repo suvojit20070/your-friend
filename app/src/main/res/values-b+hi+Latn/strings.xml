@@ -954,4 +954,40 @@
     <string name="wake_word_single">Wake phrase (1–3 words, jaise “hey aiko”)</string>
     <string name="md_scale">Markdown size</string>
     <string name="about_community">Community group join karo (Telegram)</string>
+
+    <!-- Connectors -->
+    <string name="connectors_title">Connectors</string>
+    <string name="connectors_desc">Gmail, YouTube, Telegram, Instagram aur bhi — agent tumhare accounts mein kaam karega</string>
+    <string name="connectors_connected">Jude hue</string>
+    <string name="connectors_none">Abhi kuch nahi juda. Neeche se koi chuno.</string>
+    <string name="connectors_group_mail">Mail</string>
+    <string name="connectors_group_google">Google sign-in</string>
+    <string name="connectors_group_social">Social aur websites</string>
+    <string name="connectors_group_api">Bots aur APIs</string>
+    <string name="connector_not_signed_in">sign-in nahi</string>
+    <string name="connector_check">Check karo</string>
+    <string name="connector_checking">Check ho raha hai…</string>
+    <string name="connector_open">Kholo / log-in</string>
+    <string name="connector_reconnect">Dobara sign-in</string>
+    <string name="connector_edit">Edit</string>
+    <string name="connector_rename">Naam badlo</string>
+    <string name="connector_disconnect">Hatao</string>
+    <string name="connector_disconnect_confirm">%1$s hataye? Iski keys is phone se mit jaayengi.</string>
+    <string name="connector_works">%1$s jud gaya</string>
+    <string name="connector_failed">Jod nahi paaye</string>
+    <string name="connector_fix">Theek karo</string>
+    <string name="connector_save_anyway">Phir bhi save karo</string>
+    <string name="connector_connect">Jodo</string>
+    <string name="connector_sign_in">Sign-in</string>
+    <string name="connector_log_in">Log-in</string>
+    <string name="connector_browser">Browser mein sign-in karke wapas aao</string>
+    <string name="connector_invalid">Kuch zaroori fields khaali ya galat hain</string>
+    <string name="connector_keep_secret">Saved hai — rakhne ke liye khaali chhodo</string>
+    <string name="connector_email">Email address</string>
+    <string name="connector_app_password">App password</string>
+    <string name="connector_token">Token / API key</string>
+    <string name="connector_name">Naam</string>
+    <string name="connector_web_title">%1$s mein log-in</string>
+    <string name="connector_done">Ho gaya</string>
+    <string name="connector_web_no_login">Save ho gaya. Log-in nahi kiya to Connectors se dobara kholo.</string>
 </resources>

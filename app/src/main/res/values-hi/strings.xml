@@ -913,4 +913,40 @@
         <item quantity="one">%d संदेश</item>
         <item quantity="other">%d संदेश</item>
     </plurals>
+
+    <!-- Connectors -->
+    <string name="connectors_title">कनेक्टर</string>
+    <string name="connectors_desc">Gmail, YouTube, Telegram, Instagram और भी — एजेंट आपके अकाउंट में काम करेगा</string>
+    <string name="connectors_connected">जुड़े हुए</string>
+    <string name="connectors_none">अभी कुछ नहीं जुड़ा। नीचे से कोई चुनें।</string>
+    <string name="connectors_group_mail">मेल</string>
+    <string name="connectors_group_google">Google साइन-इन</string>
+    <string name="connectors_group_social">सोशल और वेबसाइट</string>
+    <string name="connectors_group_api">बॉट और API</string>
+    <string name="connector_not_signed_in">साइन-इन नहीं</string>
+    <string name="connector_check">जाँचें</string>
+    <string name="connector_checking">जाँच हो रही है…</string>
+    <string name="connector_open">खोलें / लॉग-इन</string>
+    <string name="connector_reconnect">फिर से साइन-इन</string>
+    <string name="connector_edit">बदलें</string>
+    <string name="connector_rename">नाम बदलें</string>
+    <string name="connector_disconnect">हटाएँ</string>
+    <string name="connector_disconnect_confirm">%1$s हटाएँ? इसकी चाबियाँ इस फ़ोन से मिट जाएँगी।</string>
+    <string name="connector_works">%1$s जुड़ गया</string>
+    <string name="connector_failed">जोड़ नहीं पाए</string>
+    <string name="connector_fix">ठीक करें</string>
+    <string name="connector_save_anyway">फिर भी सेव करें</string>
+    <string name="connector_connect">जोड़ें</string>
+    <string name="connector_sign_in">साइन-इन</string>
+    <string name="connector_log_in">लॉग-इन</string>
+    <string name="connector_browser">ब्राउज़र में साइन-इन करके वापस आएँ</string>
+    <string name="connector_invalid">कुछ ज़रूरी खाने खाली या गलत हैं</string>
+    <string name="connector_keep_secret">सेव है — रखने के लिए खाली छोड़ें</string>
+    <string name="connector_email">ईमेल पता</string>
+    <string name="connector_app_password">ऐप पासवर्ड</string>
+    <string name="connector_token">टोकन / API की</string>
+    <string name="connector_name">नाम</string>
+    <string name="connector_web_title">%1$s में लॉग-इन</string>
+    <string name="connector_done">हो गया</string>
+    <string name="connector_web_no_login">सेव हो गया। लॉग-इन नहीं किया तो कनेक्टर से फिर खोलें।</string>
 </resources>

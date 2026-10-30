@@ -99,6 +99,8 @@ public final class AndroidAgentHost implements AgentHost {
         if (g.settings.bool(Settings.VOICE_OUTPUT, false)) langText.append(" Replies are also spoken aloud, so keep them easy to listen to.");
         pa.responseLanguage = langText.toString();
         pa.capabilitySummary = g.capabilities.summaryForPrompt();
+        String accounts = g.connectors.summaryForPrompt();
+        if (!accounts.isEmpty()) pa.capabilitySummary = pa.capabilitySummary + "\n" + accounts;
         pa.skillIndex = g.skills.indexForPrompt();
         pa.conversationSummary = g.conversations.summary(conversationId);
         pa.taskProgress = task.toolCalls > 0 || !task.openItems.isEmpty() ? task.progressSummary(12) : "";

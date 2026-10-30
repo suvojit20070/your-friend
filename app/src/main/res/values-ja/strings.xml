@@ -906,4 +906,40 @@
     <plurals name="messages_count">
         <item quantity="other">%d 件のメッセージ</item>
     </plurals>
+
+    <!-- Connectors -->
+    <string name="connectors_title">コネクター</string>
+    <string name="connectors_desc">Gmail、YouTube、Telegram、Instagram など — エージェントがあなたのアカウントで動きます</string>
+    <string name="connectors_connected">接続済み</string>
+    <string name="connectors_none">まだ何も接続されていません。下から選んでください。</string>
+    <string name="connectors_group_mail">メール</string>
+    <string name="connectors_group_google">Google ログイン</string>
+    <string name="connectors_group_social">SNS とウェブサイト</string>
+    <string name="connectors_group_api">ボットと API</string>
+    <string name="connector_not_signed_in">未ログイン</string>
+    <string name="connector_check">確認</string>
+    <string name="connector_checking">確認中…</string>
+    <string name="connector_open">開く / ログイン</string>
+    <string name="connector_reconnect">再ログイン</string>
+    <string name="connector_edit">編集</string>
+    <string name="connector_rename">名前を変更</string>
+    <string name="connector_disconnect">接続を解除</string>
+    <string name="connector_disconnect_confirm">%1$s を削除しますか？キーはこの端末から消えます。</string>
+    <string name="connector_works">%1$s を接続しました</string>
+    <string name="connector_failed">接続できませんでした</string>
+    <string name="connector_fix">修正</string>
+    <string name="connector_save_anyway">このまま保存</string>
+    <string name="connector_connect">接続</string>
+    <string name="connector_sign_in">ログイン</string>
+    <string name="connector_log_in">ログイン</string>
+    <string name="connector_browser">ブラウザでログインしてから戻ってください</string>
+    <string name="connector_invalid">必須項目が空か正しくありません</string>
+    <string name="connector_keep_secret">保存済み — 空欄のままで維持</string>
+    <string name="connector_email">メールアドレス</string>
+    <string name="connector_app_password">アプリパスワード</string>
+    <string name="connector_token">トークン / API キー</string>
+    <string name="connector_name">名前</string>
+    <string name="connector_web_title">%1$s にログイン</string>
+    <string name="connector_done">完了</string>
+    <string name="connector_web_no_login">保存しました。ログインしていない場合はコネクターから開き直してください。</string>
 </resources>

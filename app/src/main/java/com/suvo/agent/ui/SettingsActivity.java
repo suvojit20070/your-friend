@@ -162,6 +162,7 @@ public final class SettingsActivity extends BaseActivity {
         r.section(R.string.settings_ai);
         r.link(R.drawable.ic_provider, R.string.section_providers, R.string.settings_providers_desc, ProvidersActivity.class);
         r.link(R.drawable.ic_edit, R.string.sysprompt_title, R.string.sysprompt_settings_desc, SystemPromptActivity.class);
+        r.link(R.drawable.ic_link, R.string.connectors_title, R.string.connectors_desc, ConnectorsActivity.class);
         r.switchRow(R.drawable.ic_screen, R.string.settings_keep_screen_on, R.string.settings_keep_screen_on_desc, Settings.KEEP_SCREEN_ON, false, null);
         r.switchRow(R.drawable.ic_tools, R.string.settings_tool_calling, R.string.settings_tool_calling_desc, Settings.TOOL_CALLING, true, null);
         // Each limit has its own "no limit" switch; the slider is only shown while the limit is on.
