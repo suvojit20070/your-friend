@@ -1037,4 +1037,6 @@
     <string name="connector_help_web">Enter the website; you log in to it next. The agent then uses that site as you (pages, buttons, messages).</string>
     <string name="browser_resize">Agent browser: bigger or smaller</string>
     <string name="browser_close">Close the agent browser</string>
+    <string name="settings_verify_done">Check before \"done\"</string>
+    <string name="settings_verify_done_desc">Before the agent says a task is finished, a short separate check compares its answer with what the tools really showed (searched but did not play, typed but did not send…). If something is missing it keeps working. Uses one small extra request per task.</string>
 </resources>

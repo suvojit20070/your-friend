@@ -951,4 +951,6 @@
     <string name="connector_web_no_login">সেভ হয়েছে। লগ-ইন না করলে কানেক্টর থেকে আবার খুলুন।</string>
     <string name="browser_resize">এজেন্ট ব্রাউজার: বড় বা ছোট</string>
     <string name="browser_close">এজেন্ট ব্রাউজার বন্ধ করুন</string>
+    <string name="settings_verify_done">\"হয়ে গেছে\" বলার আগে যাচাই</string>
+    <string name="settings_verify_done_desc">এজেন্ট কাজ শেষ বলার আগে একটা ছোট আলাদা যাচাই দেখে নেয় টুলের ফলাফলে সত্যিই কাজটা হয়েছে কিনা (সার্চ করেছে কিন্তু চালায়নি, লিখেছে কিন্তু পাঠায়নি…)। বাকি থাকলে সে কাজ চালিয়ে যায়। প্রতি কাজে একটা ছোট বাড়তি অনুরোধ।</string>
 </resources>

@@ -24,6 +24,8 @@ public final class AgentConfig {
     public boolean allowMultipleToolCalls = true;
     /** Times per task the loop reminds the model to act when it only announced work (0 = off). */
     public int followThroughReminders = 2;
+    /** Times per task a reviewer checks a "done" answer against the tool results (0 = off). */
+    public int completionChecks = 2;
 
     public boolean stepsUnlimited() {
         return maxSteps == UNLIMITED;

@@ -165,6 +165,7 @@ public final class SettingsActivity extends BaseActivity {
         r.link(R.drawable.ic_link, R.string.connectors_title, R.string.connectors_desc, ConnectorsActivity.class);
         r.switchRow(R.drawable.ic_screen, R.string.settings_keep_screen_on, R.string.settings_keep_screen_on_desc, Settings.KEEP_SCREEN_ON, false, null);
         r.switchRow(R.drawable.ic_tools, R.string.settings_tool_calling, R.string.settings_tool_calling_desc, Settings.TOOL_CALLING, true, null);
+        r.switchRow(R.drawable.ic_check, R.string.settings_verify_done, R.string.settings_verify_done_desc, Settings.VERIFY_DONE, true, null);
         // Each limit has its own "no limit" switch; the slider is only shown while the limit is on.
         r.switchRow(R.drawable.ic_agent, R.string.settings_no_limit_steps, R.string.settings_no_limit_desc, Settings.NO_LIMIT_STEPS, false, on -> build());
         if (!g.settings.bool(Settings.NO_LIMIT_STEPS, false))

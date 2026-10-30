@@ -944,4 +944,6 @@
     <string name="connector_web_no_login">保存しました。ログインしていない場合はコネクターから開き直してください。</string>
     <string name="browser_resize">エージェントのブラウザ: 拡大 / 縮小</string>
     <string name="browser_close">エージェントのブラウザを閉じる</string>
+    <string name="settings_verify_done">「完了」の前に確認</string>
+    <string name="settings_verify_done_desc">エージェントが完了と言う前に、短い別のチェックがツールの結果で本当に終わったかを確かめます（検索しただけで再生していない、入力しただけで送信していない など）。足りなければ作業を続けます。タスクごとに小さな追加リクエストが1回あります。</string>
 </resources>

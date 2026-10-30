@@ -103,6 +103,7 @@ public final class Settings {
 
     // Overlay
     public static final String FLOATING_COMPANION = "floating_companion";
+    public static final String VERIFY_DONE = "verify_done";           // check "done" answers against tool results
     public static final String COMPANION_BRAIN = "companion_brain";   // floating character decides moves with the AI
     public static final String COMPANION_ASKS_AGENT = "companion_asks_agent"; // that brain may ask the agent for small things
     public static final String SYSTEM_INSTRUCTIONS = "system_instructions"; // user's standing instructions
@@ -210,6 +211,7 @@ public final class Settings {
         c.maxSteps = bool(NO_LIMIT_STEPS, false) ? AgentConfig.UNLIMITED : clamp(integer(MAX_STEPS, 25), 1, 1000);
         c.maxToolCalls = bool(NO_LIMIT_TOOL_CALLS, false) ? AgentConfig.UNLIMITED : clamp(integer(MAX_TOOL_CALLS, 60), 1, 5000);
         c.maxDurationMs = bool(NO_LIMIT_TIME, false) ? AgentConfig.UNLIMITED_MS : clamp(integer(MAX_TASK_MINUTES, 15), 1, 1440) * 60_000L;
+        c.completionChecks = bool(VERIFY_DONE, true) ? 2 : 0;
         return c;
     }
 

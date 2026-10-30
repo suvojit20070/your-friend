@@ -71,6 +71,9 @@ public final class AgentLoop {
         int steps = 0;
         int reminders = 0;
         boolean refusalChecked = false;
+        // "Done!" is only believed after a reviewer checked it against what the tools showed.
+        CompletionCheck completion = new CompletionCheck();
+        int completionChecks = 0, toolCallsAtCheck = -1;
         try {
             if (userMessage != null) host.persist(task, userMessage);
             while (true) {
@@ -114,6 +117,18 @@ public final class AgentLoop {
                         listener.onNotice(task, "Asked the agent to check the device before refusing");
                         continue;
                     }
+                    if (completionChecks < config.completionChecks && !completion.isEmpty() && task.toolCalls != toolCallsAtCheck
+                            && !cancel.isCancelled()) {
+                        completionChecks++;
+                        toolCallsAtCheck = task.toolCalls;
+                        listener.onNotice(task, "Checking that the task is really done…");
+                        CompletionCheck.Verdict v = completion.check(llm, task.goal, resp.content, cancel);
+                        if (v != null && !v.done && !cancel.isCancelled()) {
+                            host.persist(task, ChatMessage.user(CompletionCheck.reminder(v.missing)));
+                            listener.onNotice(task, "Not done yet" + (v.missing.isEmpty() ? "" : ": " + abbreviate(v.missing, 160)));
+                            continue;
+                        }
+                    }
                     return end(task, TaskState.Status.COMPLETED, resp.content, "");
                 }
 
@@ -155,6 +170,7 @@ public final class AgentLoop {
                         }
                     }
                     task.addStep(call.name, result.status.name(), result.message);
+                    completion.record(call.name, call.argumentsJson, result.toModelContent(900));
                     ChatMessage toolMsg = ChatMessage.tool(call.id, call.name, result.toModelContent(config.toolResultMaxChars));
                     host.persist(task, toolMsg);
                     listener.onToolResult(task, call, result);
