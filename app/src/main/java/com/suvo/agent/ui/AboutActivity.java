@@ -39,6 +39,8 @@ public final class AboutActivity extends BaseActivity {
         notices.setPadding(p, p, p, p);
         notices.setText(readAsset("NOTICE.txt") + "\n\n" + readAsset("THIRD_PARTY_NOTICES.txt"));
         box.addView(notices);
+        // Community group first, then the source code.
+        r.button(R.string.about_community, true, v -> PermissionFlows.openUrl(this, getString(R.string.project_community)));
         r.button(R.string.about_source, false, v -> PermissionFlows.openUrl(this, getString(R.string.project_repo)));
     }
 

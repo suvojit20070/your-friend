@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Eye: a soft almond outline, a ring iris and a filled pupil with a small light dot. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"
     android:tint="?android:attr/textColorPrimary">
-    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" android:pathData="M2,12 C5,6 19,6 22,12 C19,18 5,18 2,12 Z M12,9.5 A2.5,2.5 0 1 0 12.01,9.5 Z"/>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M2.5,12 C4.6,7.6 8,5.5 12,5.5 C16,5.5 19.4,7.6 21.5,12 C19.4,16.4 16,18.5 12,18.5 C8,18.5 4.6,16.4 2.5,12 Z"/>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8" android:fillColor="#00000000"
+        android:pathData="M12,8.6 A3.4,3.4 0 1 1 11.99,8.6 Z"/>
+    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+        android:pathData="M12,10.4 A1.6,1.6 0 1 1 11.99,10.4 Z M12.9,10.3 A0.55,0.55 0 1 0 12.91,10.3 Z"/>
 </vector>

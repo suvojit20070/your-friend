@@ -118,6 +118,9 @@ public final class MainActivity extends BaseActivity {
 
         findViewById(R.id.home_settings).setOnClickListener(v -> open(SettingsActivity.class));
         findViewById(R.id.setup_banner_button).setOnClickListener(v -> open(ProvidersActivity.class));
+        // Same Zafiro-style message box as the chat.
+        ExpandingComposer.install(findViewById(R.id.home_composer), input,
+                new View[]{findViewById(R.id.home_mic)}, new View[]{findViewById(R.id.home_send)});
         findViewById(R.id.home_send).setOnClickListener(v -> send());
         input.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN)) {
