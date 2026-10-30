@@ -144,7 +144,10 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
         // this frame without redrawing the host. Invalidating the host every time scheduled
         // another frame from inside every frame: the screen never stopped redrawing (and
         // re-recording the whole page), which made long lists and switches lag.
-        if (first || moved) host.invalidate();
+        // Redraw the glass only when what is behind it changed this frame: the source (or anything
+        // inside it) was invalidated — scrolling, streaming text — or the glass moved. The source
+        // never contains the host, so this can not loop.
+        if (first || moved || source.isDirty()) host.invalidate();
         return true;
     }
 

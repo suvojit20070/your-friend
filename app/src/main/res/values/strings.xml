@@ -967,4 +967,5 @@
     <string name="wake_sensitivity">Wake word sensitivity</string>
     <string name="wake_sensitivity_note">Higher hears quiet or unclear speech but triggers on similar words more often.</string>
     <string name="wake_word_single">Wake word (one word)</string>
+    <string name="md_scale">Markdown scale</string>
 </resources>

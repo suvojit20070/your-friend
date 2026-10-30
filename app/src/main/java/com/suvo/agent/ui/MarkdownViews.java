@@ -84,7 +84,7 @@ final class MarkdownViews {
         View v;
         switch (kind) {
             case KIND_CODE:
-                v = code(ctx, b, st, hook);
+                v = code(ctx, b, st, hook, textSp / 17f);
                 break;
             case KIND_TABLE:
                 v = table(ctx, b, st, textSp, textColor);
@@ -192,7 +192,7 @@ final class MarkdownViews {
 
     // ---- Code card -------------------------------------------------------------------------------
 
-    private static View code(Context ctx, Markdown.Block b, Markdown.Style st, SelectionHook hook) {
+    private static View code(Context ctx, Markdown.Block b, Markdown.Style st, SelectionHook hook, float scale) {
         Palette pal = Palette.of(ctx);
         LinearLayout card = new LinearLayout(ctx);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -265,7 +265,7 @@ final class MarkdownViews {
         hs.setFillViewport(true);
         TextView code = new TextView(ctx, null, 0, R.style.YF_Mono);
         code.setTag("md_code");
-        code.setTextSize(13.5f);
+        code.setTextSize(13.5f * scale); // follows the Markdown scale setting
         code.setLineSpacing(Ui.dp(ctx, 4), 1f);
         code.setTextColor(st.codeText != 0 ? st.codeText : pal.onSurface);
         code.setHighlightColor(Palette.alpha(st.marker, 0.28f));

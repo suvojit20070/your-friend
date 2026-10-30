@@ -214,6 +214,9 @@ public final class SettingsActivity extends BaseActivity {
                 new String[]{getString(R.string.theme_system), getString(R.string.theme_dark), getString(R.string.theme_light)},
                 new String[]{"system", "dark", "light"}, v -> restartApp());
         seedRow(r);
+        // Chat text size, with a live Markdown preview.
+        r.row(R.drawable.ic_chat, getString(R.string.md_scale), MarkdownScaleActivity.scalePercent(this) + "%", null,
+                v -> open(MarkdownScaleActivity.class));
         r.choiceRow(R.drawable.ic_chat, R.string.settings_language, Settings.UI_LANGUAGE, "",
                 new String[]{getString(R.string.lang_system), "English", "Hinglish", "বাংলা", "हिन्दी", "日本語"},
                 LocaleHelper.TAGS, v -> {

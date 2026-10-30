@@ -46,6 +46,13 @@ public final class AssistActivity extends BaseActivity {
     private static final int REQ_MIC = 71;
     /** Opened by the hands-free wake word (listen at once, a little chime-free). */
     public static final String EXTRA_FROM_WAKE = "from_wake";
+    /** Brought back to show the answer of a task it stepped aside for. */
+    public static final String EXTRA_SHOW_RESULT = "show_result";
+    /**
+     * The card stepped aside while the agent works: otherwise it would cover the app the agent
+     * reads and taps (it showed up in the screen tree and in screenshots).
+     */
+    private boolean hiddenForTask;
 
     private LinearLayout card;
     private TextView answer;
@@ -234,6 +241,8 @@ public final class AssistActivity extends BaseActivity {
         Ui.tintAccent(this, root);
 
         conversation = g.agent.activeConversation();
+        // Kept for the card's whole life (also while it steps aside for a task).
+        g.agent.addListener(listener);
         card.setTranslationY(Ui.dp(this, 80));
         card.setAlpha(0f);
         card.animate().translationY(0).alpha(1f).setDuration(260)
@@ -345,6 +354,8 @@ public final class AssistActivity extends BaseActivity {
             return;
         }
         asked = true;
+        // Step aside so the agent sees (and can operate) the app underneath; back with the answer.
+        card.postDelayed(this::hideForTask, 450);
         input.setText("");
         stream.setLength(0);
         status.setText("“" + text + "”  ·  " + getString(R.string.status_thinking));
@@ -382,33 +393,74 @@ public final class AssistActivity extends BaseActivity {
             if (!asked || task.conversationId != conversation) return;
             if (task.status != TaskState.Status.COMPLETED && !task.error.isEmpty()) status.setText(task.error);
             else status.setText(R.string.assist_done);
+            if (hiddenForTask) showAgain();
         }
     };
 
+    /** Moves the card's own task behind the other app while the agent works. */
+    private void hideForTask() {
+        if (isFinishing() || !g.agent.isRunning()) return;
+        hiddenForTask = true;
+        if (!moveTaskToBack(true)) hiddenForTask = false;
+    }
+
+    /** The answer is ready: bring the card back (or, where Android blocks that, a notification). */
+    private void showAgain() {
+        Intent i = new Intent(this, AssistActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(EXTRA_SHOW_RESULT, true);
+        boolean canOpen = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || Settings.canDrawOverlays(this);
+        if (canOpen) {
+            try {
+                startActivity(i);
+                return;
+            } catch (RuntimeException ignored) {
+            }
+        }
+        android.app.PendingIntent pi = android.app.PendingIntent.getActivity(this, 33, i,
+                android.app.PendingIntent.FLAG_IMMUTABLE | android.app.PendingIntent.FLAG_UPDATE_CURRENT);
+        CharSequence preview = answer.getText();
+        android.app.Notification n = Notifications.builder(this, Notifications.CHANNEL_AGENT)
+                .setSmallIcon(R.drawable.ic_stat_companion)
+                .setContentTitle(companionName())
+                .setContentText(preview.length() == 0 ? getString(R.string.assist_done) : preview)
+                .setStyle(new android.app.Notification.BigTextStyle().bigText(preview))
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build();
+        android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
+        if (nm != null) nm.notify(Notifications.ID_AGENT + 9, n);
+    }
+
     @Override
-    protected void onStart() {
-        super.onStart();
-        g.agent.addListener(listener);
+    protected void onResume() {
+        super.onResume();
+        if (hiddenForTask) {
+            hiddenForTask = false;
+            android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
+            if (nm != null) nm.cancel(Notifications.ID_AGENT + 9);
+        }
     }
 
     @Override
     protected void onStop() {
-        g.agent.removeListener(listener);
         if (speech.isListening()) speech.cancel();
         super.onStop();
-        // An assistant card does not stay behind other apps.
-        if (!isChangingConfigurations()) finish();
+        // An assistant card does not stay behind other apps — unless it only stepped aside for a task.
+        if (!isChangingConfigurations() && !hiddenForTask) finish();
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (intent != null && intent.getBooleanExtra(EXTRA_SHOW_RESULT, false)) return; // just show the answer
         // Assistant gesture again while open: listen again.
         if (!speech.isListening()) toggleMic();
     }
 
     @Override
     protected void onDestroy() {
+        g.agent.removeListener(listener);
         // Hands-free waits while the card is open; it goes back to listening for the wake word now.
         com.suvo.agent.voice.HandsFreeService.assistClosed();
         super.onDestroy();

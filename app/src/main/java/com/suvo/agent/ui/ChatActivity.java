@@ -103,6 +103,8 @@ public final class ChatActivity extends BaseActivity {
     private int shownLimit = 80;
     /** Scroll to the end on the next layout of the column (content height changes after binding). */
     private boolean followPending;
+    /** Text size factor from Settings > Markdown scale. */
+    private float textScale = -1f;
     private EditText input;
     private ImageButton send;
     private long conversationId;
@@ -709,6 +711,12 @@ public final class ChatActivity extends BaseActivity {
     protected void onStart() {
         super.onStart();
         g.agent.addListener(agentListener);
+        // Markdown scale changed in settings: rebuild every row at the new size.
+        float k = MarkdownScaleActivity.scale(this);
+        if (k != textScale) {
+            textScale = k;
+            listBox.removeAllViews();
+        }
         reload();
         TaskState t = g.agent.current();
         updateRunState(g.agent.isRunning() && t != null ? statusText(t) : null);
@@ -1432,6 +1440,8 @@ public final class ChatActivity extends BaseActivity {
                     row.setGravity(Gravity.END);
                     bubble.setBackground(TonalDrawable.userBubble(ChatActivity.this));
                     bubble.setPadding(Ui.dp(ChatActivity.this, 18), Ui.dp(ChatActivity.this, 12), Ui.dp(ChatActivity.this, 23), Ui.dp(ChatActivity.this, 12));
+                    text.setTextSize(16f * Math.max(0.5f, textScale));
+                    text.setLineSpacing(Ui.dp(ChatActivity.this, 5) * Math.max(0.5f, textScale), 1f);
                     break;
                 case ASSISTANT:
                 case STREAM:
@@ -1502,7 +1512,8 @@ public final class ChatActivity extends BaseActivity {
                     text.setText("");
                     text.setVisibility(View.GONE);
                     mdBox.setVisibility(View.VISIBLE);
-                    MarkdownViews.fill(mdBox, blocks, mdStyle, 17f, Ui.dp(ChatActivity.this, 6.5f), pal.onSurface,
+                    float k = Math.max(0.5f, textScale);
+                    MarkdownViews.fill(mdBox, blocks, mdStyle, 17f * k, Ui.dp(ChatActivity.this, 6.5f) * k, pal.onSurface,
                             it.type != STREAM, selectionHook);
                 }
             } else if (it.type != TOOLS) {

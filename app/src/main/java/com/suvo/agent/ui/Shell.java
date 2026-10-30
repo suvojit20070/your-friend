@@ -270,7 +270,7 @@ final class Shell {
             n.setRenderEffect((RenderEffect) effect);
             // The bar draws this node by reference: re-recording it is enough for this frame.
             // Invalidating every time asked for a new frame from inside each frame (endless redraw).
-            if (!ready) host.invalidate();
+            if (!ready || source.isDirty()) host.invalidate();
             ready = true;
             return true;
         }

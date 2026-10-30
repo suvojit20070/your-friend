@@ -947,4 +947,5 @@
     <string name="wake_sensitivity">Wake word sensitivity</string>
     <string name="wake_sensitivity_note">Zyada = dheemi awaaz bhi pakdega, par milte-julte words pe bhi trigger hoga.</string>
     <string name="wake_word_single">Wake word (ek word)</string>
+    <string name="md_scale">Markdown size</string>
 </resources>
