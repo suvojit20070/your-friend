@@ -122,6 +122,11 @@ public final class BackdropDrawable extends GlassDrawable implements ViewTreeObs
             rc.drawColor(bgColor);
             rc.scale(SCALE, SCALE);
             rc.translate(srcLoc[0] - hostLoc[0], srcLoc[1] - hostLoc[1]);
+            // What the source shows on screen: its own scroll offset applies too (the parent
+            // normally does this before draw(); without it a ScrollView always showed its top,
+            // so the glass never followed the scrolling content).
+            rc.clipRect(0, 0, source.getWidth(), source.getHeight());
+            rc.translate(-source.getScrollX(), -source.getScrollY());
             source.draw(rc);
         } catch (RuntimeException ignored) {
             // A view that cannot be recorded this frame: keep the previous blur.

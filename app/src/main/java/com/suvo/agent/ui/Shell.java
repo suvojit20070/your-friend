@@ -255,6 +255,9 @@ final class Shell {
                 rc.drawColor(pal.background);
                 rc.scale(SCALE, SCALE);
                 rc.translate(srcLoc[0] - hostLoc[0], srcLoc[1] - hostLoc[1]);
+                // The scroller's own scroll offset (see BackdropDrawable).
+                rc.clipRect(0, 0, source.getWidth(), source.getHeight());
+                rc.translate(-source.getScrollX(), -source.getScrollY());
                 source.draw(rc);
             } catch (RuntimeException ignored) {
             } finally {
