@@ -309,6 +309,8 @@ public final class AgentRuntime {
 
         @Override
         public void onToolExecuting(TaskState task, ToolCall call) {
+            // The assistant card steps aside first when this tool reads or operates the screen.
+            ScreenGate.beforeTool(call.name);
             addLog("tool", call.name, com.suvo.agent.core.tools.ToolExecutor.redact(call.argumentsJson));
             AgentTree.toolCall(treeRoot, "delegate_task".equals(call.name) ? "delegating" : call.name);
             AgentForegroundService.update(g.ctx, g.ctx.getString(R.string.agent_running_tool, call.name));

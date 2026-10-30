@@ -354,8 +354,8 @@ public final class AssistActivity extends BaseActivity {
             return;
         }
         asked = true;
-        // Step aside so the agent sees (and can operate) the app underneath; back with the answer.
-        card.postDelayed(this::hideForTask, 450);
+        // The card stays while the agent thinks and talks; it steps aside only right before a tool
+        // reads or operates the screen (see ScreenGate), and comes back with the answer.
         input.setText("");
         stream.setLength(0);
         status.setText("“" + text + "”  ·  " + getString(R.string.status_thinking));
@@ -396,6 +396,18 @@ public final class AssistActivity extends BaseActivity {
             if (hiddenForTask) showAgain();
         }
     };
+
+    /** While the card is showing it hides itself right before a screen tool runs. */
+    private final com.suvo.agent.agent.ScreenGate.Hider screenHider = done -> {
+        if (!isFinishing() && !hiddenForTask && asked) hideForTask();
+        done.run();
+    };
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        com.suvo.agent.agent.ScreenGate.set(screenHider);
+    }
 
     /** Moves the card's own task behind the other app while the agent works. */
     private void hideForTask() {
@@ -444,6 +456,7 @@ public final class AssistActivity extends BaseActivity {
 
     @Override
     protected void onStop() {
+        com.suvo.agent.agent.ScreenGate.clear(screenHider);
         if (speech.isListening()) speech.cancel();
         super.onStop();
         // An assistant card does not stay behind other apps — unless it only stepped aside for a task.

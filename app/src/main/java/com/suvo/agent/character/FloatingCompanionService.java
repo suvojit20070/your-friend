@@ -769,69 +769,8 @@ public final class FloatingCompanionService extends Service {
         }
     }
 
-    /** The keyboard while it shows (main thread), else null. */
-    private Rect kbRect;
-
-    /** The lowest place to stand: the screen bottom, or the keyboard's top edge while it shows. */
     private Surface bottomSurface() {
-        if (kbRect != null) return new Surface(kbRect.top, 0, screenW(), false, "keyboard edge");
         return new Surface(screenBottom(), 0, screenW(), false, "bottom of the screen");
-    }
-
-    /** The character's body on screen (feet line at the bottom), for overlap checks. */
-    private Rect bodyRect() {
-        float[] an = character.anchors();
-        int feet = bodyTop + Math.round(an[0] * viewH);
-        return new Rect(Math.round(cx - bodyW / 2f), bodyTop + headroom, Math.round(cx + bodyW / 2f), feet - dp(2));
-    }
-
-    /** From the brain's watch loop every couple of seconds: keep off the keyboard while it shows. */
-    private void onKeyboard(Rect kb) {
-        boolean appeared = kb != null && kbRect == null;
-        kbRect = kb;
-        if (kb == null || character == null || moving || appVisible) return;
-        Rect body = bodyRect();
-        boolean over = Rect.intersects(body, kb) || (restTop > kb.top + dp(2));
-        if (over) {
-            wake(true);
-            avoidKeyboard(kb, true);
-        } else if (appeared && restTop >= 0 && !restElement) {
-            avoidKeyboard(kb, false); // standing on the keyboard edge: an element above is nicer
-        }
-    }
-
-    /**
-     * Moves somewhere above the keyboard: the nearest element that is not the text field and not
-     * right on top of the keyboard; with {@code force}, the keyboard's top edge at the nearest side
-     * when there is no such element.
-     */
-    private void avoidKeyboard(Rect kb, boolean force) {
-        ScreenSurfaces.Snapshot snap = ScreenSurfaces.scan(getPackageName(), dp(18), 500);
-        Surface best = null;
-        float bestScore = Float.MAX_VALUE;
-        for (ScreenSurfaces.Item it : snap.items) {
-            if (it.keyboard || !it.canHold(bodyW, dp(18))) continue;
-            Rect b = it.r;
-            if (b.top >= kb.top - dp(8) || b.top < dp(48) + Math.round(viewH * 0.5f)) continue;
-            float x = Math.max(b.left + bodyW * 0.35f, Math.min(b.right - bodyW * 0.35f, cx));
-            float score = Math.abs(x - cx) + Math.abs(b.top - kb.top) * 0.2f;
-            if (it.editable) score += dp(600);           // not on the field being typed in
-            if (b.top > kb.top - dp(110)) score += dp(300); // not right above the keyboard
-            if (score < bestScore) {
-                bestScore = score;
-                best = new Surface(b.top, b.left, b.right, true, it.label.isEmpty() ? it.type : it.label);
-            }
-        }
-        if (best != null) {
-            goTo(best, Math.round(cx), null);
-        } else if (force) {
-            int side = cx < screenW() / 2f ? Math.round(bodyW * 0.6f) : Math.round(screenW() - bodyW * 0.6f);
-            Surface edge = new Surface(kb.top, 0, screenW(), false, "keyboard edge");
-            if (sitting) standUp();
-            main.postDelayed(() -> {
-                if (character != null && !moving) hopTo(edge, side, null);
-            }, sitting ? 450 : 0);
-        }
     }
 
     /**
@@ -844,8 +783,7 @@ public final class FloatingCompanionService extends Service {
         int x = Math.round(cx);
         for (ScreenSurfaces.Item it : snap.items) {
             Rect b = it.r;
-            if (it.keyboard || !it.canHold(bodyW, dp(18))) continue;
-            if (kbRect != null && b.top >= kbRect.top - dp(4)) continue; // nothing on or under the keyboard
+            if (!it.canHold(bodyW, dp(18)) && !it.keyboard) continue;
             if (b.left > x || b.right < x) continue;
             if (b.top >= footY - dp(14) && b.top < best.top - dp(24) && b.top > dp(40)) {
                 best = new Surface(b.top, b.left, b.right, true, it.label.isEmpty() ? it.type : it.label);
@@ -1126,8 +1064,6 @@ public final class FloatingCompanionService extends Service {
             if (!plan.say.isEmpty()) say(plan.say);
             Surface to = targetIsBottom ? bottomSurface()
                     : target != null ? new Surface(target.top, target.left, target.right, true, "") : null;
-            // Never onto (or down to) the keyboard while it shows.
-            if (kbRect != null && to != null && (targetIsBottom || to.top >= kbRect.top - dp(8))) to = null;
             int style = SitStyles.parse(plan.sitStyle);
             switch (plan.action) {
                 case "sleep":
@@ -1158,11 +1094,6 @@ public final class FloatingCompanionService extends Service {
         public void saidToAgent(String text) {
             if (character == null) return;
             gesture("nod");
-        }
-
-        @Override
-        public void keyboard(Rect kb) {
-            onKeyboard(kb);
         }
 
         @Override

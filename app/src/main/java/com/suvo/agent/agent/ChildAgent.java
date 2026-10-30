@@ -103,6 +103,7 @@ public final class ChildAgent {
             @Override
             public void onToolExecuting(TaskState t, ToolCall call) {
                 AgentTree.toolCall(node, call.name);
+                ScreenGate.beforeTool(call.name); // a helper's screen tools also move the assistant card aside
                 g.agent.externalLog("tool", e.name + " → " + call.name, com.suvo.agent.core.tools.ToolExecutor.redact(call.argumentsJson));
                 progress.accept(e.name + ": " + call.name);
             }
