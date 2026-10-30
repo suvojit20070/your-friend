@@ -55,6 +55,12 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
         walking = dir;
     }
 
+    /** Plays a {@link Gestures} gesture (wave, nod, cheer…). */
+    public void playGesture(int g) {
+        VrmRenderer r = renderer;
+        if (r != null) r.playGesture(g);
+    }
+
     /** Sitting style ({@link SitStyles} constant, -1 = by mood). */
     public void setSitStyle(int style) {
         sitStyle = style;

@@ -18,6 +18,8 @@ import com.suvo.agent.core.llm.ProviderConfig;
 import com.suvo.agent.core.llm.StreamListener;
 import com.suvo.agent.core.util.CancellationToken;
 import com.suvo.agent.data.Settings;
+import com.suvo.agent.device.ImageUtil;
+import com.suvo.agent.device.accessibility.AgentAccessibilityService;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -46,6 +48,9 @@ import java.util.concurrent.TimeUnit;
  * its pose, mood and recent history. The answer (mood, sit/stand/walk/sleep, where to, what to
  * look at, a tiny thought bubble) is applied by {@link Body}.</li>
  * </ul>
+ * The AI also gets two tools: it can ask for a screenshot first (vision models, Android 11+) when
+ * the element list is not enough, and it can ask the phone agent to do one small harmless thing
+ * (e.g. scroll to the next reel) — at most every few minutes, in its own "Companion" chat.
  * Switched off in Settings, or when no AI provider is set up, only the first loop runs.
  */
 final class CompanionBrain {
@@ -58,6 +63,9 @@ final class CompanionBrain {
         /** Main: carries out a plan. {@code target}/{@code look} are null when not given or gone. */
         void apply(CompanionPlan plan, Rect target, boolean targetIsBottom, Rect look);
 
+        /** Main: the brain just asked the agent to do {@code text}. */
+        void saidToAgent(String text);
+
         /** Main: what the character rested on is gone. */
         void supportLost();
 
@@ -69,6 +77,9 @@ final class CompanionBrain {
     }
 
     static final String SETTING = Settings.COMPANION_BRAIN;
+    static final String AGENT_SETTING = Settings.COMPANION_ASKS_AGENT;
+    private static final long AGENT_GAP_MS = 3 * 60_000;
+    private long lastAgentAsk;
     private static final long WATCH_MS = 2000;
 
     private final Context ctx;
@@ -243,29 +254,49 @@ final class CompanionBrain {
             st.personality = spec.personality;
         }
 
+        ProviderConfig p = g.providers.active();
+        if (p == null) return 60_000;
+        boolean canShot = p.supportsVision && AgentAccessibilityService.canCaptureScreen() && AgentAccessibilityService.get() != null;
+        boolean canAsk = g.settings.bool(AGENT_SETTING, true) && System.currentTimeMillis() - lastAgentAsk > AGENT_GAP_MS;
         ChatRequest req = new ChatRequest();
         req.forceNoStream = true;
         req.tools = new JSONArray();
         req.toolChoice = null;
         req.temperatureOverride = 0.9;
         req.maxTokensOverride = 700;
-        req.messages.add(ChatMessage.system(CompanionPlan.systemPrompt(st.name, st.personality)));
+        req.messages.add(ChatMessage.system(CompanionPlan.systemPrompt(st.name, st.personality, canShot, canAsk)));
         req.messages.add(ChatMessage.user(CompanionPlan.userMessage(st, list, historyJson())));
-        ProviderConfig p = g.providers.active();
-        if (p == null) return 60_000;
         LlmClient llm = TrackedLlm.wrap(ctx, new OpenAiCompatClient(p));
-        CancellationToken tk = new CancellationToken();
-        inFlight = tk;
-        ChatResponse resp;
-        try {
-            resp = llm.chat(req, StreamListener.NONE, tk);
-        } finally {
-            inFlight = null;
-        }
+        ChatResponse resp = ask(llm, req);
         lastThink = System.currentTimeMillis();
         changedSinceThink = false;
         if (stopped || resp == null) return 60_000;
         CompanionPlan plan = CompanionPlan.parse(resp.content);
+        if (plan.wantsScreenshot) {
+            // The screenshot tool: capture, then ask again with the picture (once per decision).
+            ChatMessage.Image shot = canShot ? screenshot() : null;
+            req.messages.add(ChatMessage.assistant(resp.content == null ? "{\"tool\":\"screenshot\"}" : resp.content));
+            if (shot != null) {
+                req.messages.add(ChatMessage.user("Here is the screenshot. Now answer with the plan JSON (no more tools).",
+                        Collections.singletonList(shot)));
+            } else {
+                req.messages.add(ChatMessage.user("The screenshot is not available. Answer with the plan JSON from the elements."));
+            }
+            resp = ask(llm, req);
+            if (stopped || resp == null) return 60_000;
+            plan = CompanionPlan.parse(resp.content);
+            if (plan.wantsScreenshot) plan = new CompanionPlan();
+            record("looked at a screenshot", null);
+        }
+        if (!plan.agent.isEmpty()) {
+            if (canAsk && !g.agent.isRunning()) {
+                lastAgentAsk = System.currentTimeMillis();
+                String ask = plan.agent;
+                main.post(() -> askAgent(ask));
+            } else {
+                plan.agent = "";
+            }
+        }
 
         // The screen may have changed while the AI was thinking: only use elements still there.
         ScreenSurfaces.Snapshot now = ScreenSurfaces.scan(ctx.getPackageName(), minSize(), 450);
@@ -276,11 +307,59 @@ final class CompanionBrain {
             plan.action = "stay";
         }
         final Rect fTarget = target, fLook = look;
+        final CompanionPlan fPlan = plan;
         main.post(() -> {
-            if (!stopped) body.apply(plan, fTarget, bottom, fLook);
+            if (!stopped) body.apply(fPlan, fTarget, bottom, fLook);
         });
         record(plan.action, plan);
         return plan.nextCheck * 1000L;
+    }
+
+    private ChatResponse ask(LlmClient llm, ChatRequest req) throws Exception {
+        CancellationToken tk = new CancellationToken();
+        inFlight = tk;
+        try {
+            return llm.chat(req, StreamListener.NONE, tk);
+        } finally {
+            inFlight = null;
+        }
+    }
+
+    /** The screen as a small JPEG for the AI, or null. Runs on the brain's thread. */
+    private ChatMessage.Image screenshot() {
+        AgentAccessibilityService svc = AgentAccessibilityService.get();
+        if (svc == null) return null;
+        try {
+            android.graphics.Bitmap full = svc.captureScreen(3000);
+            android.graphics.Bitmap small = ImageUtil.scaleToMax(full, 768);
+            ChatMessage.Image img = ImageUtil.toImage(ImageUtil.jpeg(small, 70), "low");
+            if (small != full) small.recycle();
+            full.recycle();
+            return img;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Main thread: hands one small request to the phone agent, in its own "Companion" chat so the
+     * user's conversation stays as it was.
+     */
+    private void askAgent(String text) {
+        try {
+            AppGraph g = AppGraph.get();
+            if (g.agent.isRunning()) return;
+            long id = g.settings.raw().getLong("companion_conversation", -1);
+            if (id < 0 || g.conversations.get(id) == null) {
+                id = g.conversations.create(ctx.getString(com.suvo.agent.R.string.companion_conversation), g.characters.active().id);
+                g.settings.raw().edit().putLong("companion_conversation", id).apply();
+            }
+            long before = g.agent.activeConversation();
+            String why = g.agent.submit(id, "[From your floating companion, not typed by the user] " + text, null);
+            g.agent.setActiveConversation(before);
+            if (why == null) body.saidToAgent(text);
+        } catch (RuntimeException ignored) {
+        }
     }
 
     /** Elements for the AI: places to stand first, then labelled things for context. Fills {@code ids}. */
@@ -352,6 +431,9 @@ final class CompanionBrain {
                 if (!plan.target.isEmpty()) h.put("target", plan.target);
                 if (!"auto".equals(plan.sitStyle)) h.put("sit_style", plan.sitStyle);
                 if (!plan.say.isEmpty()) h.put("said", plan.say);
+                if (!plan.face.isEmpty()) h.put("face", plan.face);
+                if (!plan.gesture.isEmpty()) h.put("gesture", plan.gesture);
+                if (!plan.agent.isEmpty()) h.put("asked_agent", plan.agent);
             }
             int[] r = body.rest();
             if (r != null) h.put("x", r[6]).put("rest_y", r[1]);

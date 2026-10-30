@@ -242,6 +242,11 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
         if (vrm != null) vrm.setSitStyle(style);
     }
 
+    /** A body gesture ({@link com.suvo.agent.character.vrm.Gestures}: wave, nod, cheer…; 3D only). */
+    public void playGesture(int g) {
+        if (vrm != null) vrm.playGesture(g);
+    }
+
     /** Asleep: eyes closed, slow breathing, no glancing around. */
     public void setAsleep(boolean asleep) {
         animator.setAsleep(asleep);

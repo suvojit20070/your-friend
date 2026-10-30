@@ -40,6 +40,8 @@ final class SpringSim {
     /** Thigh capsule radius in model units. */
     float legRadius = 0.07f;
     private final int legL0, legL1, legR0, legR1;
+    /** Least gravity for clothes on the lower body. */
+    private static final float LOWER_GRAVITY = 0.3f;
 
     SpringSim(VrmModel m) {
         this.m = m;
@@ -143,7 +145,8 @@ final class SpringSim {
 
             float drag = Math.max(0f, Math.min(1f, j.drag));
             float stiff = j.stiffness * dt;
-            float grav = j.gravity * dt;
+            // Clothes exported without gravity (common for VRoid skirts) still hang and sway.
+            float grav = (lower[i] ? Math.max(j.gravity, LOWER_GRAVITY) : j.gravity) * dt;
             for (int k = 0; k < 3; k++) {
                 float inertia = (currTail[i][k] - prevTail[i][k]) * (1f - drag);
                 next[k] = currTail[i][k] + inertia + axisWorld[k] * stiff + j.gravityDir[k] * grav

@@ -526,6 +526,9 @@
     <string name="settings_floating_desc">App se bahar jaane par character screen par float karega. \"Display over other apps\" permission chahiye.</string>
     <string name="settings_companion_brain">Zinda companion (AI)</string>
     <string name="settings_companion_brain_desc">Floating character khud se mood, baithna, khada hona, kahin chalna, sona tay karega — screen par jo hai uske hisaab se. Har minute-do minute AI provider ko ek chhoti alag request jaati hai (tokens lagte hain). Jo cheez gayab ho jaye usse woh hamesha neeche gir jaata hai.</string>
+    <string name="settings_companion_agent">Companion agent ko bol sakta hai</string>
+    <string name="settings_companion_agent_desc">Lively companion kabhi-kabhi agent ko ek chhota, safe kaam bol sakta hai jo abhi kaam aaye (jaise agli reel par scroll). Kuch minute mein zyada se zyada ek baar, apni alag \"Companion\" chat mein; approvals waise hi lagte hain.</string>
+    <string name="companion_conversation">Companion</string>
     <string name="settings_import_config">Settings import karo</string>
     <string name="settings_imported">Settings import ho gayi</string>
     <string name="settings_keep_screen_on">Screen On Rakhein</string>

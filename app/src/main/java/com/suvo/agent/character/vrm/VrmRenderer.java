@@ -545,7 +545,16 @@ final class VrmRenderer {
     private volatile int forcedStyle = -1;
     private float walk, walkPhase, walkDir = 1f;
 
-    static final int IDLE_LOOK_AROUND = 0, IDLE_HAIR = 1, IDLE_HANDS = 2, IDLE_SWAY = 3, IDLE_GLANCE = 4, IDLE_STRETCH = 5;
+    static final int IDLE_LOOK_AROUND = Gestures.LOOK_AROUND, IDLE_HAIR = Gestures.TOUCH_HAIR, IDLE_HANDS = Gestures.HANDS_TOGETHER,
+            IDLE_SWAY = Gestures.SWAY, IDLE_GLANCE = Gestures.GLANCE, IDLE_STRETCH = Gestures.STRETCH;
+    /** A gesture asked for from outside (-1 = none pending); played instead of the next idle action. */
+    private volatile int gestureRequest = -1;
+    private boolean idleRequested;
+
+    /** Plays a {@link Gestures} gesture now (wave, nod, cheer…). */
+    void playGesture(int g) {
+        gestureRequest = g;
+    }
 
     /** Sit on the edge of something (floating mode) instead of standing. */
     void setSitting(boolean s) {
@@ -642,19 +651,33 @@ final class VrmRenderer {
 
         // ---- Idle scheduler: a new small action every few seconds while nothing else happens.
         if (idleAction >= 0 && time - idleStart > idleLen) idleAction = -1;
+        int req = gestureRequest;
+        if (req >= 0) {
+            gestureRequest = -1;
+            idleAction = req;
+            idleRequested = true;
+            idleStart = time;
+            idleLen = Gestures.length(req);
+            nextIdleAt = time + idleLen + 3f + rnd.nextFloat() * 3f;
+        }
         if (idleAction < 0 && !busy && time > nextIdleAt) {
+            idleRequested = false;
             idleAction = rnd.nextInt(sit > 0.5f ? 5 : 6);
             if (idleAction == IDLE_STRETCH && rnd.nextFloat() < 0.6f) idleAction = IDLE_LOOK_AROUND; // stretching is rare
             idleStart = time;
             idleLen = 3.2f + rnd.nextFloat() * 2.5f;
             nextIdleAt = time + idleLen + 2.5f + rnd.nextFloat() * 5f;
         }
-        if (busy && idleAction >= 0) idleLen = Math.min(idleLen, time - idleStart + 0.8f); // wrap up quickly
+        // Wrap up quickly when something else starts (a requested gesture finishes even while talking).
+        if (idleAction >= 0 && (idleRequested ? air > 0.3f : busy)) idleLen = Math.min(idleLen, time - idleStart + 0.8f);
         float idleT = time - idleStart;
         float env = idleAction >= 0 ? envelope(idleT, idleLen) : 0f;
         float aLook = idleAction == IDLE_LOOK_AROUND ? env : 0, aHair = idleAction == IDLE_HAIR ? env : 0;
         float aHands = idleAction == IDLE_HANDS ? env : 0, aSway = idleAction == IDLE_SWAY ? env : 0;
         float aGlance = idleAction == IDLE_GLANCE ? env : 0, aStretch = idleAction == IDLE_STRETCH ? env : 0;
+        float aWave = idleAction == Gestures.WAVE ? env : 0, aNod = idleAction == Gestures.NOD ? env : 0;
+        float aShake = idleAction == Gestures.SHAKE_HEAD ? env : 0, aCheer = idleAction == Gestures.CHEER ? env : 0;
+        float aThink = idleAction == Gestures.THINK ? env : 0;
 
         // ---- Weight shift: settles on one leg for a while, then moves to the other.
         if (time > weightNextAt) {
@@ -668,7 +691,8 @@ final class VrmRenderer {
         float wk = walk * stand;
 
         // ---- Hips
-        float bounce = happy * stand * (float) Math.abs(Math.sin(time * 5.5)) * 0.014f;
+        float bounce = happy * stand * (float) Math.abs(Math.sin(time * 5.5)) * 0.014f
+                + aCheer * stand * (float) Math.abs(Math.sin(idleT * 7f)) * 0.02f;
         moveBone("hips", shift * 0.022f * stand, (breath * 0.004f + bounce - listen * 0.004f - Math.abs(shift) * 0.006f) * stand
                 + (Math.abs(wPh) * 0.014f - 0.012f) * wk, listen * 0.01f);
         rotateBone("hips", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, shift * 5.5f * stand * DEG),
@@ -717,7 +741,7 @@ final class VrmRenderer {
         float gestL = speak * Math.max(0f, (float) Math.sin(time * 2.3 + 1.0)) * (1f - think);
         float gestR = speak * Math.max(0f, (float) Math.sin(time * 2.3 + 2.9)) * (1f - think);
         // The sitting "chin in hand" style already holds the thinking arm pose.
-        float thinkArm = think * (1f - sit * sitStyles.weight(SitStyles.CHIN));
+        float thinkArm = Math.max(think, aThink) * (1f - sit * sitStyles.weight(SitStyles.CHIN));
         float armFree = 0.3f + 0.7f * air;
         float swLA = limbs.upperX(LimbSwing.LEFT_ARM) * 40f * armFree, swRA = limbs.upperX(LimbSwing.RIGHT_ARM) * 40f * armFree;
         float upLA = Math.max(0f, limbs.upperY(LimbSwing.LEFT_ARM)) * 45f * armFree;
@@ -725,28 +749,31 @@ final class VrmRenderer {
         armDown("leftUpperArm", leftArmRestDir, 0);
         armDown("rightUpperArm", rightArmRestDir, 0);
         // Forward/back (around X), inward (around Y), outward/up (around Z)
-        rotateBone("leftUpperArm", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (aStretch * 150f + aHands * -4f + sit * st[SitStyles.UA_Z_L] + air * 24f + swLA + upLA) * DEG),
+        rotateBone("leftUpperArm", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (aStretch * 150f + aCheer * (140f + (float) Math.sin(idleT * 7f) * 8f) + aHands * -4f + sit * st[SitStyles.UA_Z_L] + air * 24f + swLA + upLA) * DEG),
                 VrmMath.axisAngle(1, 0, 0, (-swing - gestL * 24f - aHands * 8f + sit * st[SitStyles.UA_X_L] - air * 8f) * DEG)));
         rotateBone("leftUpperArm", VrmMath.axisAngle(0, 1, 0, -(aHands * 26f + sit * st[SitStyles.UA_Y_L]) * DEG));
-        rotateBone("rightUpperArm", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (-aStretch * 150f - aHair * 100f + aHands * 4f + sit * st[SitStyles.UA_Z_R] - air * 24f + swRA - upRA) * DEG),
-                VrmMath.axisAngle(1, 0, 0, (swing - gestR * 24f - thinkArm * 38f - aHands * 8f - aHair * 10f + sit * st[SitStyles.UA_X_R] - air * 8f) * DEG)));
+        rotateBone("rightUpperArm", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (-aStretch * 150f - aCheer * (140f + (float) Math.sin(idleT * 7f + 1f) * 8f) - aWave * 125f - aHair * 100f + aHands * 4f + sit * st[SitStyles.UA_Z_R] - air * 24f + swRA - upRA) * DEG),
+                VrmMath.axisAngle(1, 0, 0, (swing - gestR * 24f - thinkArm * 38f - aHands * 8f - aHair * 10f - aWave * 10f + sit * st[SitStyles.UA_X_R] - air * 8f) * DEG)));
         rotateBone("rightUpperArm", VrmMath.axisAngle(0, 1, 0, (thinkArm * 18f + aHands * 26f + sit * st[SitStyles.UA_Y_R]) * DEG));
         // Elbows (in the rest frame: bending forward around the vertical axis)
         float whipLA = limbs.whip(LimbSwing.LEFT_ARM) * 30f * armFree, whipRA = limbs.whip(LimbSwing.RIGHT_ARM) * 30f * armFree;
-        float elbowL = 18f + wk * 10f + gestL * 55f + listen * 6f + aHands * 70f + sit * st[SitStyles.ELBOW_L] + aStretch * -10f + air * 14f + whipLA;
-        float elbowR = 18f + wk * 10f + gestR * 55f + thinkArm * 105f + listen * 6f + aHands * 70f + aHair * 25f + sit * st[SitStyles.ELBOW_R] + aStretch * -10f + air * 14f + whipRA;
+        float elbowL = 18f + aCheer * 25f + wk * 10f + gestL * 55f + listen * 6f + aHands * 70f + sit * st[SitStyles.ELBOW_L] + aStretch * -10f + air * 14f + whipLA;
+        float elbowR = 18f + aCheer * 25f + aWave * 30f + wk * 10f + gestR * 55f + thinkArm * 105f + listen * 6f + aHands * 70f + aHair * 25f + sit * st[SitStyles.ELBOW_R] + aStretch * -10f + air * 14f + whipRA;
         rotateBone("leftLowerArm", VrmMath.axisAngle(0, 1, 0, -elbowL * DEG));
         rotateBone("rightLowerArm", VrmMath.axisAngle(0, 1, 0, elbowR * DEG));
         // Touching the hair: the forearm folds up toward the head (around the forward axis).
-        if (aHair > 0) rotateBone("rightLowerArm", VrmMath.axisAngle(0, 0, 1, -aHair * 125f * DEG));
+        // Waving: the forearm stands up and swings side to side.
+        if (aHair > 0 || aWave > 0) {
+            rotateBone("rightLowerArm", VrmMath.axisAngle(0, 0, 1, (-aHair * 125f + (-60f + (float) Math.sin(idleT * 9f) * 28f) * aWave) * DEG));
+        }
         rotateBone("leftHand", VrmMath.axisAngle(1, 0, 0, (10f + gestL * 22f + aHands * 20f + sit * st[SitStyles.HAND_X]) * DEG));
         rotateBone("rightHand", VrmMath.axisAngle(1, 0, 0, (-10f - gestR * 22f - aHands * 20f - aHair * 25f - sit * st[SitStyles.HAND_X]) * DEG));
         // Fingers: naturally curled; open while gesturing; curled more when thinking.
         for (String f : FINGERS) {
             for (int k = 0; k < JOINTS.length; k++) {
                 float base = (k == 0 ? 16f : 22f) + ("Little".equals(f) ? 7f : "Ring".equals(f) ? 4f : 0f);
-                float curlL = base * (1f - 0.5f * gestL - 0.6f * aStretch);
-                float curlR = base * (1f - 0.5f * gestR - 0.6f * aStretch) + Math.max(thinkArm, sit * sitStyles.weight(SitStyles.CHIN)) * (k == 0 ? 25f : 35f) - aHair * 8f;
+                float curlL = base * (1f - 0.5f * gestL - 0.6f * aStretch - 0.6f * aCheer);
+                float curlR = base * (1f - 0.5f * gestR - 0.6f * aStretch - 0.6f * aCheer - 0.8f * aWave) + Math.max(thinkArm, sit * sitStyles.weight(SitStyles.CHIN)) * (k == 0 ? 25f : 35f) - aHair * 8f;
                 rotateBone("left" + f + JOINTS[k], VrmMath.axisAngle(0, 0, 1, -curlL * DEG));
                 rotateBone("right" + f + JOINTS[k], VrmMath.axisAngle(0, 0, 1, curlR * DEG));
             }
@@ -756,14 +783,14 @@ final class VrmRenderer {
 
         // ---- Head: looks where the screen was tapped (strongly), nods while talking, tilts
         // while thinking or listening, looks around when idle, glances at you.
-        float nod = speak * (float) Math.sin(time * 4.6) * 3f;
+        float nod = speak * (float) Math.sin(time * 4.6) * 3f + aNod * (float) Math.sin(idleT * 6.5f) * 10f - aThink * 5f;
         float lookAround = aLook * (float) Math.sin(idleT * 1.6f) * 35f;
         lookYawExtra = approach(lookYawExtra, lookAround, 3f, dt);
         lookPitchExtra = approach(lookPitchExtra, aLook * -4f + aGlance * 2f + aStretch * -12f, 3f, dt);
         // While walking the head turns back toward you a little.
-        float yaw = (p.angleX * 55f - think * 10f + lookYawExtra - walkDir * 26f * wk) * DEG;
+        float yaw = (p.angleX * 55f - think * 10f + lookYawExtra - walkDir * 26f * wk + aShake * (float) Math.sin(idleT * 7.5f) * 17f) * DEG;
         float pitch = (p.angleY * 30f + nod - think * 8f - listen * 2f + lookPitchExtra + sit * st[SitStyles.HEAD_PITCH] + air * 5f) * DEG;
-        float roll = (-p.angleZ * 14f + think * 7f + listen * 6f + aGlance * 8f + aHair * -6f + shift * 3f * stand + sit * st[SitStyles.HEAD_ROLL]
+        float roll = (-p.angleZ * 14f + think * 7f + aThink * 8f + aWave * 6f + listen * 6f + aGlance * 8f + aHair * -6f + shift * 3f * stand + sit * st[SitStyles.HEAD_ROLL]
                 - limbs.upperX(LimbSwing.LEFT_ARM) * 6f * air) * DEG;
         float[] look = VrmMath.mul(VrmMath.axisAngle(0, 1, 0, yaw), VrmMath.mul(VrmMath.axisAngle(1, 0, 0, pitch), VrmMath.axisAngle(0, 0, 1, roll)));
         rotateBone("neck", VrmMath.scale(look, 0.4f));
@@ -781,8 +808,12 @@ final class VrmRenderer {
         if (!springs.isEmpty()) {
             springs.legPush = sit;
             springs.legRadius = height * 0.046f;
+            // A light, changing breeze so the dress is never frozen.
+            float breezeX = (float) (Math.sin(time * 0.71) + 0.5 * Math.sin(time * 1.93 + 1.3)) * 1.4f;
+            float breezeZ = (float) (Math.sin(time * 0.53 + 2.1) + 0.5 * Math.sin(time * 1.37)) * 1.1f;
+            springs.lowerForce[0] = m.vrm0 ? -breezeX : breezeX;
             springs.lowerForce[1] = -sit * 4f;
-            springs.lowerForce[2] = (m.vrm0 ? -1f : 1f) * sit * 14f;
+            springs.lowerForce[2] = (m.vrm0 ? -1f : 1f) * (sit * 14f + breezeZ);
             springs.step(dt, world, localPos, localRot);
             computeWorld(world, localRot);
         }

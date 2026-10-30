@@ -25,12 +25,25 @@ public final class CompanionPlan {
             "happy", "calm", "curious", "excited", "sad", "sleepy", "shy", "bored", "thoughtful"));
     public static final Set<String> ACTIONS = new HashSet<>(Arrays.asList(
             "stay", "sit", "stand", "walk", "sleep", "wake"));
+    public static final Set<String> FACES = new HashSet<>(Arrays.asList(
+            "neutral", "happy", "sad", "surprised", "angry", "shy", "sleepy"));
+    public static final Set<String> GESTURES = new HashSet<>(Arrays.asList(
+            "none", "wave", "nod", "shake_head", "cheer", "think", "look_around", "touch_hair", "hands_together",
+            "stretch", "sway", "glance"));
     public static final Set<String> SIT_STYLES = new HashSet<>(Arrays.asList(
             "auto", "kick", "crossed", "lean_back", "hug_knees", "chin"));
     /** Seconds until the next decision. */
     public static final int MIN_NEXT = 30, MAX_NEXT = 240, DEFAULT_NEXT = 75;
 
     public String mood = "";
+    /** Facial expression ("" = from the mood). */
+    public String face = "";
+    /** Body gesture ("" = none). */
+    public String gesture = "";
+    /** Something to ask the phone agent to do ("" = nothing). */
+    public String agent = "";
+    /** The AI wants to see the screen first (the answer is a screenshot request, not a plan). */
+    public boolean wantsScreenshot;
     public String action = "stay";
     /** Surface id to go to ("bottom" = the bottom of the screen), or "". */
     public String target = "";
@@ -89,6 +102,14 @@ public final class CompanionPlan {
     }
 
     public static String systemPrompt(String name, String personality) {
+        return systemPrompt(name, personality, false, false);
+    }
+
+    /**
+     * @param canScreenshot offer the screenshot tool (vision model and Android 11+)
+     * @param canAskAgent   allow asking the phone agent to do something
+     */
+    public static String systemPrompt(String name, String personality, boolean canScreenshot, boolean canAskAgent) {
         String who = name == null || name.isEmpty() ? "a small animated 3D companion" : name + ", a small animated 3D companion";
         return "You are the body-language brain of " + who + " who lives on top of the user's phone screen, over other apps. "
                 + (personality == null || personality.isEmpty() ? "" : "Personality: " + personality.trim() + " ")
@@ -105,12 +126,26 @@ public final class CompanionPlan {
                 + "- \"say\" is a tiny thought bubble (max 6 words, the user's language if obvious, otherwise English); leave it "
                 + "empty most of the time.\n"
                 + "- When the agent is busy, keep still (stay).\n"
+                + "- Be expressive: she has a face and hands. React to what is on screen with \"face\" and \"gesture\" "
+                + "(a funny or cute video: happy + cheer; something sad: sad; waiting long: bored + sway or stretch; reading "
+                + "something: think; greeting after a while: wave). Change the face more often than the place.\n"
+                + (canScreenshot ? "- Tool: if the element list is not enough to understand the screen (a video, a picture, a game, "
+                + "what exactly is playing), answer only {\"tool\":\"screenshot\"} and you will get a screenshot (your own "
+                + "character is visible in it), then answer with the plan. Use it only when it really helps.\n" : "")
+                + (canAskAgent ? "- You may ask the phone agent (it can tap, scroll, go back, open apps) to do ONE small, harmless, "
+                + "reversible thing that clearly helps the user right now — e.g. the user has watched the same reel for a long "
+                + "time: \"scroll to the next reel\". Put it in \"agent\" as a short instruction. Never ask it to send or post "
+                + "anything, buy, pay, delete, change settings or read private data. Leave \"agent\" empty almost always.\n" : "")
                 + "Answer with JSON only, no other text:\n"
                 + "{\"mood\":\"happy|calm|curious|excited|sad|sleepy|shy|bored|thoughtful\","
+                + "\"face\":\"neutral|happy|sad|surprised|angry|shy|sleepy\","
+                + "\"gesture\":\"none|wave|nod|shake_head|cheer|think|look_around|touch_hair|hands_together|stretch|sway|glance\","
                 + "\"action\":\"stay|sit|stand|walk|sleep|wake\","
                 + "\"target\":\"element id or bottom or empty\",\"x\":optional px centre on the target,"
                 + "\"sit_style\":\"auto|kick|crossed|lean_back|hug_knees|chin\","
-                + "\"look\":\"element id or empty\",\"say\":\"\",\"next_check_s\":" + MIN_NEXT + "-" + MAX_NEXT + "}";
+                + "\"look\":\"element id or empty\",\"say\":\"\","
+                + (canAskAgent ? "\"agent\":\"\"," : "")
+                + "\"next_check_s\":" + MIN_NEXT + "-" + MAX_NEXT + "}";
     }
 
     /** The user message: the character's state, its recent history and the screen's elements. */
@@ -158,6 +193,17 @@ public final class CompanionPlan {
         } catch (Exception e) {
             return p;
         }
+        if ("screenshot".equalsIgnoreCase(o.optString("tool", "").trim())) {
+            p.wantsScreenshot = true;
+            return p;
+        }
+        String face = o.optString("face", "").trim().toLowerCase(Locale.ROOT);
+        if (FACES.contains(face)) p.face = face;
+        String gesture = o.optString("gesture", "").trim().toLowerCase(Locale.ROOT);
+        if (GESTURES.contains(gesture) && !"none".equals(gesture)) p.gesture = gesture;
+        String agent = o.optString("agent", "").replace('\n', ' ').trim();
+        if (agent.length() > 200) agent = agent.substring(0, 200);
+        p.agent = agent;
         String mood = o.optString("mood", "").trim().toLowerCase(Locale.ROOT);
         if (MOODS.contains(mood)) p.mood = mood;
         String act = o.optString("action", "stay").trim().toLowerCase(Locale.ROOT);

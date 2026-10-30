@@ -66,4 +66,21 @@ public class CompanionPlanTest {
         assertTrue(!o.getJSONArray("elements").getJSONObject(1).has("stand"));
         assertTrue(CompanionPlan.systemPrompt("Aiko", "").contains("Aiko"));
     }
+
+    @Test
+    public void facesGesturesAgentAndScreenshotTool() {
+        CompanionPlan p = CompanionPlan.parse("{\"mood\":\"bored\",\"face\":\"Surprised\",\"gesture\":\"wave\","
+                + "\"agent\":\"scroll to the next reel\",\"action\":\"stay\"}");
+        assertEquals("surprised", p.face);
+        assertEquals("wave", p.gesture);
+        assertEquals("scroll to the next reel", p.agent);
+        assertTrue(!p.wantsScreenshot);
+        assertEquals("", CompanionPlan.parse("{\"gesture\":\"none\",\"face\":\"evil\"}").gesture);
+        assertEquals("", CompanionPlan.parse("{\"face\":\"evil\"}").face);
+        assertTrue(CompanionPlan.parse("ok {\"tool\":\"screenshot\"}").wantsScreenshot);
+        String withTools = CompanionPlan.systemPrompt("Aiko", "", true, true);
+        assertTrue(withTools.contains("screenshot") && withTools.contains("\"agent\""));
+        String without = CompanionPlan.systemPrompt("Aiko", "", false, false);
+        assertTrue(!without.contains("\"tool\"") && !without.contains("\"agent\""));
+    }
 }
