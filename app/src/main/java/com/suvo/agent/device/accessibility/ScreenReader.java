@@ -72,6 +72,7 @@ public final class ScreenReader {
             int depth = depthStack.pop();
             if (node == null) continue;
             if (!node.isVisibleToUser()) continue;
+            if (com.suvo.agent.agent.ScreenKeeper.isHelper(node.getContentDescription())) continue; // our keep-screen-on pixel
             for (int i = node.getChildCount() - 1; i >= 0; i--) {
                 AccessibilityNodeInfo ch = node.getChild(i);
                 if (ch != null) {

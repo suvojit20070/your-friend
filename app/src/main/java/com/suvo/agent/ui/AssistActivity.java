@@ -48,6 +48,23 @@ public final class AssistActivity extends BaseActivity {
     public static final String EXTRA_FROM_WAKE = "from_wake";
     /** Brought back to show the answer of a task it stepped aside for. */
     public static final String EXTRA_SHOW_RESULT = "show_result";
+    /** Text for the input box (widget, shortcut, deep link yourfriend://assist?prompt=…). */
+    public static final String EXTRA_PROMPT = "prompt";
+    /** Text the question is about (also from "Ask Your Friend" in any app's text selection menu). */
+    public static final String EXTRA_SELECTION = "selection";
+    /** Start listening right away. */
+    public static final String EXTRA_LISTEN = "listen";
+    /** Send {@link #EXTRA_PROMPT} at once — only honoured from the app's own (non-exported) entry. */
+    public static final String EXTRA_SEND = "send";
+    /** The app's own entry point (an alias that other apps cannot start). */
+    public static final String INTERNAL = "com.suvo.agent.ui.AssistInternal";
+
+    /** Selected text the next question is about ("" = none). */
+    private String selection = "";
+    private LinearLayout quoteBox;
+    private TextView quoteText;
+    /** How the card starts: 0 = as usual (listen if possible), 1 = type, 2 = listen, 3 = already asking. */
+    private int startMode;
     /**
      * The card stepped aside while the agent works: otherwise it would cover the app the agent
      * reads and taps (it showed up in the screen tree and in screenshots).
@@ -247,11 +264,123 @@ public final class AssistActivity extends BaseActivity {
         card.setAlpha(0f);
         card.animate().translationY(0).alpha(1f).setDuration(260)
                 .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)).start();
+        applyIntent(getIntent());
         // Listen right away, like any assistant; without the microphone, type instead.
         root.post(this::startOrType);
     }
 
+    /**
+     * Reads what the card was opened with: selected text from another app (PROCESS_TEXT), a
+     * prompt (widget, shortcut, yourfriend://assist?prompt=…), listen or send now. True when
+     * there was something to show.
+     */
+    private boolean applyIntent(Intent i) {
+        if (i == null) return false;
+        boolean trusted = i.getComponent() != null && INTERNAL.equals(i.getComponent().getClassName());
+        String sel = null, prompt = null;
+        if (Intent.ACTION_PROCESS_TEXT.equals(i.getAction())) {
+            CharSequence t = i.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
+            sel = t == null ? null : t.toString();
+        }
+        if (i.hasExtra(EXTRA_SELECTION)) sel = i.getStringExtra(EXTRA_SELECTION);
+        if (Intent.ACTION_VIEW.equals(i.getAction()) && i.getData() != null) {
+            android.net.Uri u = i.getData();
+            prompt = u.getQueryParameter("prompt");
+            if (prompt == null) prompt = u.getQueryParameter("q");
+        }
+        if (i.hasExtra(EXTRA_PROMPT)) prompt = i.getStringExtra(EXTRA_PROMPT);
+        // The app's own shortcuts and tiles say what to do by their action.
+        boolean sendNow = trusted && i.getBooleanExtra(EXTRA_SEND, false);
+        if (trusted && "com.suvo.agent.SCREEN".equals(i.getAction())) {
+            if (prompt == null || prompt.isEmpty()) prompt = getString(R.string.ask_screen_prompt);
+            sendNow = true;
+        }
+        if (trusted && "com.suvo.agent.TALK".equals(i.getAction())) i.putExtra(EXTRA_LISTEN, true);
+        boolean shown = false;
+        if (sel != null && !sel.trim().isEmpty()) {
+            showSelection(sel.trim());
+            shown = true;
+            startMode = 1;
+        }
+        if (prompt != null && !prompt.trim().isEmpty()) {
+            input.setText(prompt);
+            input.setSelection(input.getText().length());
+            shown = true;
+            startMode = 1;
+            if (sendNow) {
+                startMode = 3;
+                final String p = prompt;
+                input.post(() -> ask(p));
+            }
+        }
+        if (i.getBooleanExtra(EXTRA_LISTEN, false)) {
+            startMode = 2;
+            shown = true;
+        }
+        if (trusted && "com.suvo.agent.TYPE".equals(i.getAction())) {
+            startMode = 1;
+            shown = true;
+        }
+        return shown;
+    }
+
+    /** The selected text as a quote, with quick questions about it. */
+    private void showSelection(String text) {
+        selection = text.length() > 8000 ? text.substring(0, 8000) : text;
+        Palette pal = Palette.of(this);
+        if (quoteBox == null) {
+            quoteBox = new LinearLayout(this);
+            quoteBox.setOrientation(LinearLayout.VERTICAL);
+            quoteText = new TextView(this, null, 0, R.style.YF_Body);
+            quoteText.setTextSize(14f);
+            quoteText.setTextColor(pal.onSurfaceVariant);
+            quoteText.setMaxLines(4);
+            quoteText.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            quoteText.setBackground(new TonalDrawable(Palette.alpha(pal.primary, 0.10f), Ui.dp(this, 16)));
+            int qp = Ui.dp(this, 12);
+            quoteText.setPadding(qp, Ui.dp(this, 10), qp, Ui.dp(this, 10));
+            LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            qlp.setMargins(0, 0, 0, Ui.dp(this, 8));
+            quoteBox.addView(quoteText, qlp);
+            android.widget.HorizontalScrollView hs = new android.widget.HorizontalScrollView(this);
+            hs.setHorizontalScrollBarEnabled(false);
+            LinearLayout chips = new LinearLayout(this);
+            chips.setOrientation(LinearLayout.HORIZONTAL);
+            int[][] quick = {{R.string.sel_explain, R.string.sel_explain_prompt}, {R.string.sel_summarize, R.string.sel_summarize_prompt},
+                    {R.string.sel_translate, R.string.sel_translate_prompt}, {R.string.sel_reply, R.string.sel_reply_prompt},
+                    {R.string.sel_fix, R.string.sel_fix_prompt}};
+            for (int[] q : quick) {
+                TextView chip = new TextView(this, null, 0, R.style.YF_Chip);
+                chip.setText(q[0]);
+                chip.setTextColor(pal.primary);
+                chip.setBackground(new TonalDrawable(Palette.alpha(pal.primary, 0.14f), -1));
+                chip.setPadding(Ui.dp(this, 14), Ui.dp(this, 8), Ui.dp(this, 14), Ui.dp(this, 8));
+                chip.setTag(R.id.fx_press, Boolean.TRUE);
+                final int promptRes = q[1];
+                chip.setOnClickListener(v -> ask(getString(promptRes)));
+                LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                clp.setMarginEnd(Ui.dp(this, 8));
+                chips.addView(chip, clp);
+            }
+            hs.addView(chips);
+            quoteBox.addView(hs);
+            LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            bp.setMargins(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), 0);
+            card.addView(quoteBox, card.indexOfChild(status), bp);
+        }
+        quoteText.setText("“" + selection + "”");
+        quoteBox.setVisibility(View.VISIBLE);
+        input.setHint(R.string.sel_hint);
+    }
+
     private void startOrType() {
+        if (startMode == 3) return;
+        if (startMode == 1) {
+            input.requestFocus();
+            InputMethodManager imm = getSystemService(InputMethodManager.class);
+            if (imm != null) input.postDelayed(() -> imm.showSoftInput(input, 0), 120);
+            return;
+        }
         boolean voice = g.settings.bool(com.suvo.agent.data.Settings.ALLOW_VOICE_INPUT, true) && SpeechInput.isAvailable(this)
                 && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
         if (voice) {
@@ -346,14 +475,19 @@ public final class AssistActivity extends BaseActivity {
 
     private void ask(String raw) {
         String text = raw == null ? "" : raw.trim();
+        if (text.isEmpty() && !selection.isEmpty()) text = getString(R.string.sel_explain_prompt);
         if (text.isEmpty()) return;
         if (speech.isListening()) speech.cancel();
-        String err = g.agent.submit(conversation, text, null);
+        String sent = selection.isEmpty() ? text : text + "\n\n[Selected text]\n" + selection;
+        String err = g.agent.submit(conversation, sent, null);
         if (err != null) {
             status.setText(err);
             return;
         }
         asked = true;
+        selection = "";
+        if (quoteBox != null) quoteBox.setVisibility(View.GONE);
+        input.setHint(R.string.chat_input_hint);
         // The card stays while the agent thinks and talks; it steps aside only right before a tool
         // reads or operates the screen (see ScreenGate), and comes back with the answer.
         input.setText("");
@@ -467,6 +601,12 @@ public final class AssistActivity extends BaseActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (intent != null && intent.getBooleanExtra(EXTRA_SHOW_RESULT, false)) return; // just show the answer
+        startMode = 0;
+        if (applyIntent(intent)) {
+            setIntent(intent);
+            startOrType();
+            return;
+        }
         // Assistant gesture again while open: listen again.
         if (!speech.isListening()) toggleMic();
     }

@@ -117,6 +117,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Long-press the app icon: new chat, talk, ask about the screen, live agent. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <activity
@@ -133,6 +137,13 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
+            </intent-filter>
+            <!-- yourfriend://chat?prompt=…&new=1 — opens the chat with the prompt in the box. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="yourfriend" android:host="chat" />
             </intent-filter>
         </activity>
 
@@ -154,10 +165,99 @@
                 <action android:name="android.intent.action.VOICE_COMMAND" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- yourfriend://assist?prompt=… — the assistant card with the prompt in the box. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="yourfriend" android:host="assist" />
+            </intent-filter>
             <meta-data
                 android:name="com.android.systemui.action_assist_icon"
                 android:resource="@mipmap/ic_launcher" />
         </activity>
+
+        <!-- "Ask Your Friend" in every app's text-selection menu (next to Copy / Share / Translate). -->
+        <activity-alias
+            android:name=".ui.AskSelection"
+            android:exported="true"
+            android:label="@string/process_text_label"
+            android:targetActivity=".ui.AssistActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- The app's own entry to the card (tiles, widget, shortcuts); other apps cannot start it. -->
+        <activity-alias
+            android:name=".ui.AssistInternal"
+            android:exported="false"
+            android:targetActivity=".ui.AssistActivity" />
+
+        <!-- Quick Settings tiles -->
+        <service
+            android:name=".launch.Tiles$Ask"
+            android:exported="true"
+            android:icon="@drawable/ic_chat"
+            android:label="@string/tile_ask"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".launch.Tiles$Talk"
+            android:exported="true"
+            android:icon="@drawable/ic_mic"
+            android:label="@string/tile_talk"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".launch.Tiles$Screen"
+            android:exported="true"
+            android:icon="@drawable/ic_screen"
+            android:label="@string/tile_screen"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".launch.Tiles$Companion"
+            android:exported="true"
+            android:icon="@drawable/ic_stat_companion"
+            android:label="@string/tile_companion"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <!-- Home-screen widget (resizable) -->
+        <receiver
+            android:name=".launch.AssistantWidget"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/assistant_widget_info" />
+        </receiver>
+
+        <!-- "Reply" from the answer's notification -->
+        <receiver
+            android:name=".launch.ReplyReceiver"
+            android:exported="false" />
         <activity android:name=".ui.OnboardingActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.LiveAgentActivity" android:exported="false" />
         <activity android:name=".ui.MemoryActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />

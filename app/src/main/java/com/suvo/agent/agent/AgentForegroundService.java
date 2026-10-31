@@ -21,7 +21,8 @@ import com.suvo.agent.data.Settings;
 * and holds a partial wake lock so the CPU keeps working with the screen off. Every task — typed,
 * spoken, from the floating character or started by a schedule — goes through here. It stops
 * itself when the task ends; the wake lock also has a time limit (the task's maximum duration plus
-* a margin), so it can never keep the phone awake forever.
+* a margin), so it can never keep the phone awake forever. With "Keep screen on" the screen also
+* stays on for the whole task, even outside the app ({@link ScreenKeeper}).
 */
 public final class AgentForegroundService extends Service {
 	
@@ -87,6 +88,7 @@ public final class AgentForegroundService extends Service {
 			return START_NOT_STICKY;
 		}
 		acquireWakeLock();
+		updateScreenWakeLock();
 		Notification n = build(this, lastText);
 		try {
 			if (Build.VERSION.SDK_INT >= 34) {
@@ -101,10 +103,7 @@ public final class AgentForegroundService extends Service {
 	}
 	
 	private void acquireWakeLock() {
-		if (wakeLock != null && wakeLock.isHeld()) {
-			updateScreenWakeLock();
-			return;
-		}
+		if (wakeLock != null && wakeLock.isHeld()) return;
 		android.os.PowerManager pm = getSystemService(android.os.PowerManager.class);
 		if (pm == null) return;
 		try {
@@ -117,8 +116,17 @@ public final class AgentForegroundService extends Service {
 		}
 	}
 	
+	/**
+	 * Keep screen on (setting): a 1 px helper window with FLAG_KEEP_SCREEN_ON while the task runs
+	 * ({@link ScreenKeeper}); only without "display over other apps" the old screen wake lock.
+	 */
 	private void updateScreenWakeLock() {
 		if (!AppGraph.get().settings.bool(Settings.KEEP_SCREEN_ON, false)) {
+			ScreenKeeper.hide(this);
+			releaseScreenWakeLock();
+			return;
+		}
+		if (ScreenKeeper.show(this)) {
 			releaseScreenWakeLock();
 			return;
 		}
@@ -164,6 +172,9 @@ public final class AgentForegroundService extends Service {
 	
 	@Override
 	public void onDestroy() {
+		AppGraph.get().settings.removeListener(settingsListener);
+		ScreenKeeper.hide(this);
+		releaseScreenWakeLock();
 		if (wakeLock != null && wakeLock.isHeld()) {
 			try {
 				wakeLock.release();

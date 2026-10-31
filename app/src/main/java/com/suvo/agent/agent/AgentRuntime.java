@@ -243,6 +243,7 @@ public final class AgentRuntime {
         boolean quiet = quietResult && com.suvo.agent.agent.Scheduler.NOTHING.equals(task.finalText.trim());
         quietResult = false;
         if (task.status == TaskState.Status.COMPLETED && !task.finalText.isEmpty() && !quiet) {
+            com.suvo.agent.launch.AssistantWidget.lastReply(g.ctx, task.finalText);
             if (g.settings.bool(Settings.VOICE_OUTPUT, false)) g.speech.speak(task.finalText);
             if (!App.isInForeground()) notifyDone(task);
         }
@@ -277,6 +278,7 @@ public final class AgentRuntime {
                 .setStyle(new Notification.BigTextStyle().bigText(task.finalText))
                 .setContentIntent(open)
                 .setAutoCancel(true)
+                .addAction(com.suvo.agent.launch.ReplyReceiver.action(g.ctx, task.conversationId))
                 .build();
         nm.notify(Notifications.ID_TASK_DONE, n);
     }

@@ -3,4 +3,11 @@
     <!-- Material You: follow the device's dynamic colour on Android 12+. -->
     <color name="accent">@android:color/system_accent1_600</color>
     <color name="accent_2">@android:color/system_accent3_600</color>
+    <!-- Home-screen widget -->
+    <color name="widget_surface">@android:color/system_neutral1_50</color>
+    <color name="widget_pill">@android:color/system_neutral2_100</color>
+    <color name="widget_on_surface">@android:color/system_neutral1_900</color>
+    <color name="widget_on_surface_2">@android:color/system_neutral2_700</color>
+    <color name="widget_accent">@android:color/system_accent1_600</color>
+    <color name="widget_accent_soft">@android:color/system_accent1_100</color>
 </resources>

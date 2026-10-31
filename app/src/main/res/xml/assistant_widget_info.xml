@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resizable: small (tap to talk), one row (ask bar), or large (last answer + bar). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_desc"
+    android:initialLayout="@layout/widget_bar"
+    android:minWidth="250dp"
+    android:minHeight="50dp"
+    android:minResizeWidth="50dp"
+    android:minResizeHeight="50dp"
+    android:previewImage="@mipmap/ic_launcher"
+    android:previewLayout="@layout/widget_bar"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

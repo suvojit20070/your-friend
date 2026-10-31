@@ -67,4 +67,11 @@
     <color name="surface_high">#FFEFE6DB</color>
     <color name="surface_highest">#FFE9E1D5</color>
     <color name="section_text">#CC4D4639</color>
+    <!-- Home-screen widget -->
+    <color name="widget_surface">#F2FBF2E7</color>
+    <color name="widget_pill">#FFEFE6DB</color>
+    <color name="widget_on_surface">#FF1F1B13</color>
+    <color name="widget_on_surface_2">#FF4D4639</color>
+    <color name="widget_accent">#FF785A0B</color>
+    <color name="widget_accent_soft">#33785A0B</color>
 </resources>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon: new chat, talk, ask about the screen, live agent. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="new_chat"
+        android:shortcutLongLabel="@string/shortcut_new_chat"
+        android:shortcutShortLabel="@string/shortcut_new_chat">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="yourfriend://chat?new=1"
+            android:targetClass="com.suvo.agent.ui.ChatActivity"
+            android:targetPackage="com.suvo.agent" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="talk"
+        android:shortcutLongLabel="@string/shortcut_talk"
+        android:shortcutShortLabel="@string/shortcut_talk">
+        <intent
+            android:action="com.suvo.agent.TALK"
+            android:targetClass="com.suvo.agent.ui.AssistInternal"
+            android:targetPackage="com.suvo.agent" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="ask_screen"
+        android:shortcutLongLabel="@string/shortcut_ask_screen"
+        android:shortcutShortLabel="@string/shortcut_ask_screen_short">
+        <intent
+            android:action="com.suvo.agent.SCREEN"
+            android:targetClass="com.suvo.agent.ui.AssistInternal"
+            android:targetPackage="com.suvo.agent" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="live"
+        android:shortcutLongLabel="@string/shortcut_live"
+        android:shortcutShortLabel="@string/shortcut_live">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetClass="com.suvo.agent.ui.LiveAgentActivity"
+            android:targetPackage="com.suvo.agent" />
+    </shortcut>
+</shortcuts>

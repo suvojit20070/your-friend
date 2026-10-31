@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget, small: the companion; tap to talk. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="4dp"
+    android:background="@drawable/widget_bg">
+
+    <ImageView
+        android:id="@+id/widget_avatar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:contentDescription="@string/app_name"
+        android:src="@mipmap/ic_launcher_round" />
+
+    <ImageView
+        android:id="@+id/widget_mic"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="8dp"
+        android:background="@drawable/widget_button"
+        android:contentDescription="@string/mic"
+        android:padding="5dp"
+        android:src="@drawable/ic_mic"
+        android:tint="@color/widget_accent" />
+</FrameLayout>

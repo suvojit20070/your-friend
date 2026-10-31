@@ -264,6 +264,11 @@ public final class ChatActivity extends BaseActivity {
 
     /** Text or an image shared from another app lands in the input box; nothing is sent automatically. */
     private void handleShare(Intent intent) {
+        if (intent != null && Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null
+                && "yourfriend".equals(intent.getData().getScheme())) {
+            handleDeepLink(intent.getData());
+            return;
+        }
         if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return;
         CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
         if (text != null) {
@@ -272,6 +277,27 @@ public final class ChatActivity extends BaseActivity {
         }
         android.net.Uri stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
         if (stream != null) attachAny(stream);
+    }
+
+    /**
+     * yourfriend://chat?prompt=…&new=1&send=1 — opens the chat (a new one with new=1) with the
+     * prompt in the box. send=1 asks before sending: a link from another app or a web page must
+     * never make the agent act on its own.
+     */
+    private void handleDeepLink(android.net.Uri u) {
+        if ("1".equals(u.getQueryParameter("new"))) {
+            conversationId = g.agent.newConversation();
+            reload();
+        }
+        String prompt = u.getQueryParameter("prompt");
+        if (prompt == null) prompt = u.getQueryParameter("q");
+        if (prompt == null || prompt.trim().isEmpty()) return;
+        input.setText(prompt);
+        input.setSelection(input.getText().length());
+        if ("1".equals(u.getQueryParameter("send")) || "true".equals(u.getQueryParameter("send"))) {
+            final String p = prompt;
+            Ui.confirm(this, R.string.deeplink_send_title, p, () -> submit(p));
+        }
     }
 
     private int pendingImageCount() {
