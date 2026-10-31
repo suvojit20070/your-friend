@@ -16,7 +16,8 @@ import com.suvo.agent.data.Settings;
  *
  * Quick Settings tiles (pull down the notification shade → edit → drag in): "Ask" opens the
  * assistant card to type, "Talk" opens it listening, "Ask about screen" asks about what is on
- * screen right away, "Floating companion" switches the floating character on or off.
+ * screen right away, "Floating companion" switches the floating character on or off, "Replia"
+ * switches chat auto reply on or off without opening the app.
  */
 public final class Tiles {
 
@@ -118,6 +119,65 @@ public final class Tiles {
                 FloatingCompanionService.stop(this);
             }
             label(this, on ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        }
+    }
+
+    /** Asks Android to redraw the Replia tile (after auto reply was switched inside the app or by the agent). */
+    public static void refreshAutoReply(android.content.Context ctx) {
+        try {
+            TileService.requestListeningState(ctx, new android.content.ComponentName(ctx, AutoReply.class));
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    /**
+     * Toggle: chat auto reply ("Replia"). One tap on/off from the shade. Opens the Auto reply screen
+     * only when something is missing (notification access, or no app picked yet).
+     */
+    public static final class AutoReply extends TileService {
+        @Override
+        public void onStartListening() {
+            update();
+        }
+
+        private void update() {
+            Tile t = getQsTile();
+            if (t == null) return;
+            boolean on, access;
+            int apps = 0;
+            try {
+                on = AppGraph.get().settings.bool(com.suvo.agent.autoreply.AutoReplyStore.ENABLED, false);
+                access = com.suvo.agent.autoreply.AutoReplyStore.hasAccess(this);
+                for (com.suvo.agent.autoreply.AutoReplyStore.Rule r : com.suvo.agent.autoreply.AutoReplyStore.get(this).rules()) {
+                    if (!com.suvo.agent.autoreply.AutoReplyStore.OFF.equals(r.mode)) apps++;
+                }
+            } catch (RuntimeException e) {
+                on = false;
+                access = false;
+            }
+            t.setState(on && access ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+            t.setIcon(Icon.createWithResource(this, R.drawable.ic_chat));
+            t.setLabel(getString(R.string.tile_auto_reply));
+            if (Build.VERSION.SDK_INT >= 29) {
+                String sub;
+                if (!access) sub = getString(R.string.tile_auto_reply_no_access);
+                else if (!on) sub = getString(R.string.ar_off);
+                else sub = getResources().getQuantityString(R.plurals.tile_auto_reply_apps, apps, apps);
+                t.setSubtitle(sub);
+            }
+            t.updateTile();
+        }
+
+        @Override
+        public void onClick() {
+            AppGraph g = AppGraph.get();
+            boolean on = !g.settings.bool(com.suvo.agent.autoreply.AutoReplyStore.ENABLED, false);
+            g.settings.put(com.suvo.agent.autoreply.AutoReplyStore.ENABLED, on);
+            update();
+            if (on && (!com.suvo.agent.autoreply.AutoReplyStore.hasAccess(this)
+                    || com.suvo.agent.autoreply.AutoReplyStore.get(this).rules().isEmpty())) {
+                open(this, new Intent(this, com.suvo.agent.ui.AutoReplyActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 65);
+            }
         }
     }
 }

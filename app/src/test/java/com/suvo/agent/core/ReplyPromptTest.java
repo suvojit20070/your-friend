@@ -97,4 +97,19 @@ public class ReplyPromptTest {
         assertTrue(user.contains("FROM: Rahul") && user.contains("(direct)"));
         assertTrue(user.contains("kal aa raha hai na?") && user.contains("Me: ghar pe") && user.contains("college friend"));
     }
+
+    @Test
+    public void acceptsGarbledOrUnclosedReplyTags() {
+        ReplyPrompt.Result r = ReplyPrompt.parse("<why>Simple greeting from a contact, reply naturally in one short line.</why>"
+                + "<u reply>Hello! Kaise ho? Suvo thodi der me reply karte hain.", 40);
+        assertEquals(ReplyPrompt.Kind.REPLY, r.kind);
+        assertEquals("Hello! Kaise ho? Suvo thodi der me reply karte hain.", r.text);
+        assertEquals("Simple greeting from a contact, reply naturally in one short line.", r.why);
+        assertEquals("hi there", ReplyPrompt.parse("<reply>hi there", 40).text);
+        assertEquals("hi there", ReplyPrompt.parse("< reply >hi there</ reply>", 40).text);
+        assertEquals("ok bhai", ReplyPrompt.parse("<reply>ok bhai</rep", 40).text);
+        assertEquals(ReplyPrompt.Kind.SKIP, ReplyPrompt.parse("<u reply></u reply>", 40).kind);
+        // No reply tag at all still sends nothing.
+        assertEquals(ReplyPrompt.Kind.BAD_FORMAT, ReplyPrompt.parse("<why>should reply</why> Hello!", 40).kind);
+    }
 }

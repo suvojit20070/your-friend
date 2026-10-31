@@ -1049,4 +1049,9 @@
     <string name="ar_st_no_provider">プロバイダーなし</string>
     <string name="ar_st_discarded">破棄</string>
     <string name="ar_st_error">エラー</string>
+    <string name="tile_auto_reply">Replia</string>
+    <string name="tile_auto_reply_no_access">アクセスを許可</string>
+    <plurals name="tile_auto_reply_apps">
+        <item quantity="other">%d 個のアプリ</item>
+    </plurals>
 </resources>

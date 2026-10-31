@@ -1056,4 +1056,10 @@
     <string name="ar_st_no_provider">প্রোভাইডার নেই</string>
     <string name="ar_st_discarded">বাতিল</string>
     <string name="ar_st_error">ত্রুটি</string>
+    <string name="tile_auto_reply">Replia</string>
+    <string name="tile_auto_reply_no_access">অ্যাক্সেস দিন</string>
+    <plurals name="tile_auto_reply_apps">
+        <item quantity="one">%d অ্যাপ</item>
+        <item quantity="other">%d অ্যাপ</item>
+    </plurals>
 </resources>

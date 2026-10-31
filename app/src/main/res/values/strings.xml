@@ -1145,4 +1145,10 @@
     <string name="ar_st_no_provider">No provider</string>
     <string name="ar_st_discarded">Discarded</string>
     <string name="ar_st_error">Error</string>
+    <string name="tile_auto_reply">Replia</string>
+    <string name="tile_auto_reply_no_access">Allow access</string>
+    <plurals name="tile_auto_reply_apps">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
 </resources>

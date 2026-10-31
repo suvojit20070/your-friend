@@ -74,7 +74,8 @@ public final class ReplyPrompt {
                 + "say honestly that you are ").append(owner).append("'s AI assistant.\n"
                 + "- Use the earlier messages so you do not repeat yourself.\n");
         sb.append("OUTPUT FORMAT (nothing else): <reply>your message</reply> — or <reply></reply> when no reply is needed. "
-                + "You may put one short reason before it as <why>…</why>.");
+                + "You may put one short reason before it as <why>…</why>. Write the tags exactly like this: "
+                + "<why>friend says hi</why><reply>Hi! Kaise ho?</reply>");
         return sb.toString();
     }
 
@@ -120,6 +121,13 @@ public final class ReplyPrompt {
     }
 
     private static final Pattern REPLY = Pattern.compile("<reply>(.*?)</reply>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    /**
+     * Weak models garble the tag ("<u reply>", "< reply >", "<reply:>") or forget to close it. Accepted
+     * when the opening tag still clearly says reply: the message runs to the closing tag, the next tag,
+     * or the end.
+     */
+    private static final Pattern REPLY_LOOSE = Pattern.compile("<\\s*[a-z_]{0,3}\\s*reply\\s*[:=]?\\s*>(.*?)(?:<\\s*/\\s*[a-z_]{0,3}\\s*reply\\s*>|<\\s*/?\\s*(?:why|reply)\\b|$)",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern WHY = Pattern.compile("<why>(.*?)</why>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern THINK = Pattern.compile("<think>.*?</think>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern SKIP_WORD = Pattern.compile("^[\\[(<{]?\\s*(s\\W*k\\W*i\\W*p\\W*(ped)?|no\\W*reply|none|null|ignore|n/?a|empty|nothing)\\s*[\\])>}]?\\.?$",
@@ -132,8 +140,16 @@ public final class ReplyPrompt {
         Matcher w = WHY.matcher(s);
         String why = w.find() ? w.group(1).trim() : "";
         Matcher m = REPLY.matcher(s);
-        if (!m.find()) return new Result(Kind.BAD_FORMAT, "", why);
-        String t = m.group(1).trim();
+        String t;
+        if (m.find()) {
+            t = m.group(1).trim();
+        } else {
+            Matcher l = REPLY_LOOSE.matcher(s);
+            if (!l.find()) return new Result(Kind.BAD_FORMAT, "", why);
+            t = l.group(1).trim();
+        }
+        // A stray piece of a closing tag left at the end ("…karte hain.</rep").
+        t = t.replaceAll("<\\s*/?\\s*[a-z_]{0,8}\\s*$", "").trim();
         // Quotes the model sometimes wraps around the message.
         if (t.length() >= 2 && ((t.startsWith("\"") && t.endsWith("\"")) || (t.startsWith("“") && t.endsWith("”")))) {
             t = t.substring(1, t.length() - 1).trim();

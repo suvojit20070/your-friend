@@ -118,6 +118,7 @@ public final class AutoReplyTool extends BaseTool {
             case "disable": {
                 boolean on = inv.str("action").equals("enable");
                 g.settings.put(AutoReplyStore.ENABLED, on);
+                com.suvo.agent.launch.Tiles.refreshAutoReply(g.ctx);
                 String note = on && !AutoReplyStore.hasAccess(g.ctx)
                         ? " Notification access is not allowed yet: ask the user to open Settings → Auto reply and allow it." : "";
                 return ToolResult.ok("Auto reply " + (on ? "on." : "off.") + note);

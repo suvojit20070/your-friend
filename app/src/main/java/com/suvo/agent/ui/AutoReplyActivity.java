@@ -90,6 +90,7 @@ public final class AutoReplyActivity extends BaseActivity implements AutoReplySt
 
         r.note(getString(R.string.ar_intro));
         r.switchRow(R.drawable.ic_chat, R.string.ar_enable, R.string.ar_enable_desc, AutoReplyStore.ENABLED, false, on -> {
+            com.suvo.agent.launch.Tiles.refreshAutoReply(this);
             if (on && !AutoReplyStore.hasAccess(this)) openAccess();
             build();
         });
