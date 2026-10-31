@@ -978,4 +978,7 @@
     <string name="sel_translate_prompt">これを私の言語に翻訳して（すでにそうなら英語に）。</string>
     <string name="sel_reply_prompt">このメッセージに短く親しみやすい返信を書いて。</string>
     <string name="sel_fix_prompt">この文の文法とスペルを直して。直した文だけを出して。</string>
+    <string name="settings_brain_model">コンパニオンの頭脳モデル</string>
+    <string name="settings_memory_model">メモリーモデル</string>
+    <string name="same_as_main_model">メインモデルと同じ</string>
 </resources>

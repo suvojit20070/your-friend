@@ -985,4 +985,7 @@
     <string name="sel_translate_prompt">এটা আমার ভাষায় অনুবাদ করো (আগে থেকেই হলে ইংরেজিতে)।</string>
     <string name="sel_reply_prompt">এই মেসেজের একটা ছোট, বন্ধুত্বপূর্ণ উত্তর লেখো।</string>
     <string name="sel_fix_prompt">এই লেখার ব্যাকরণ আর বানান ঠিক করো; শুধু ঠিক করা লেখাটা দাও।</string>
+    <string name="settings_brain_model">সঙ্গীর ব্রেন মডেল</string>
+    <string name="settings_memory_model">মেমোরি মডেল</string>
+    <string name="same_as_main_model">মূল মডেলের মতোই</string>
 </resources>

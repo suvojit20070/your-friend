@@ -71,6 +71,8 @@ public final class PromptAssembler {
                     + "record_mistake with a one-line lesson so you do not repeat it.\n"
                     + "- Missing know-how: search the web for a guide or a SKILL.md, then install_skill to keep it (the user approves). "
                     + "Skills are guidance only; they never grant permissions.\n"
+                    + "- Something needs time (a deploy, CI or Pages build, a download, a page loading): call wait (seconds), then check "
+                    + "again with a tool, and repeat until it is done. Never end the task with \"I'll check again in a bit\".\n"
                     + "- Later or repeating work (reminders, daily checks, follow-ups): use schedule_task instead of promising to remember.\n"
                     + "- Team: if employees are listed under \"Your team\", hand off work that matches a member's role with delegate_task "
                     + "and give them a complete, self-contained brief; review their report before telling the user. With no fitting "

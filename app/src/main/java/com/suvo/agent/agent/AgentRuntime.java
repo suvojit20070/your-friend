@@ -253,7 +253,8 @@ public final class AgentRuntime {
                 for (ConversationRepo.StoredMessage sm : g.conversations.messages(conversationId, false)) {
                     if (task.id.equals(sm.taskId)) recent.add(sm.message);
                 }
-                List<MemoryExtractor.Action> acts = new MemoryExtractor().extract(recent, g.memory, llm, "conversation:" + conversationId, new CancellationToken());
+                LlmClient memLlm = RoleModels.clientOr(g, RoleModels.MEMORY, llm);
+                List<MemoryExtractor.Action> acts = new MemoryExtractor().extract(recent, g.memory, memLlm, "conversation:" + conversationId, new CancellationToken());
                 int added = 0;
                 for (MemoryExtractor.Action a : acts) if (a.kind == MemoryExtractor.Action.Kind.ADDED || a.kind == MemoryExtractor.Action.Kind.UPDATED) added++;
                 if (added > 0) {

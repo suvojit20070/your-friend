@@ -1026,4 +1026,7 @@
     <string name="sel_translate_prompt">Ise meri bhasha mein translate karo (pehle se ho to English mein).</string>
     <string name="sel_reply_prompt">Is message ka chhota, friendly reply likho.</string>
     <string name="sel_fix_prompt">Is text ki grammar aur spelling theek karo; sirf theek kiya hua text do.</string>
+    <string name="settings_brain_model">Companion brain model</string>
+    <string name="settings_memory_model">Memory model</string>
+    <string name="same_as_main_model">Main model jaisa</string>
 </resources>

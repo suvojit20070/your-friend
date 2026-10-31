@@ -1074,4 +1074,7 @@
     <string name="sel_translate_prompt">Translate this into my language (or into English if it already is).</string>
     <string name="sel_reply_prompt">Write a short, friendly reply to this message.</string>
     <string name="sel_fix_prompt">Fix the grammar and spelling of this text; give only the corrected text.</string>
+    <string name="settings_brain_model">Companion brain model</string>
+    <string name="settings_memory_model">Memory model</string>
+    <string name="same_as_main_model">Same as main model</string>
 </resources>

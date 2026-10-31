@@ -182,12 +182,14 @@ public final class AndroidAgentHost implements AgentHost {
     private boolean compact(ContextCompactor.Plan plan, TaskState task) {
         notice.notice("Summarizing older messages to stay within the model's context");
         String previous = g.conversations.summary(conversationId);
-        ContextCompactor.Result r = compactor.summarize(plan, previous, task.progressSummary(12), llm, cancel);
+        // Summaries and memories can use the cheaper "memory" model chosen in Settings → AI.
+        LlmClient memLlm = RoleModels.clientOr(g, RoleModels.MEMORY, llm);
+        ContextCompactor.Result r = compactor.summarize(plan, previous, task.progressSummary(12), memLlm, cancel);
         if (r.compactedIds.isEmpty()) return false;
         g.conversations.applyCompaction(conversationId, r.summary, r.compactedIds);
         if (g.settings.bool(Settings.AUTO_MEMORY, true)) {
             try {
-                new MemoryExtractor().extract(plan.toCompact, g.memory, llm, "conversation:" + conversationId, cancel);
+                new MemoryExtractor().extract(plan.toCompact, g.memory, memLlm, "conversation:" + conversationId, cancel);
             } catch (RuntimeException ignored) {
             }
         }

@@ -166,6 +166,18 @@ public final class SettingsActivity extends BaseActivity {
         r.switchRow(R.drawable.ic_screen, R.string.settings_keep_screen_on, R.string.settings_keep_screen_on_desc, Settings.KEEP_SCREEN_ON, false, null);
         r.switchRow(R.drawable.ic_tools, R.string.settings_tool_calling, R.string.settings_tool_calling_desc, Settings.TOOL_CALLING, true, null);
         r.switchRow(R.drawable.ic_check, R.string.settings_verify_done, R.string.settings_verify_done_desc, Settings.VERIFY_DONE, true, null);
+        // Background work can use another (cheaper / faster) provider than the agent itself.
+        java.util.List<com.suvo.agent.core.llm.ProviderConfig> provs = g.providers.list();
+        String[] pl = new String[provs.size() + 1], pv = new String[provs.size() + 1];
+        pl[0] = getString(R.string.same_as_main_model);
+        pv[0] = "";
+        for (int i = 0; i < provs.size(); i++) {
+            com.suvo.agent.core.llm.ProviderConfig p = provs.get(i);
+            pl[i + 1] = p.name + (p.model == null || p.model.isEmpty() ? "" : " · " + p.model);
+            pv[i + 1] = String.valueOf(p.id);
+        }
+        r.choiceRow(R.drawable.ic_character, R.string.settings_brain_model, com.suvo.agent.agent.RoleModels.BRAIN, "", pl, pv, null);
+        r.choiceRow(R.drawable.ic_memory, R.string.settings_memory_model, com.suvo.agent.agent.RoleModels.MEMORY, "", pl, pv, null);
         // Each limit has its own "no limit" switch; the slider is only shown while the limit is on.
         r.switchRow(R.drawable.ic_agent, R.string.settings_no_limit_steps, R.string.settings_no_limit_desc, Settings.NO_LIMIT_STEPS, false, on -> build());
         if (!g.settings.bool(Settings.NO_LIMIT_STEPS, false))

@@ -19,6 +19,7 @@ public final class FollowThrough {
 
     public static final String REMINDER = MARKER + " Your last reply announced work but called no tool, so nothing happened yet. "
             + "Do it now: call the tools needed for the next step (shell / execute_* / file_write / ...), check the result, and "
+            + "if something must finish first, call wait (seconds) and then check again; "
             + "continue until the task is done. If you are truly blocked, say exactly what blocks you and what the user can do — "
             + "do not just say you are working on it. Before saying something is impossible, check the device "
             + "(e.g. shell: which <tool>, pkg install -y <package> in Termux) and the installed skills.";
@@ -27,9 +28,10 @@ public final class FollowThrough {
             "(\\bi('ll| will| am going to|'m going to| am now|'m now)\\b"
                     + "|\\blet me\\b|\\bworking on it\\b|\\bi'?m (doing|creating|building|starting|working|writing|setting up|installing|checking)\\b"
                     + "|\\bi am (doing|creating|building|starting|working|writing|setting up|installing|checking)\\b"
-                    + "|\\b(give me|wait) a (moment|minute|second|sec)\\b|\\bplease wait\\b|\\bstarting now\\b|\\bon it\\b"
+                    + "|\\b(give me|wait) a (moment|minute|second|sec)\\b|\\bplease wait\\b|\\bcheck (again|back) (in|after|later)\\b|\\bstarting now\\b|\\bon it\\b"
                     // Hinglish / Hindi (Latin)
-                    + "|kar raha|kar rahi|kar rhi|kar rha|karta hu|karti hu|karunga|karungi|kar deta|kar deti|bana raha|bana rahi|"
+                    + "|kar raha|kar rahi|kar rhi|kar rha|karta hu|karti hu|karta hoon|karti hoon|karta hun|check karta|dekhta hoon|dekhti hoon|"
+                    + "wait karke|thoda wait|baad mein check|phir check|karunga|karungi|kar deta|kar deti|bana raha|bana rahi|"
                     + "banata hu|banati hu|banaunga|banaungi|shuru kar|abhi karta|abhi karti|ruko|ek minute|wait karo"
                     // Bengali (Latin)
                     + "|korchi|korbo|banacchi|banachhi|baniye dichhi|shuru korchi|ekhuni korchi"

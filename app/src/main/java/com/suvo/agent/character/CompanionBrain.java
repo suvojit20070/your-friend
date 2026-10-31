@@ -144,7 +144,7 @@ final class CompanionBrain {
         try {
             AppGraph g = AppGraph.get();
             if (!g.settings.bool(SETTING, true)) return false;
-            ProviderConfig p = g.providers.active();
+            ProviderConfig p = com.suvo.agent.agent.RoleModels.provider(g, com.suvo.agent.agent.RoleModels.BRAIN);
             return p != null && p.validate() == null;
         } catch (RuntimeException e) {
             return false;
@@ -254,7 +254,7 @@ final class CompanionBrain {
             st.personality = spec.personality;
         }
 
-        ProviderConfig p = g.providers.active();
+        ProviderConfig p = com.suvo.agent.agent.RoleModels.provider(g, com.suvo.agent.agent.RoleModels.BRAIN);
         if (p == null) return 60_000;
         boolean canShot = p.supportsVision && AgentAccessibilityService.canCaptureScreen() && AgentAccessibilityService.get() != null;
         boolean canAsk = g.settings.bool(AGENT_SETTING, true) && System.currentTimeMillis() - lastAgentAsk > AGENT_GAP_MS;
