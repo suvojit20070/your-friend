@@ -280,6 +280,21 @@
         <activity android:name=".ui.ScheduleActivity" android:exported="false" />
         <activity android:name=".ui.MarkdownScaleActivity" android:exported="false" />
         <activity android:name=".ui.ConnectorsActivity" android:exported="false" android:launchMode="singleTop" />
+        <activity android:name=".ui.AutoReplyActivity" android:exported="false" android:launchMode="singleTop" />
+        <!-- Auto reply: reads chat notifications (after the user allows notification access) and answers
+             through their inline reply box. -->
+        <service
+            android:name=".autoreply.ReplyListener"
+            android:exported="true"
+            android:label="@string/ar_title"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <receiver
+            android:name=".autoreply.DraftReceiver"
+            android:exported="false" />
         <activity android:name=".ui.ConnectorWebActivity" android:exported="false" android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 

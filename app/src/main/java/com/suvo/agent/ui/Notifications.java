@@ -16,6 +16,7 @@ public final class Notifications {
     public static final String CHANNEL_LISTEN = "listen";
     public static final String CHANNEL_COMPANION = "companion";
     public static final String CHANNEL_GENERAL = "general";
+    public static final String CHANNEL_AUTO_REPLY = "auto_reply";
 
     public static final int ID_AGENT = 1001;
     public static final int ID_CAPTURE = 1002;
@@ -38,6 +39,7 @@ public final class Notifications {
         nm.createNotificationChannel(new NotificationChannel(CHANNEL_LISTEN, ctx.getString(R.string.channel_listen), NotificationManager.IMPORTANCE_LOW));
         nm.createNotificationChannel(new NotificationChannel(CHANNEL_COMPANION, ctx.getString(R.string.channel_companion), NotificationManager.IMPORTANCE_MIN));
         nm.createNotificationChannel(new NotificationChannel(CHANNEL_GENERAL, ctx.getString(R.string.channel_general), NotificationManager.IMPORTANCE_DEFAULT));
+        nm.createNotificationChannel(new NotificationChannel(CHANNEL_AUTO_REPLY, ctx.getString(R.string.channel_auto_reply), NotificationManager.IMPORTANCE_HIGH));
     }
 
     public static Notification.Builder builder(Context ctx, String channel) {

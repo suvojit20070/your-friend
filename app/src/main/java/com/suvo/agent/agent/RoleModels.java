@@ -10,7 +10,7 @@ import com.suvo.agent.core.llm.ProviderConfig;
  *
  * Which model does the background work. The agent itself uses the main (default) provider; the
  * floating character's brain and the memory work (saving memories, summarising long chats) can
- * use another one from the user's providers — typically a cheaper, faster model — set in
+ * (and auto reply to chat notifications) can use another one from the user's providers — typically a cheaper, faster model — set in
  * Settings → AI. Not set, or that provider is gone / incomplete: the main provider.
  */
 public final class RoleModels {
@@ -19,7 +19,7 @@ public final class RoleModels {
     }
 
     /** Settings keys (value = provider id, "" = same as the main provider). */
-    public static final String BRAIN = "provider_for_brain", MEMORY = "provider_for_memory";
+    public static final String BRAIN = "provider_for_brain", MEMORY = "provider_for_memory", REPLY = "provider_for_reply";
 
     public static ProviderConfig provider(AppGraph g, String role) {
         String v = g.settings.str(role, "").trim();
