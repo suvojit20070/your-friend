@@ -94,6 +94,7 @@ public final class AppGraph {
         this.ctx = ctx;
         settings = Settings.get(ctx);
         db = Db.get(ctx);
+        SecretStore.attach(ctx);
         secrets = SecretStore.get();
         conversations = new ConversationRepo(db);
         memory = new SqlMemoryStore(db);
