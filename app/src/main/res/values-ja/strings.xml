@@ -1131,4 +1131,9 @@
     <string name="appalert_perms_asked">要求された機密権限（未許可）</string>
     <string name="appalert_perms_other">その他の権限 (%1$d)</string>
     <string name="appalert_no_perms">権限なし。</string>
+    <string name="appalert_updates">アプリの更新も知らせる</string>
+    <string name="appalert_updates_desc">旧 → 新バージョン、更新元（Play ストア・Play 開発者サービス・システム…）</string>
+    <string name="appalert_update_title">アプリが更新されました: %1$s</string>
+    <string name="appalert_updated_chip">更新</string>
+    <string name="appalert_update_line">バージョン %1$s</string>
 </resources>

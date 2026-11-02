@@ -33,7 +33,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Your Friend — Original project by Suvo.
  *
  * New app install alert. Apps can appear without the user doing anything (Play services, the
- * system or an OEM store installing silently). Every new install:
+ * system or an OEM store installing silently). Every new install (and, when switched on, every
+ * update, with the old and new version):
  * <ul>
  *   <li>shows a notification with the basics and Uninstall / Details buttons;</li>
  *   <li>is always written to a log (Settings → New app install alert), with whether the
@@ -46,6 +47,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class AppAlerts {
 
     public static final String ENABLED = "appalert_enabled";
+    /** Also alert when an installed app is updated (Play Store auto-updates, silent system updates…). */
+    public static final String UPDATES = "appalert_updates";
     public static final String EXTRA_PKG = "appalert_pkg";
 
     private static final int JOB_ID = 7701;
@@ -107,6 +110,8 @@ public final class AppAlerts {
                         try {
                             if (Intent.ACTION_PACKAGE_ADDED.equals(action) && !i.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
                                 onInstalled(c, pkg, false);
+                            } else if (Intent.ACTION_PACKAGE_REPLACED.equals(action)) {
+                                onUpdated(c, pkg, false);
                             } else if (Intent.ACTION_PACKAGE_FULLY_REMOVED.equals(action)) {
                                 markRemoved(c, pkg);
                             }
@@ -118,6 +123,7 @@ public final class AppAlerts {
             };
             IntentFilter f = new IntentFilter();
             f.addAction(Intent.ACTION_PACKAGE_ADDED);
+            f.addAction(Intent.ACTION_PACKAGE_REPLACED);
             f.addAction(Intent.ACTION_PACKAGE_FULLY_REMOVED);
             f.addDataScheme("package");
             try {
@@ -177,8 +183,11 @@ public final class AppAlerts {
             // First run: remember where we are, alert from now on.
             ChangedPackages cp = pm.getChangedPackages(0);
             p.edit().putLong("last_scan", now).putInt("seq", cp == null ? 0 : cp.getSequenceNumber()).putInt("boot", boot).apply();
+            baselineVersions(ctx);
             return;
         }
+        // Older installs of this feature had no version list yet: start one (old → new on updates).
+        if (!p.contains("versions")) baselineVersions(ctx);
         List<String> names = new ArrayList<>();
         ChangedPackages cp = pm.getChangedPackages(Math.max(0, seq));
         int newSeq = seq;
@@ -191,6 +200,7 @@ public final class AppAlerts {
                 PackageInfo pi = pm.getPackageInfo(name, 0);
                 // A little slack for clock rounding; updates keep their old first-install time.
                 if (pi.firstInstallTime >= lastScan - 5_000) onInstalled(ctx, name, true);
+                else if (pi.lastUpdateTime >= lastScan - 5_000) onUpdated(ctx, name, true);
             } catch (PackageManager.NameNotFoundException ignored) {
                 markRemoved(ctx, name);
             }
@@ -229,6 +239,121 @@ public final class AppAlerts {
         e.risky = info.risky.size() + info.dangerousGranted.size();
         e.notified = notify(ctx, info, late);
         add(ctx, e);
+        rememberVersion(ctx, pkg, info);
+    }
+
+    /** An installed app got a new version: log it (always) and notify, with the old version when known. */
+    static void onUpdated(Context ctx, String pkg, boolean late) {
+        if (!enabled(ctx) || !Settings.get(ctx).bool(UPDATES, true) || pkg == null || pkg.equals(ctx.getPackageName())) return;
+        AppInfoReader.Info info = AppInfoReader.read(ctx, pkg);
+        if (!info.installed) return;
+        String key = pkg + "#u" + info.versionCode + "@" + info.lastUpdate;
+        synchronized (AppAlerts.class) {
+            for (Entry e : log(ctx)) if (e.key.equals(key)) return;
+        }
+        String old = versionOf(ctx, pkg);
+        Entry e = new Entry();
+        e.key = key;
+        e.pkg = pkg;
+        e.label = info.label;
+        e.version = info.version;
+        e.oldVersion = old;
+        e.update = true;
+        e.installer = info.installer;
+        e.installerLabel = info.installerLabel;
+        e.system = info.system;
+        e.time = info.lastUpdate > 0 ? info.lastUpdate : System.currentTimeMillis();
+        e.found = System.currentTimeMillis();
+        e.late = late;
+        e.risky = info.risky.size() + info.dangerousGranted.size();
+        e.notified = notifyUpdate(ctx, info, old, late);
+        add(ctx, e);
+        rememberVersion(ctx, pkg, info);
+    }
+
+    // ---- known versions (to show "old → new" on updates)
+
+    private static synchronized JSONObject versions(Context ctx) {
+        try {
+            return new JSONObject(prefs(ctx).getString("versions", "{}"));
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    private static String versionOf(Context ctx, String pkg) {
+        return versions(ctx).optString(pkg, "");
+    }
+
+    private static synchronized void rememberVersion(Context ctx, String pkg, AppInfoReader.Info info) {
+        JSONObject v = versions(ctx);
+        try {
+            v.put(pkg, info.version.isEmpty() ? String.valueOf(info.versionCode) : info.version);
+        } catch (Exception ignored) {
+        }
+        prefs(ctx).edit().putString("versions", v.toString()).apply();
+    }
+
+    private static synchronized void forgetVersion(Context ctx, String pkg) {
+        JSONObject v = versions(ctx);
+        v.remove(pkg);
+        prefs(ctx).edit().putString("versions", v.toString()).apply();
+    }
+
+    /** First run: remember every app's current version. */
+    @SuppressWarnings("deprecation")
+    private static synchronized void baselineVersions(Context ctx) {
+        JSONObject v = new JSONObject();
+        try {
+            for (PackageInfo pi : ctx.getPackageManager().getInstalledPackages(0)) {
+                v.put(pi.packageName, pi.versionName == null ? String.valueOf(pi.versionCode) : pi.versionName);
+            }
+        } catch (Exception ignored) {
+        }
+        prefs(ctx).edit().putString("versions", v.toString()).apply();
+    }
+
+    private static boolean notifyUpdate(Context ctx, AppInfoReader.Info info, String old, boolean late) {
+        NotificationManager nm = ctx.getSystemService(NotificationManager.class);
+        if (nm == null || !nm.areNotificationsEnabled()) return false;
+        String channel = Notifications.channel(ctx, Notifications.CHANNEL_APP_ALERT);
+        NotificationChannel ch = nm.getNotificationChannel(channel);
+        if (ch == null) {
+            Notifications.createChannels(ctx);
+            ch = nm.getNotificationChannel(channel);
+        }
+        if (ch != null && ch.getImportance() == NotificationManager.IMPORTANCE_NONE) return false;
+        int id = 7600 + (info.pkg.hashCode() & 0x3ff);
+        Intent details = new Intent(ctx, AppAlertActivity.class).putExtra(EXTRA_PKG, info.pkg)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pDetails = PendingIntent.getActivity(ctx, id, details, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pUninstall = PendingIntent.getActivity(ctx, id + 1000, AppInfoReader.uninstallIntent(info.pkg),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        String versions = (old.isEmpty() ? "?" : old) + " → " + (info.version.isEmpty() ? String.valueOf(info.versionCode) : info.version);
+        StringBuilder big = new StringBuilder();
+        big.append(info.pkg).append("\n").append(ctx.getString(R.string.appalert_update_line, versions));
+        big.append("\n").append(ctx.getString(R.string.appalert_by, info.installerLabel.isEmpty()
+                ? ctx.getString(R.string.appalert_unknown_installer) : info.installerLabel));
+        if (info.system) big.append("\n").append(ctx.getString(R.string.appalert_system));
+        if (!info.risky.isEmpty()) big.append("\n⚠ ").append(info.risky.get(0));
+        if (late) big.append("\n").append(ctx.getString(R.string.appalert_found_late));
+        Notification n = Notifications.builder(ctx, Notifications.CHANNEL_APP_ALERT)
+                .setSmallIcon(R.drawable.ic_stat_companion)
+                .setContentTitle(ctx.getString(R.string.appalert_update_title, info.label))
+                .setContentText(versions + (info.installerLabel.isEmpty() ? "" : " · " + info.installerLabel))
+                .setStyle(new Notification.BigTextStyle().bigText(big))
+                .setContentIntent(pDetails)
+                .setAutoCancel(true)
+                .setCategory(Notification.CATEGORY_STATUS)
+                .addAction(new Notification.Action.Builder(null, ctx.getString(R.string.appalert_uninstall), pUninstall).build())
+                .addAction(new Notification.Action.Builder(null, ctx.getString(R.string.appalert_details), pDetails).build())
+                .build();
+        try {
+            nm.notify(id, n);
+            return true;
+        } catch (RuntimeException ex) {
+            return false;
+        }
     }
 
     private static boolean notify(Context ctx, AppInfoReader.Info info, boolean late) {
@@ -279,16 +404,16 @@ public final class AppAlerts {
     // ------------------------------------------------------------------ log
 
     public static final class Entry {
-        public String key = "", pkg = "", label = "", version = "", installer = "", installerLabel = "";
+        public String key = "", pkg = "", label = "", version = "", oldVersion = "", installer = "", installerLabel = "";
         public long time, found;
-        public boolean system, late, notified, removed, seen;
+        public boolean system, late, notified, removed, seen, update;
         public int risky;
 
         JSONObject json() throws Exception {
             return new JSONObject().put("key", key).put("pkg", pkg).put("label", label).put("version", version)
                     .put("installer", installer).put("installerLabel", installerLabel).put("time", time).put("found", found)
                     .put("system", system).put("late", late).put("notified", notified).put("removed", removed)
-                    .put("seen", seen).put("risky", risky);
+                    .put("seen", seen).put("risky", risky).put("update", update).put("oldVersion", oldVersion);
         }
 
         static Entry from(JSONObject o) {
@@ -307,6 +432,8 @@ public final class AppAlerts {
             e.removed = o.optBoolean("removed");
             e.seen = o.optBoolean("seen");
             e.risky = o.optInt("risky");
+            e.update = o.optBoolean("update");
+            e.oldVersion = o.optString("oldVersion");
             return e;
         }
     }
@@ -340,6 +467,7 @@ public final class AppAlerts {
     }
 
     static synchronized void markRemoved(Context ctx, String pkg) {
+        forgetVersion(ctx, pkg);
         List<Entry> all = log(ctx);
         boolean any = false;
         for (Entry e : all) {

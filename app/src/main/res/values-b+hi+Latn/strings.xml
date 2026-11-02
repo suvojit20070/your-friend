@@ -1180,4 +1180,9 @@
     <string name="appalert_perms_asked">Maangi gayi sensitive permissions (di nahi)</string>
     <string name="appalert_perms_other">Baaki permissions (%1$d)</string>
     <string name="appalert_no_perms">Koi permission nahi.</string>
+    <string name="appalert_updates">App update pe bhi alert do</string>
+    <string name="appalert_updates_desc">Purana → naya version, kisne update kiya (Play Store, Play services, system…)</string>
+    <string name="appalert_update_title">App update hua: %1$s</string>
+    <string name="appalert_updated_chip">Updated</string>
+    <string name="appalert_update_line">Version %1$s</string>
 </resources>

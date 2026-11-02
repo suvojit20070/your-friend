@@ -1139,4 +1139,9 @@
     <string name="appalert_perms_asked">চাওয়া সংবেদনশীল অনুমতি (দেওয়া হয়নি)</string>
     <string name="appalert_perms_other">অন্যান্য অনুমতি (%1$d)</string>
     <string name="appalert_no_perms">কোনো অনুমতি নেই।</string>
+    <string name="appalert_updates">অ্যাপ আপডেটেও সতর্ক করো</string>
+    <string name="appalert_updates_desc">পুরনো → নতুন সংস্করণ, কে আপডেট করেছে (Play Store, Play services, সিস্টেম…)</string>
+    <string name="appalert_update_title">অ্যাপ আপডেট হয়েছে: %1$s</string>
+    <string name="appalert_updated_chip">আপডেট</string>
+    <string name="appalert_update_line">সংস্করণ %1$s</string>
 </resources>

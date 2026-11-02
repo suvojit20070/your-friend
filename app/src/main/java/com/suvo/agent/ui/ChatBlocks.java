@@ -296,7 +296,7 @@ final class ChatBlocks {
         LinearLayout c = new LinearLayout(ctx);
         c.setOrientation(LinearLayout.VERTICAL);
         c.setBackground(new TonalDrawable(st.codeBackground, Ui.dp(ctx, 20)));
-        c.setClipToOutline(true);
+        // No clipping: buttons inside keep their press effect whole; children are spaced by margins.
         return c;
     }
 
@@ -322,34 +322,72 @@ final class ChatBlocks {
         return t;
     }
 
-    /** A small pill button with the spring press. */
-    private static TextView pill(Context ctx, int icon, CharSequence text, Markdown.Style st, View.OnClickListener l) {
+    /**
+     * A small capsule button: the capsule carries the background and press; the icon and label
+     * inside are spaced with their own margins.
+     */
+    private static View pill(Context ctx, int icon, CharSequence text, Markdown.Style st, View.OnClickListener l) {
         Palette pal = Palette.of(ctx);
-        TextView b = new TextView(ctx, null, 0, R.style.YF_Caption);
-        b.setText(text);
-        b.setTextSize(13f);
-        b.setTextColor(st.marker);
+        LinearLayout b = new LinearLayout(ctx);
+        b.setOrientation(LinearLayout.HORIZONTAL);
         b.setGravity(Gravity.CENTER_VERTICAL);
-        b.setSingleLine(true);
-        b.setEllipsize(TextUtils.TruncateAt.END);
         b.setBackground(new TonalDrawable(Palette.alpha(st.marker, 0.13f), -1).pressable(pal.pressed()));
-        b.setPadding(Ui.dp(ctx, icon != 0 ? 10 : 14), Ui.dp(ctx, 7), Ui.dp(ctx, 14), Ui.dp(ctx, 7));
         if (icon != 0) {
-            android.graphics.drawable.Drawable d = ctx.getDrawable(icon);
-            if (d != null) {
-                d = d.mutate();
-                int s = Ui.dp(ctx, 16);
-                d.setBounds(0, 0, s, s);
-                d.setTint(st.marker);
-                b.setCompoundDrawables(d, null, null, null);
-                b.setCompoundDrawablePadding(Ui.dp(ctx, 6));
-            }
+            ImageView iv = new ImageView(ctx);
+            iv.setImageResource(icon);
+            iv.setImageTintList(android.content.res.ColorStateList.valueOf(st.marker));
+            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(Ui.dp(ctx, 16), Ui.dp(ctx, 16));
+            ip.setMargins(Ui.dp(ctx, 10), Ui.dp(ctx, 8), 0, Ui.dp(ctx, 8));
+            b.addView(iv, ip);
         }
+        TextView t = new TextView(ctx, null, 0, R.style.YF_Caption);
+        t.setText(text);
+        t.setTextSize(13f);
+        t.setTextColor(st.marker);
+        t.setSingleLine(true);
+        t.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tp.setMargins(Ui.dp(ctx, icon != 0 ? 6 : 14), Ui.dp(ctx, 7), Ui.dp(ctx, 14), Ui.dp(ctx, 7));
+        b.addView(t, tp);
         b.setClickable(true);
+        b.setContentDescription(text);
         b.setOnClickListener(l);
-        b.setTag(R.id.fx_press, Boolean.TRUE);
-        PressEffect.setEffect(new PressEffect.Options().scale(1.08f).maxShift(4f), b);
+        LiquidPress.attach(b, LiquidPress.TEXT);
         return b;
+    }
+
+    /** A round / rounded badge: background on the frame, the icon inside placed with margins. */
+    private static FrameLayout badge(Context ctx, int icon, int iconTint, int bg, float radiusDp, int sizeDp, int iconDp) {
+        FrameLayout f = new FrameLayout(ctx);
+        f.setBackground(new TonalDrawable(bg, radiusDp < 0 ? -1 : Ui.dp(ctx, radiusDp)));
+        ImageView iv = new ImageView(ctx);
+        iv.setTag("badge_icon");
+        iv.setImageResource(icon);
+        iv.setImageTintList(android.content.res.ColorStateList.valueOf(iconTint));
+        int m = Ui.dp(ctx, (sizeDp - iconDp) / 2f);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.dp(ctx, iconDp), Ui.dp(ctx, iconDp), Gravity.CENTER);
+        lp.setMargins(m, m, m, m);
+        f.addView(iv, lp);
+        return f;
+    }
+
+    private static ImageView badgeIcon(FrameLayout f) {
+        return (ImageView) f.findViewWithTag("badge_icon");
+    }
+
+    /** A tinted label chip: background on the frame, the text inside with margins. */
+    private static FrameLayout chip(Context ctx, CharSequence text, int color) {
+        FrameLayout f = new FrameLayout(ctx);
+        f.setBackground(new TonalDrawable(Palette.alpha(color, 0.14f), -1));
+        TextView t = new TextView(ctx, null, 0, R.style.YF_Caption);
+        t.setText(text);
+        t.setTextSize(12f);
+        t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setTextColor(color);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(Ui.dp(ctx, 10), Ui.dp(ctx, 3), Ui.dp(ctx, 10), Ui.dp(ctx, 3));
+        f.addView(t, lp);
+        return f;
     }
 
     private static LinearLayout row(Context ctx) {
@@ -382,6 +420,7 @@ final class ChatBlocks {
 
     private static View image(Context ctx, Parsed p, Markdown.Style st) {
         LinearLayout c = card(ctx, st);
+        c.setClipToOutline(true); // rounded picture corners
         ImageView iv = new ImageView(ctx);
         iv.setAdjustViewBounds(true);
         iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -477,13 +516,17 @@ final class ChatBlocks {
         ImageView thumb = new ImageView(ctx);
         thumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
         frame.addView(thumb, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h));
-        ImageView play = new ImageView(ctx);
-        play.setImageResource(R.drawable.ic_play);
-        play.setImageTintList(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
-        play.setBackground(new TonalDrawable(0x66000000, -1));
-        int ps = Ui.dp(ctx, 56);
-        play.setPadding(Ui.dp(ctx, 14), Ui.dp(ctx, 14), Ui.dp(ctx, 14), Ui.dp(ctx, 14));
-        frame.addView(play, new FrameLayout.LayoutParams(ps, ps, Gravity.CENTER));
+        FrameLayout play = badge(ctx, R.drawable.ic_play, 0xFFFFFFFF, 0x66000000, -1, 56, 28);
+        frame.addView(play, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        frame.setClipToOutline(true);
+        frame.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override
+            public void getOutline(View v, android.graphics.Outline o) {
+                float r = Ui.dp(ctx, 20);
+                // Rounded top only (the caption bar sits below).
+                o.setRoundRect(0, 0, v.getWidth(), v.getHeight() + Math.round(r), r);
+            }
+        });
         c.addView(frame, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h));
         LinearLayout bar = row(ctx);
         TextView name = caption(ctx, p.caption.isEmpty() ? (p.title.isEmpty() ? nameOf(p.src) : p.title) : p.caption, st);
@@ -514,8 +557,12 @@ final class ChatBlocks {
             if (fb != null) MAIN.post(() -> thumb.setImageBitmap(fb));
         });
 
-        frame.setOnClickListener(v -> {
+        // Plays only after a real tap on the picture (never by itself when the chat opens or rebinds).
+        final VideoView[] holder = new VideoView[1];
+        Runnable start = () -> {
+            if (holder[0] != null) return;
             VideoView vv = new VideoView(ctx);
+            holder[0] = vv;
             MediaController mc = new MediaController(ctx);
             mc.setAnchorView(vv);
             vv.setMediaController(mc);
@@ -525,15 +572,48 @@ final class ChatBlocks {
             vv.setOnPreparedListener(mp -> {
                 thumb.setVisibility(View.GONE);
                 play.setVisibility(View.GONE);
-                mp.start();
+                vv.start();
             });
             vv.setOnErrorListener((mp, what, extra) -> {
                 Ui.toast(ctx, R.string.block_video_error);
                 return true;
             });
-            frame.setOnClickListener(null);
             frame.addView(vv, 0, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.CENTER));
-            vv.requestFocus();
+        };
+        int slop = android.view.ViewConfiguration.get(ctx).getScaledTouchSlop();
+        float[] down = new float[3];
+        frame.setOnTouchListener((v, e) -> {
+            if (holder[0] != null) return false; // the player's own controls take over
+            switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    down[0] = e.getX();
+                    down[1] = e.getY();
+                    down[2] = e.getEventTime();
+                    return true;
+                case android.view.MotionEvent.ACTION_UP:
+                    if (Math.abs(e.getX() - down[0]) < slop && Math.abs(e.getY() - down[1]) < slop
+                            && e.getEventTime() - down[2] < 500) start.run();
+                    return true;
+                default:
+                    return true;
+            }
+        });
+        c.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View v) {
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View v) {
+                VideoView vv = holder[0];
+                if (vv != null) {
+                    vv.stopPlayback();
+                    frame.removeView(vv);
+                    holder[0] = null;
+                    thumb.setVisibility(View.VISIBLE);
+                    play.setVisibility(View.VISIBLE);
+                }
+            }
         });
         return c;
     }
@@ -547,18 +627,14 @@ final class ChatBlocks {
     private static View audio(Context ctx, Parsed p, Markdown.Style st) {
         LinearLayout c = card(ctx, st);
         LinearLayout top = row(ctx);
-        ImageView btn = new ImageView(ctx);
-        btn.setImageResource(R.drawable.ic_play);
-        btn.setImageTintList(android.content.res.ColorStateList.valueOf(st.onMarker));
-        btn.setBackground(new TonalDrawable(st.marker, -1));
-        int s = Ui.dp(ctx, 42);
-        btn.setPadding(Ui.dp(ctx, 11), Ui.dp(ctx, 11), Ui.dp(ctx, 11), Ui.dp(ctx, 11));
-        btn.setClickable(true);
-        btn.setTag(R.id.fx_press, Boolean.TRUE);
-        PressEffect.setEffect(new PressEffect.Options().scale(1.12f).maxShift(4f), btn);
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(s, s);
+        FrameLayout btnBox = badge(ctx, R.drawable.ic_play, st.onMarker, st.marker, -1, 42, 20);
+        ImageView btn = badgeIcon(btnBox);
+        btnBox.setClickable(true);
+        btnBox.setContentDescription(ctx.getString(R.string.block_open));
+        LiquidPress.attach(btnBox, LiquidPress.CIRCLE);
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         bp.setMarginEnd(Ui.dp(ctx, 12));
-        top.addView(btn, bp);
+        top.addView(btnBox, bp);
         LinearLayout texts = new LinearLayout(ctx);
         texts.setOrientation(LinearLayout.VERTICAL);
         TextView name = new TextView(ctx, null, 0, R.style.YF_RowTitle);
@@ -593,7 +669,7 @@ final class ChatBlocks {
             }
             MAIN.postDelayed(tick[0], 300);
         };
-        btn.setOnClickListener(v -> {
+        btnBox.setOnClickListener(v -> {
             if (player != null && p.src.equals(playing)) {
                 if (player.isPlaying()) {
                     player.pause();
@@ -691,13 +767,8 @@ final class ChatBlocks {
     private static View file(Context ctx, Parsed p, Markdown.Style st) {
         LinearLayout c = card(ctx, st);
         LinearLayout top = row(ctx);
-        ImageView icon = new ImageView(ctx);
-        icon.setImageResource(R.drawable.ic_files);
-        icon.setImageTintList(android.content.res.ColorStateList.valueOf(st.marker));
-        icon.setBackground(new TonalDrawable(Palette.alpha(st.marker, 0.13f), Ui.dp(ctx, 14)));
-        int s = Ui.dp(ctx, 44);
-        icon.setPadding(Ui.dp(ctx, 11), Ui.dp(ctx, 11), Ui.dp(ctx, 11), Ui.dp(ctx, 11));
-        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(s, s);
+        FrameLayout icon = badge(ctx, R.drawable.ic_files, st.marker, Palette.alpha(st.marker, 0.13f), 14, 44, 22);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         ip.setMarginEnd(Ui.dp(ctx, 12));
         top.addView(icon, ip);
         LinearLayout texts = new LinearLayout(ctx);
@@ -767,14 +838,7 @@ final class ChatBlocks {
         LinearLayout c = card(ctx, st);
         c.setBackground(new TonalDrawable(Palette.alpha(st.marker, 0.08f), Ui.dp(ctx, 20)));
         LinearLayout head = row(ctx);
-        TextView chip = new TextView(ctx, null, 0, R.style.YF_Caption);
-        chip.setText(p.title.isEmpty() ? ctx.getString(R.string.block_draft) : p.title);
-        chip.setTextSize(12f);
-        chip.setTypeface(Typeface.DEFAULT_BOLD);
-        chip.setTextColor(st.marker);
-        chip.setBackground(new TonalDrawable(Palette.alpha(st.marker, 0.14f), -1));
-        chip.setPadding(Ui.dp(ctx, 10), Ui.dp(ctx, 3), Ui.dp(ctx, 10), Ui.dp(ctx, 3));
-        head.addView(chip);
+        head.addView(chip(ctx, p.title.isEmpty() ? ctx.getString(R.string.block_draft) : p.title, st.marker));
         c.addView(head, margins(ctx, 14, 12, 14, 4));
         if (!p.to.isEmpty()) c.addView(caption(ctx, ctx.getString(R.string.block_draft_to, p.to), st), margins(ctx, 14, 4, 14, 0));
         if (!p.subject.isEmpty()) {

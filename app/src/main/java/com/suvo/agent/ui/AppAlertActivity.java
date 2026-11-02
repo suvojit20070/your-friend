@@ -83,6 +83,9 @@ public final class AppAlertActivity extends BaseActivity implements AppAlerts.Li
             else AppAlerts.stop(this);
             build();
         });
+        if (g.settings.bool(AppAlerts.ENABLED, true)) {
+            r.switchRow(R.drawable.ic_refresh, R.string.appalert_updates, R.string.appalert_updates_desc, AppAlerts.UPDATES, true, null);
+        }
         android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
         if (nm != null && !nm.areNotificationsEnabled()) {
             r.row(R.drawable.ic_bell, getString(R.string.appalert_notif_off), getString(R.string.appalert_notif_off_desc),
@@ -103,6 +106,8 @@ public final class AppAlertActivity extends BaseActivity implements AppAlerts.Li
         SimpleDateFormat f = new SimpleDateFormat("d MMM, HH:mm", Locale.getDefault());
         for (AppAlerts.Entry e : log) {
             StringBuilder sub = new StringBuilder(e.pkg);
+            if (e.update) sub.append("\n").append(getString(R.string.appalert_update_line,
+                    (e.oldVersion.isEmpty() ? "?" : e.oldVersion) + " → " + e.version));
             sub.append("\n").append(f.format(new Date(e.time)));
             sub.append(" · ").append(e.installerLabel.isEmpty() ? getString(R.string.appalert_unknown_installer) : e.installerLabel);
             if (e.late) sub.append(" · ").append(getString(R.string.appalert_late_short));
@@ -114,6 +119,9 @@ public final class AppAlertActivity extends BaseActivity implements AppAlerts.Li
             } else if (!e.notified) {
                 chip = getString(R.string.appalert_not_notified);
                 color = pal.error;
+            } else if (e.update) {
+                chip = getString(R.string.appalert_updated_chip);
+                color = pal.primary;
             } else if (e.risky > 0) {
                 chip = "⚠ " + e.risky;
                 color = pal.error;
