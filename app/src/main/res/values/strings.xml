@@ -1240,4 +1240,10 @@
     <string name="media_play">Play</string>
     <string name="media_pause">Pause</string>
     <string name="media_stop">Stop</string>
+    <string name="media_tap_to_play">Tap to play</string>
+    <string name="media_shuffle">Shuffle</string>
+    <string name="media_repeat">Repeat</string>
+    <string name="media_prev">Previous</string>
+    <string name="media_next">Next</string>
+    <string name="media_queue">Track %1$s · Your Friend</string>
 </resources>

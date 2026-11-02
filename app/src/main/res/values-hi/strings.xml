@@ -1151,4 +1151,10 @@
     <string name="media_play">चलाएँ</string>
     <string name="media_pause">रोकें</string>
     <string name="media_stop">बंद करें</string>
+    <string name="media_tap_to_play">चलाने के लिए टैप करें</string>
+    <string name="media_shuffle">शफ़ल</string>
+    <string name="media_repeat">दोहराएँ</string>
+    <string name="media_prev">पिछला</string>
+    <string name="media_next">अगला</string>
+    <string name="media_queue">ट्रैक %1$s · Your Friend</string>
 </resources>

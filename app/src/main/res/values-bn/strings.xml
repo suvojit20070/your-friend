@@ -1151,4 +1151,10 @@
     <string name="media_play">চালাও</string>
     <string name="media_pause">থামাও</string>
     <string name="media_stop">বন্ধ</string>
+    <string name="media_tap_to_play">চালাতে ট্যাপ করুন</string>
+    <string name="media_shuffle">শাফল</string>
+    <string name="media_repeat">রিপিট</string>
+    <string name="media_prev">আগের</string>
+    <string name="media_next">পরের</string>
+    <string name="media_queue">ট্র্যাক %1$s · Your Friend</string>
 </resources>

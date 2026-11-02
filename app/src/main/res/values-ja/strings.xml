@@ -1143,4 +1143,10 @@
     <string name="media_play">再生</string>
     <string name="media_pause">一時停止</string>
     <string name="media_stop">停止</string>
+    <string name="media_tap_to_play">タップして再生</string>
+    <string name="media_shuffle">シャッフル</string>
+    <string name="media_repeat">リピート</string>
+    <string name="media_prev">前へ</string>
+    <string name="media_next">次へ</string>
+    <string name="media_queue">トラック %1$s · Your Friend</string>
 </resources>

@@ -65,6 +65,9 @@ final class ChatBlocks {
         void sendMessage(String text);
 
         void putInComposer(String text);
+
+        /** Every audio track in the chat, in order (the play queue). */
+        List<ChatMedia.Track> audioQueue();
     }
 
     static Actions actions;
@@ -755,56 +758,48 @@ final class ChatBlocks {
 
     // ---- audio
 
-    /** The audio being played (kept while the chat is closed; the notification controls it). */
-    private static final class AudioTarget implements ChatMedia.Target {
-        final MediaPlayer mp;
-        boolean prepared;
-
-        AudioTarget(MediaPlayer mp) {
-            this.mp = mp;
-        }
-
-        @Override
-        public void play() {
-            if (prepared) mp.start();
-        }
-
-        @Override
-        public void pause() {
-            if (prepared && mp.isPlaying()) mp.pause();
-        }
-
-        @Override
-        public void release() {
-            try {
-                mp.release();
-            } catch (RuntimeException ignored) {
+    /** Every ```audio block in a Markdown text, in order (for the chat's play queue). */
+    static List<ChatMedia.Track> audioTracks(Context ctx, String markdown) {
+        List<ChatMedia.Track> out = new ArrayList<>();
+        if (markdown == null || markdown.isEmpty()) return out;
+        String[] lines = markdown.replace("\r", "").split("\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            String l = lines[i].trim();
+            if (!l.startsWith("```")) continue;
+            String lang = l.substring(3).trim().toLowerCase(Locale.ROOT);
+            if (lang.startsWith("yf-")) lang = lang.substring(3);
+            StringBuilder body = new StringBuilder();
+            int j = i + 1;
+            while (j < lines.length && !lines[j].trim().startsWith("```")) {
+                body.append(lines[j]).append('\n');
+                j++;
             }
-        }
-
-        @Override
-        public boolean isPlaying() {
-            try {
-                return prepared && mp.isPlaying();
-            } catch (IllegalStateException e) {
-                return false;
+            if (AUDIO.contains(lang)) {
+                Parsed p = parse(body.toString(), false);
+                if (!p.src.isEmpty()) out.add(track(ctx, p));
             }
+            i = j;
         }
+        return out;
+    }
 
-        @Override
-        public int position() {
-            return prepared ? mp.getCurrentPosition() : 0;
-        }
+    private static String audioName(Parsed p) {
+        return p.title.isEmpty() ? (p.caption.isEmpty() ? nameOf(p.src) : p.caption) : p.title;
+    }
 
-        @Override
-        public int duration() {
-            return prepared ? mp.getDuration() : 0;
-        }
+    private static ChatMedia.Track track(Context ctx, Parsed p) {
+        File f = localFile(ctx, p.src);
+        return new ChatMedia.Track(p.src, audioName(p), f == null ? null : f.getPath());
+    }
 
-        @Override
-        public void seekTo(int ms) {
-            if (prepared) mp.seekTo(ms);
-        }
+    /** A small icon button for the player (the frame carries the press, the icon has margins). */
+    private static FrameLayout iconButton(Context ctx, int icon, int tint, View.OnClickListener l) {
+        FrameLayout b = badge(ctx, icon, tint, 0, -1, 38, 20);
+        b.setBackground(new TonalDrawable(0, -1).pressable(Palette.of(ctx).pressed()));
+        b.setClickable(true);
+        b.setOnClickListener(l);
+        LiquidPress.attach(b, LiquidPress.ICON);
+        return b;
     }
 
     private static View audio(Context ctx, Parsed p, Markdown.Style st) {
@@ -821,47 +816,75 @@ final class ChatBlocks {
         LinearLayout texts = new LinearLayout(ctx);
         texts.setOrientation(LinearLayout.VERTICAL);
         TextView nameView = new TextView(ctx, null, 0, R.style.YF_RowTitle);
-        String name = p.title.isEmpty() ? (p.caption.isEmpty() ? nameOf(p.src) : p.caption) : p.title;
+        String name = audioName(p);
         nameView.setText(name);
         nameView.setSingleLine(true);
         nameView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
         texts.addView(nameView);
-        TextView time = caption(ctx, "0:00", st);
+        TextView time = caption(ctx, ctx.getString(R.string.media_tap_to_play), st);
         texts.addView(time);
         top.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        c.addView(top, margins(ctx, 12, 12, 12, 0));
-        // The app's liquid slider as the progress bar (drag to seek).
+        c.addView(top, margins(ctx, 12, 12, 12, 12));
+
+        // Only the playing track shows the progress slider and the queue controls.
+        LinearLayout player = new LinearLayout(ctx);
+        player.setOrientation(LinearLayout.VERTICAL);
+        player.setVisibility(View.GONE);
         LiquidSlider seek = new LiquidSlider(ctx);
         seek.setValueFrom(0);
         seek.setValueTo(1000);
         seek.setStepSize(0);
-        c.addView(seek, margins(ctx, -14, 0, -14, 4));
+        player.addView(seek, margins(ctx, -14, -8, -14, 0));
+        LinearLayout ctl = row(ctx);
+        ctl.setGravity(Gravity.CENTER);
+        int on = st.marker, off = Palette.alpha(st.muted, 0.9f);
+        FrameLayout shuffleB = iconButton(ctx, R.drawable.ic_shuffle, off, v -> ChatMedia.toggleShuffle(ctx));
+        FrameLayout prevB = iconButton(ctx, R.drawable.ic_skip_prev, on, v -> ChatMedia.previous());
+        FrameLayout nextB = iconButton(ctx, R.drawable.ic_skip_next, on, v -> ChatMedia.next());
+        FrameLayout repeatB = iconButton(ctx, R.drawable.ic_repeat, off, v -> ChatMedia.cycleRepeat(ctx));
+        TextView queuePos = caption(ctx, "", st);
+        for (View b : new View[]{shuffleB, prevB, nextB, repeatB}) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(Ui.dp(ctx, 6), 0, Ui.dp(ctx, 6), 0);
+            ctl.addView(b, lp);
+            if (b == prevB) {
+                LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                qp.setMargins(Ui.dp(ctx, 10), 0, Ui.dp(ctx, 10), 0);
+                ctl.addView(queuePos, qp);
+            }
+        }
+        player.addView(ctl, margins(ctx, 12, 0, 12, 10));
+        c.addView(player, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         final boolean[] dragging = new boolean[1];
         Runnable[] tick = new Runnable[1];
-        Runnable paint = () -> {
+        tick[0] = () -> {
             boolean mine = p.src.equals(ChatMedia.current());
             ChatMedia.Target t = ChatMedia.target();
             btn.setImageResource(mine && t != null && t.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
-            if (!mine) {
-                if (!dragging[0]) seek.setValue(0);
-                time.setText("0:00");
-            }
-        };
-        tick[0] = () -> {
-            ChatMedia.Target t = ChatMedia.target();
-            if (t == null || !p.src.equals(ChatMedia.current())) {
-                paint.run();
+            player.setVisibility(mine ? View.VISIBLE : View.GONE);
+            if (!mine || t == null) {
+                time.setText(ctx.getString(R.string.media_tap_to_play));
                 return;
             }
             try {
                 int d = t.duration(), pos = t.position();
                 if (d > 0 && !dragging[0]) seek.setValue(pos * 1000f / d);
-                time.setText(fmt(pos) + " / " + fmt(d));
+                time.setText(d > 0 ? fmt(pos) + " / " + fmt(d) : ctx.getString(R.string.block_loading));
             } catch (RuntimeException ignored) {
             }
-            paint.run();
-            MAIN.postDelayed(tick[0], 400);
+            String qp = ChatMedia.queuePosition();
+            boolean list = !qp.isEmpty();
+            queuePos.setText(qp);
+            for (View b : new View[]{shuffleB, prevB, nextB, repeatB, queuePos}) b.setVisibility(list ? View.VISIBLE : View.GONE);
+            ctl.setVisibility(list ? View.VISIBLE : View.GONE);
+            badgeIcon(shuffleB).setImageResource(ChatMedia.shuffle() ? R.drawable.ic_shuffle : R.drawable.ic_shuffle_off);
+            badgeIcon(shuffleB).setImageTintList(android.content.res.ColorStateList.valueOf(ChatMedia.shuffle() ? on : off));
+            int rp = ChatMedia.repeat();
+            badgeIcon(repeatB).setImageResource(rp == ChatMedia.REPEAT_ONE ? R.drawable.ic_repeat_one : rp == ChatMedia.REPEAT_ALL ? R.drawable.ic_repeat : R.drawable.ic_repeat_off);
+            badgeIcon(repeatB).setImageTintList(android.content.res.ColorStateList.valueOf(rp == ChatMedia.REPEAT_OFF ? off : on));
+            MAIN.removeCallbacks(tick[0]);
+            if (t.isPlaying()) MAIN.postDelayed(tick[0], 400);
         };
         ChatMedia.Listener listener = () -> {
             MAIN.removeCallbacks(tick[0]);
@@ -872,39 +895,20 @@ final class ChatBlocks {
                 ChatMedia.toggle();
                 return;
             }
-            MediaPlayer mp = new MediaPlayer();
-            AudioTarget target = new AudioTarget(mp);
-            try {
-                mp.setAudioAttributes(new android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC).build());
-                File f = localFile(ctx, p.src);
-                if (f != null) mp.setDataSource(f.getPath());
-                else mp.setDataSource(ctx, Uri.parse(p.src));
-                mp.setOnPreparedListener(m -> {
-                    target.prepared = true;
-                    m.start();
-                    ChatMedia.changed();
-                });
-                mp.setOnCompletionListener(m -> {
-                    try {
-                        m.seekTo(0);
-                    } catch (RuntimeException ignored) {
-                    }
-                    ChatMedia.changed();
-                });
-                mp.setOnErrorListener((m, w, e) -> {
-                    Ui.toast(ctx, R.string.block_audio_error);
-                    ChatMedia.stop();
-                    return true;
-                });
-                ChatMedia.start(ctx, p.src, name, true, target);
-                time.setText(ctx.getString(R.string.block_loading));
-                mp.prepareAsync();
-            } catch (Exception e) {
-                target.release();
-                Ui.toast(ctx, R.string.block_audio_error);
+            // The whole chat's audio becomes the queue, starting at this track.
+            List<ChatMedia.Track> tracks = actions != null ? actions.audioQueue() : null;
+            int start = -1;
+            if (tracks != null) for (int i = 0; i < tracks.size(); i++) if (tracks.get(i).src.equals(p.src)) {
+                start = i;
+                break;
             }
+            if (tracks == null || start < 0) {
+                tracks = new ArrayList<>();
+                tracks.add(track(ctx, p));
+                start = 0;
+            }
+            time.setText(ctx.getString(R.string.block_loading));
+            ChatMedia.playQueue(ctx, tracks, start);
         });
         seek.addOnSliderTouchListener(new LiquidSlider.OnSliderTouchListener() {
             @Override

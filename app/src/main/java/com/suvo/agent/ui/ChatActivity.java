@@ -1296,6 +1296,20 @@ public final class ChatActivity extends BaseActivity {
         }
 
         @Override
+        public List<ChatMedia.Track> audioQueue() {
+            List<ChatMedia.Track> all = new ArrayList<>();
+            for (Item it : items) {
+                if ((it.type == ASSISTANT || it.type == STREAM) && it.text != null && it.text.contains("```")) {
+                    all.addAll(ChatBlocks.audioTracks(ChatActivity.this, it.text));
+                }
+            }
+            // The same track twice in a chat plays once.
+            java.util.LinkedHashMap<String, ChatMedia.Track> unique = new java.util.LinkedHashMap<>();
+            for (ChatMedia.Track t : all) if (!unique.containsKey(t.src)) unique.put(t.src, t);
+            return new ArrayList<>(unique.values());
+        }
+
+        @Override
         public void putInComposer(String text) {
             input.setText(text);
             input.setSelection(input.getText().length());
