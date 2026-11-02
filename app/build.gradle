@@ -95,6 +95,9 @@ android {
         resources {
             // Mail libraries ship the same licence files; JavaMail's own META-INF/javamail.* stay.
             excludes += ['META-INF/LICENSE.md', 'META-INF/NOTICE.md', 'META-INF/LICENSE.txt', 'META-INF/NOTICE.txt']
+            // OSGi manifests (JSch and JSpecify — the latter comes with Material 1.13) clash and are
+            // not used on Android.
+            excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF', 'META-INF/versions/*/OSGI-INF/MANIFEST.MF']
         }
     }
 }
