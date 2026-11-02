@@ -37,6 +37,7 @@ warnings = []
 # Styles that come from libraries in app/build.gradle (Material Components), not from this project.
 LIBRARY_STYLES = {
     "Theme.Material3.Light.NoActionBar", "Theme.Material3.Dark.NoActionBar", "Theme.Material3.DayNight.NoActionBar",
+    "Widget.Material3.LoadingIndicator", "Widget.Material3.LoadingIndicator.Contained",
 }
 
 
@@ -115,6 +116,8 @@ def check_xml_refs(defined):
                     if t == "+id":
                         continue
                     key = n.replace(".", "_") if t == "style" else n
+                    if t == "style" and n in LIBRARY_STYLES:
+                        continue
                     if t in defined and key not in defined[t]:
                         err(f"{rel}: missing resource @{t}/{n}")
                 for m in re.finditer(r"\?attr/([A-Za-z0-9_]+)", v):
