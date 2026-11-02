@@ -155,10 +155,15 @@ public final class WebSession {
         layoutDetached();
     }
 
-    /** A small floating browser at the bottom of the screen, with a title and a close button. */
+    /**
+     * A floating browser over other apps, with a title and a close button. Drag the title bar to
+     * move it; drag the corner grip to resize it.
+     */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
     private static void showOverlay(Context ctx) {
         try {
             float d = ctx.getResources().getDisplayMetrics().density;
+            WindowManager wm = (WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
             android.widget.LinearLayout box = new android.widget.LinearLayout(ctx);
             box.setOrientation(android.widget.LinearLayout.VERTICAL);
             android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
@@ -193,14 +198,69 @@ public final class WebSession {
             box.addView(content, new android.widget.LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
             FrameLayout root = new FrameLayout(ctx);
             root.addView(box, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            android.widget.ImageView grip = new android.widget.ImageView(ctx);
+            grip.setImageResource(com.suvo.agent.R.drawable.ic_resize_grip);
+            grip.setBackgroundResource(com.suvo.agent.R.drawable.bg_grip);
+            int gp = Math.round(6 * d);
+            grip.setPadding(gp, gp, gp, gp);
+            FrameLayout.LayoutParams glp = new FrameLayout.LayoutParams(Math.round(30 * d), Math.round(30 * d), Gravity.BOTTOM | Gravity.END);
+            glp.setMargins(0, 0, Math.round(6 * d), Math.round(6 * d));
+            root.addView(grip, glp);
+
             int sw = ctx.getResources().getDisplayMetrics().widthPixels, sh = ctx.getResources().getDisplayMetrics().heightPixels;
             WindowManager.LayoutParams lp = new WindowManager.LayoutParams(Math.round(sw * 0.94f), Math.round(sh * 0.5f),
                     WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                     PixelFormat.TRANSLUCENT);
-            lp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
-            lp.y = Math.round(24 * d);
-            ((WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE)).addView(root, lp);
+            lp.gravity = Gravity.TOP | Gravity.START;
+            lp.x = (sw - lp.width) / 2;
+            lp.y = sh - lp.height - Math.round(24 * d);
+
+            // Move: drag the title bar.
+            final float[] mv = new float[4];
+            bar.setOnTouchListener((v, e) -> {
+                switch (e.getActionMasked()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        mv[0] = e.getRawX();
+                        mv[1] = e.getRawY();
+                        mv[2] = lp.x;
+                        mv[3] = lp.y;
+                        return true;
+                    case android.view.MotionEvent.ACTION_MOVE:
+                        lp.x = Math.round(Math.max(-lp.width * 0.6f, Math.min(sw - lp.width * 0.4f, mv[2] + e.getRawX() - mv[0])));
+                        lp.y = Math.round(Math.max(0, Math.min(sh - 48 * d, mv[3] + e.getRawY() - mv[1])));
+                        try {
+                            wm.updateViewLayout(root, lp);
+                        } catch (RuntimeException ignored) {
+                        }
+                        return true;
+                    default:
+                        return true;
+                }
+            });
+            // Resize: drag the corner grip.
+            final float[] rs = new float[4];
+            grip.setOnTouchListener((v, e) -> {
+                switch (e.getActionMasked()) {
+                    case android.view.MotionEvent.ACTION_DOWN:
+                        rs[0] = e.getRawX();
+                        rs[1] = e.getRawY();
+                        rs[2] = lp.width;
+                        rs[3] = lp.height;
+                        return true;
+                    case android.view.MotionEvent.ACTION_MOVE:
+                        lp.width = Math.round(Math.max(200 * d, Math.min(sw - Math.max(0, lp.x), rs[2] + e.getRawX() - rs[0])));
+                        lp.height = Math.round(Math.max(160 * d, Math.min(sh - Math.max(0, lp.y), rs[3] + e.getRawY() - rs[1])));
+                        try {
+                            wm.updateViewLayout(root, lp);
+                        } catch (RuntimeException ignored) {
+                        }
+                        return true;
+                    default:
+                        return true;
+                }
+            });
+            wm.addView(root, lp);
             overlay = root;
         } catch (RuntimeException e) {
             overlay = null;

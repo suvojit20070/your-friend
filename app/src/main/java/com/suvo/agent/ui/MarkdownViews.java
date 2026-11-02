@@ -41,7 +41,7 @@ final class MarkdownViews {
         void onSelecting(boolean active);
     }
 
-    private static final int KIND_TEXT = 1, KIND_CODE = 2, KIND_TABLE = 3, KIND_QUOTE = 4;
+    private static final int KIND_TEXT = 1, KIND_CODE = 2, KIND_TABLE = 3, KIND_QUOTE = 4, KIND_BLOCK = 5;
 
     static void fill(LinearLayout box, List<Markdown.Block> blocks, Markdown.Style st, float textSp, float lineExtraPx,
                      int textColor) {
@@ -53,7 +53,7 @@ final class MarkdownViews {
         for (int i = 0; i < blocks.size(); i++) {
             Markdown.Block b = blocks.get(i);
             View old = i < box.getChildCount() ? box.getChildAt(i) : null;
-            int kind = b.type == Markdown.Block.CODE ? KIND_CODE : b.type == Markdown.Block.TABLE ? KIND_TABLE
+            int kind = ChatBlocks.handles(b) ? KIND_BLOCK : b.type == Markdown.Block.CODE ? KIND_CODE : b.type == Markdown.Block.TABLE ? KIND_TABLE
                     : b.type == Markdown.Block.QUOTE ? KIND_QUOTE : KIND_TEXT;
             if (old != null && Integer.valueOf(kind).equals(old.getTag(R.id.md_kind))) {
                 String sig = old.getTag(R.id.md_block) == b ? (String) old.getTag(R.id.md_sig) : b.signature();
@@ -91,6 +91,10 @@ final class MarkdownViews {
                 break;
             case KIND_QUOTE:
                 v = quote(ctx, b, st, textSp, lineExtraPx, selectable, hook);
+                break;
+            case KIND_BLOCK:
+                // Image / video / audio / file / link / draft / buttons (the answer is final when selectable).
+                v = ChatBlocks.view(ctx, b, st, selectable);
                 break;
             default:
                 v = text(ctx, b.text, st, textSp, lineExtraPx, textColor, selectable, hook);

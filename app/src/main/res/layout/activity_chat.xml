@@ -192,6 +192,20 @@
                 android:layout_marginStart="6dp"
                 android:layout_marginEnd="6dp"
                 android:layout_marginBottom="6dp" />
+
+            <!-- Drag this corner to resize the panel (the title bar moves it). -->
+            <ImageView
+                android:id="@+id/chat_browser_grip"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="end"
+                android:layout_marginTop="-32dp"
+                android:layout_marginEnd="4dp"
+                android:layout_marginBottom="2dp"
+                android:background="@drawable/bg_grip"
+                android:contentDescription="@string/browser_resize_drag"
+                android:padding="6dp"
+                android:src="@drawable/ic_resize_grip" />
         </LinearLayout>
 
         <LinearLayout
@@ -212,12 +226,14 @@
                 android:paddingBottom="4dp"
                 android:visibility="gone">
 
-                <ProgressBar
+                <!-- Material 3 Expressive loading indicator while the AI thinks / works (coloured
+                     from the app's accent in code). -->
+                <com.google.android.material.loadingindicator.LoadingIndicator
                     android:id="@+id/chat_progress"
-                    style="?android:attr/progressBarStyleSmall"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:tag="accent" />
+                    style="@style/Widget.Material3.LoadingIndicator.Contained"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:indeterminate="true" />
 
                 <TextView
                     android:id="@+id/chat_status_text"

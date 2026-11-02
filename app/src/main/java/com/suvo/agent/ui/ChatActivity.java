@@ -115,8 +115,17 @@ public final class ChatActivity extends BaseActivity {
     /** The conversation: a scrolling column of message rows (rows are kept, never recycled). */
     private ScrollView list;
     private LinearLayout listBox;
-    /** Rows shown from the end of the conversation; "Show earlier" adds more. */
-    private int shownLimit = 80;
+    /**
+     * Only a window of the conversation is laid out: rows [winStart, winEnd) of items. Scrolling near
+     * the top loads older rows and drops rows at the bottom; scrolling back down does the reverse.
+     * Keeps long chats smooth (every row is a full view, never recycled).
+     */
+    private static final int WINDOW = 60, PAGE = 20;
+    private int winStart = -1, winEnd = -1;
+    /** The window follows the end of the conversation (new messages appear). */
+    private boolean winAtEnd = true;
+    private long winConversation = Long.MIN_VALUE;
+    private boolean paging;
     /** Scroll to the end on the next layout of the column (content height changes after binding). */
     private boolean followPending;
     /** Text size factor from Settings > Markdown scale. */
@@ -218,6 +227,7 @@ public final class ChatActivity extends BaseActivity {
         listBox.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (followPending) list.scrollTo(0, listBox.getHeight());
         });
+        list.setOnScrollChangeListener((v, x, y, ox, oy) -> pageIfNeeded(y, oy));
         input = findViewById(R.id.chat_input);
         send = findViewById(R.id.chat_send);
         adapter = new Adapter();
@@ -765,6 +775,7 @@ public final class ChatActivity extends BaseActivity {
         super.onStart();
         g.agent.addListener(agentListener);
         browserPanel.start();
+        ChatBlocks.actions = blockActions;
         // Markdown scale changed in settings: rebuild every row at the new size.
         float k = MarkdownScaleActivity.scale(this);
         if (k != textScale) {
@@ -780,6 +791,8 @@ public final class ChatActivity extends BaseActivity {
     protected void onStop() {
         g.agent.removeListener(agentListener);
         browserPanel.stop();
+        if (ChatBlocks.actions == blockActions) ChatBlocks.actions = null;
+        ChatBlocks.stopPlayer();
         if (speechInput.isListening()) speechInput.cancel();
         super.onStop();
     }
@@ -801,7 +814,20 @@ public final class ChatActivity extends BaseActivity {
         boolean running = g.agent.isRunning();
         View status = findViewById(R.id.chat_status);
         status.setVisibility(running || findViewById(R.id.chat_memory_chip).getVisibility() == View.VISIBLE ? View.VISIBLE : View.GONE);
-        findViewById(R.id.chat_progress).setVisibility(running ? View.VISIBLE : View.GONE);
+        View progress = findViewById(R.id.chat_progress);
+        progress.setVisibility(running ? View.VISIBLE : View.GONE);
+        if (running && progress instanceof com.google.android.material.loadingindicator.LoadingIndicator) {
+            Palette pal = Palette.of(this);
+            com.google.android.material.loadingindicator.LoadingIndicator li = (com.google.android.material.loadingindicator.LoadingIndicator) progress;
+            if (li.getTag(R.id.theme_tint) != pal) {
+                li.setTag(R.id.theme_tint, pal);
+                li.setContainerWidth(Ui.dp(this, 30));
+                li.setContainerHeight(Ui.dp(this, 30));
+                li.setIndicatorSize(Ui.dp(this, 20));
+                li.setIndicatorColor(new int[]{pal.primary});
+                li.setContainerColor(Palette.alpha(pal.primary, 0.16f));
+            }
+        }
         ((TextView) findViewById(R.id.chat_status_text)).setText(running && text != null ? text : "");
         send.setImageResource(running ? R.drawable.ic_stop : R.drawable.ic_send);
         send.setContentDescription(getString(running ? R.string.action_stop : R.string.send));
@@ -1125,12 +1151,95 @@ public final class ChatActivity extends BaseActivity {
 
     /** Shows the end of the conversation (after the rows have been laid out). */
     private void scrollToEnd() {
+        if (!winAtEnd || (winEnd >= 0 && winEnd < items.size())) {
+            winAtEnd = true;
+            adapter.notifyDataSetChanged();
+        }
         followPending = true;
         list.post(() -> {
             list.scrollTo(0, listBox.getHeight());
             // Keep following through the next layout passes (images, code cards measuring late).
             list.postDelayed(() -> followPending = false, 250);
         });
+    }
+
+    /** Buttons and drafts the AI puts in an answer (```buttons / ```draft blocks). */
+    private final ChatBlocks.Actions blockActions = new ChatBlocks.Actions() {
+        @Override
+        public void sendMessage(String text) {
+            if (text == null || text.trim().isEmpty()) return;
+            if (g.agent.isRunning()) {
+                Ui.toast(ChatActivity.this, R.string.block_busy);
+                return;
+            }
+            submit(text);
+        }
+
+        @Override
+        public void putInComposer(String text) {
+            input.setText(text);
+            input.setSelection(input.getText().length());
+            input.requestFocus();
+            android.view.inputmethod.InputMethodManager imm = getSystemService(android.view.inputmethod.InputMethodManager.class);
+            if (imm != null) imm.showSoftInput(input, 0);
+        }
+    };
+
+    /** Loads older rows near the top / newer rows near the bottom, dropping rows on the other side. */
+    private void pageIfNeeded(int y, int oldY) {
+        if (paging || followPending || selecting || items.isEmpty() || winStart < 0) return;
+        int margin = Math.max(list.getHeight(), Ui.dp(this, 400));
+        int n = items.size();
+        if (y < oldY && y < margin && winStart > 0) {
+            int ns = Math.max(0, winStart - PAGE);
+            int ne = Math.min(winEnd, ns + WINDOW);
+            moveWindow(ns, ne);
+        } else if (y > oldY && winEnd < n && y + list.getHeight() > listBox.getHeight() - margin) {
+            int ne = Math.min(n, winEnd + PAGE);
+            int ns = Math.max(winStart, ne - WINDOW);
+            moveWindow(ns, ne);
+        }
+    }
+
+    /** Changes the window, keeping the row the user is looking at in the same place on screen. */
+    private void moveWindow(int ns, int ne) {
+        // Anchor: the first row at or below the top of the screen that stays in the window.
+        View anchor = null;
+        int anchorOffset = 0, y = list.getScrollY();
+        for (int i = 0; i < listBox.getChildCount(); i++) {
+            View c = listBox.getChildAt(i);
+            Object t = c.getTag(R.id.chat_bound);
+            if (!(t instanceof long[])) continue;
+            int idx = indexOfId(((long[]) t)[0]);
+            if (idx < ns || idx >= ne) continue;
+            if (c.getBottom() > y) {
+                anchor = c;
+                anchorOffset = c.getTop() - y;
+                break;
+            }
+        }
+        paging = true;
+        winStart = ns;
+        winEnd = ne;
+        winAtEnd = ne >= items.size();
+        adapter.notifyDataSetChanged();
+        final View a = anchor;
+        final int off = anchorOffset;
+        listBox.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                listBox.removeOnLayoutChangeListener(this);
+                if (a != null && a.getParent() == listBox) list.scrollTo(0, Math.max(0, a.getTop() - off));
+                list.post(() -> paging = false);
+            }
+        });
+        listBox.requestLayout();
+    }
+
+    private int indexOfId(long id) {
+        for (int i = Math.max(0, winStart - PAGE); i < items.size(); i++) if (items.get(i).id == id) return i;
+        for (int i = 0; i < items.size(); i++) if (items.get(i).id == id) return i;
+        return -1;
     }
 
     /** The current item with this id (rows keep their listeners across rebuilds). */
@@ -1408,9 +1517,22 @@ public final class ChatActivity extends BaseActivity {
         }
 
         void notifyDataSetChanged() {
-            int start = Math.max(0, items.size() - shownLimit);
+            int n = items.size();
+            if (winConversation != conversationId) {
+                winConversation = conversationId;
+                winAtEnd = true;
+                winStart = -1;
+            }
+            if (winAtEnd || winStart < 0) {
+                winEnd = n;
+                if (winStart < 0 || winEnd - winStart > WINDOW) winStart = Math.max(0, n - WINDOW);
+            } else {
+                winEnd = Math.min(winEnd, n);
+                winStart = Math.max(0, Math.min(winStart, Math.max(0, winEnd - 1)));
+            }
+            int start = winStart, end = winEnd;
             java.util.Set<Long> want = new java.util.HashSet<>();
-            for (int i = start; i < items.size(); i++) want.add(items.get(i).id);
+            for (int i = start; i < end; i++) want.add(items.get(i).id);
             // 1. Drop rows that are no longer shown (the others keep their order).
             java.util.Map<Long, View> byId = new java.util.HashMap<>();
             for (int i = listBox.getChildCount() - 1; i >= 0; i--) {
@@ -1421,17 +1543,11 @@ public final class ChatActivity extends BaseActivity {
                 if (!want.contains(id) || byId.containsKey(id)) listBox.removeViewAt(i);
                 else byId.put(id, c);
             }
-            // 2. "Show earlier" at the top when older messages are hidden.
+            // 2. (Older / newer rows load by themselves while scrolling.)
             int idx = 0;
-            if (start > 0) {
-                if (earlier == null) earlier = earlierChip();
-                if (earlier.getParent() == null) listBox.addView(earlier, 0);
-                idx = 1;
-            } else if (earlier != null && earlier.getParent() != null) {
-                listBox.removeView(earlier);
-            }
+            if (earlier != null && earlier.getParent() != null) listBox.removeView(earlier);
             // 3. Bind / insert in order.
-            for (int i = start; i < items.size(); i++) {
+            for (int i = start; i < end; i++) {
                 Item it = items.get(i);
                 View old = byId.get(it.id);
                 View v = getView(i, old, listBox);
@@ -1447,40 +1563,6 @@ public final class ChatActivity extends BaseActivity {
                 idx++;
             }
             while (listBox.getChildCount() > idx) listBox.removeViewAt(listBox.getChildCount() - 1);
-        }
-
-        /** Loads older messages above, keeping what you were reading in place. */
-        private View earlierChip() {
-            Palette pal = Palette.of(ChatActivity.this);
-            TextView c = new TextView(ChatActivity.this, null, 0, R.style.YF_Body);
-            c.setText(R.string.chat_show_earlier);
-            c.setTextSize(14f);
-            c.setTextColor(pal.primary);
-            c.setGravity(Gravity.CENTER);
-            c.setBackground(new TonalDrawable(Palette.alpha(pal.primary, 0.12f), -1).pressable(pal.pressed()));
-            int ph = Ui.dp(ChatActivity.this, 18), pv = Ui.dp(ChatActivity.this, 9);
-            c.setPadding(ph, pv, ph, pv);
-            c.setClickable(true);
-            c.setOnClickListener(x -> {
-                int before = listBox.getHeight(), y = list.getScrollY();
-                shownLimit += 80;
-                notifyDataSetChanged();
-                listBox.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-                    @Override
-                    public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
-                        listBox.removeOnLayoutChangeListener(this);
-                        list.scrollTo(0, y + (listBox.getHeight() - before));
-                    }
-                });
-            });
-            LiquidPress.attach(c, LiquidPress.TEXT);
-            LinearLayout wrap = new LinearLayout(ChatActivity.this);
-            wrap.setGravity(Gravity.CENTER_HORIZONTAL);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.setMargins(0, Ui.dp(ChatActivity.this, 8), 0, Ui.dp(ChatActivity.this, 8));
-            wrap.addView(c, lp);
-            wrap.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            return wrap;
         }
 
         View getView(int position, View convertView, ViewGroup parent) {

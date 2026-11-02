@@ -68,6 +68,7 @@ public final class BuiltinTools {
         add(g, () -> new ConnectorTools.Email(g));
         add(g, () -> new ConnectorTools.Web(g));
         add(g, () -> new AutoReplyTool(g));
+        add(g, () -> new HttpsRequestTool(g));
         add(g, () -> new MemorySkillTools.Memory(g));
         add(g, () -> new MemorySkillTools.LoadSkill(g));
         add(g, () -> new MemorySkillTools.MetaTools(g));

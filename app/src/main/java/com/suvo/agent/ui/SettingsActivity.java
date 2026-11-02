@@ -32,6 +32,8 @@ public final class SettingsActivity extends BaseActivity {
     private static final int REQ_EXPORT = 71;
     private static final int REQ_IMPORT = 72;
     private static final int REQ_VRM = 73;
+    private static final int REQ_TONE_SYSTEM = 74;
+    private static final int REQ_TONE_FILE = 75;
     private String vrmInfo = "";
     private EditText search;
     private LinearLayout screensBox;
@@ -220,6 +222,9 @@ public final class SettingsActivity extends BaseActivity {
                 v -> AssistActivity.openDefaultSettings(this));
         r.link(R.drawable.ic_screen, R.string.section_screen, R.string.settings_screen_desc, ScreenControlActivity.class);
         r.link(R.drawable.ic_shield, R.string.section_permissions, R.string.settings_permissions_desc, PermissionsActivity.class);
+        r.row(R.drawable.ic_bell, getString(R.string.settings_notif_tone), NotificationTone.label(this), null,
+                v -> NotificationTone.choose(this, REQ_TONE_SYSTEM, REQ_TONE_FILE, this::build));
+        r.link(R.drawable.ic_shield, R.string.appalert_title, R.string.appalert_settings_desc, AppAlertActivity.class);
         // The current screen goes along with every request (only while another app is on screen).
         r.switchRow(R.drawable.ic_screen, R.string.settings_attach_tree, R.string.settings_attach_tree_desc, Settings.ATTACH_SCREEN_TREE, false, null);
         r.switchRow(R.drawable.ic_eye, R.string.settings_attach_shot, R.string.settings_attach_shot_desc, Settings.ATTACH_SCREENSHOT, false, null);
@@ -487,6 +492,20 @@ public final class SettingsActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_TONE_SYSTEM) {
+            if (resultCode == RESULT_OK) {
+                NotificationTone.onSystemPicked(this, data);
+                build();
+            }
+            return;
+        }
+        if (requestCode == REQ_TONE_FILE) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                Ui.toast(this, NotificationTone.onFilePicked(this, data.getData()) ? R.string.tone_set : R.string.tone_failed);
+                build();
+            }
+            return;
+        }
         if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
         Uri uri = data.getData();
         if (requestCode == REQ_VRM) {

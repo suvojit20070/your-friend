@@ -88,6 +88,12 @@ public final class App extends Application {
         DebugActivity.reportLastExit(this);
         com.suvo.agent.voice.BeepMuter.recover(this);
         AppGraph g = AppGraph.init(this);
+        // New app install alert: live receiver + background catch-up scan.
+        try {
+            com.suvo.agent.appalert.AppAlerts.init(this);
+        } catch (RuntimeException e) {
+            Log.w("YF.App", "App alerts did not start", e);
+        }
         g.io.execute(() -> {
             try {
                 int n = g.tasks.markInterrupted();

@@ -35,6 +35,12 @@
     <!-- Scheduled tasks and self check-ins (schedule_task); exact alarms only if the user allows them. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- New app install alert: see every newly installed app (also ones without a launcher icon,
+         e.g. silent installs) and offer to uninstall it. -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
@@ -293,6 +299,11 @@
         <activity android:name=".ui.ScheduleActivity" android:exported="false" />
         <activity android:name=".ui.MarkdownScaleActivity" android:exported="false" />
         <activity android:name=".ui.ConnectorsActivity" android:exported="false" android:launchMode="singleTop" />
+        <activity android:name=".ui.AppAlertActivity" android:exported="false" android:launchMode="singleTop" />
+        <service
+            android:name=".appalert.AppAlertJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <activity android:name=".ui.AutoReplyActivity" android:exported="false" android:launchMode="singleTop" />
         <!-- Auto reply: reads chat notifications (after the user allows notification access) and answers
              through their inline reply box. -->
