@@ -8,7 +8,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.core.content.FileProvider;
@@ -351,8 +350,7 @@ public final class UpdateChecker {
         label.setTextSize(14);
         box.addView(label, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        ProgressBar bar = new ProgressBar(a, null, android.R.attr.progressBarStyleHorizontal);
-        bar.setIndeterminate(true);
+        com.google.android.material.progressindicator.LinearProgressIndicator bar = com.suvo.agent.ui.Progress.linear(a, true);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = Ui.dp(a, 16);
         box.addView(bar, params);
@@ -419,9 +417,9 @@ public final class UpdateChecker {
 
     private static final class ProgressUi {
         private final Overlay overlay;
-        private final ProgressBar bar;
+        private final com.google.android.material.progressindicator.LinearProgressIndicator bar;
 
-        ProgressUi(Overlay overlay, ProgressBar bar) {
+        ProgressUi(Overlay overlay, com.google.android.material.progressindicator.LinearProgressIndicator bar) {
             this.overlay = overlay;
             this.bar = bar;
         }
@@ -430,8 +428,16 @@ public final class UpdateChecker {
             if (overlay != null) overlay.dismiss();
         }
 
-        void setIndeterminate(boolean value) { bar.setIndeterminate(value); }
-        void setMax(int value) { bar.setMax(value); }
-        void setProgress(int value) { bar.setProgress(value); }
+        void setIndeterminate(boolean value) {
+            if (bar.isIndeterminate() != value) bar.setIndeterminate(value);
+        }
+
+        void setMax(int value) {
+            bar.setMax(value);
+        }
+
+        void setProgress(int value) {
+            bar.setProgressCompat(value, true);
+        }
     }
 }

@@ -1144,4 +1144,11 @@
     <string name="appalert_update_title">অ্যাপ আপডেট হয়েছে: %1$s</string>
     <string name="appalert_updated_chip">আপডেট</string>
     <string name="appalert_update_line">সংস্করণ %1$s</string>
+    <string name="chat_switch_locked">এই চ্যাটে কাজ চলছে। চ্যাট বদলাতে কাজটা থামান বা শেষ হতে দিন।</string>
+    <string name="channel_media">মিডিয়া প্লেব্যাক</string>
+    <string name="media_audio">Your Friend থেকে অডিও</string>
+    <string name="media_video">Your Friend থেকে ভিডিও</string>
+    <string name="media_play">চালাও</string>
+    <string name="media_pause">থামাও</string>
+    <string name="media_stop">বন্ধ</string>
 </resources>

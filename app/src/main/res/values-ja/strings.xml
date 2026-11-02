@@ -1136,4 +1136,11 @@
     <string name="appalert_update_title">アプリが更新されました: %1$s</string>
     <string name="appalert_updated_chip">更新</string>
     <string name="appalert_update_line">バージョン %1$s</string>
+    <string name="chat_switch_locked">このチャットでタスクが実行中です。切り替えるには停止するか完了を待ってください。</string>
+    <string name="channel_media">メディア再生</string>
+    <string name="media_audio">Your Friend の音声</string>
+    <string name="media_video">Your Friend の動画</string>
+    <string name="media_play">再生</string>
+    <string name="media_pause">一時停止</string>
+    <string name="media_stop">停止</string>
 </resources>

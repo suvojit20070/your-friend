@@ -137,11 +137,8 @@ public final class VoiceActivity extends BaseActivity {
                 v -> HandsFreeService.reloadWake());
         r.note(getString(R.string.wake_sensitivity_note));
         handsFreeStatus = r.row(R.drawable.ic_eye, getString(R.string.voice_hands_free_status), statusText(), null, null);
-        handsFreeLevel = new android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        handsFreeLevel.setMax(100);
-        handsFreeLevel.setProgressTintList(android.content.res.ColorStateList.valueOf(Ui.accent(this)));
-        handsFreeLevel.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(getColor(R.color.surface_3)));
-        LinearLayout.LayoutParams lvl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(this, 6));
+        handsFreeLevel = Progress.linear(this, false);
+        LinearLayout.LayoutParams lvl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lvl.setMargins(Ui.dp(this, 20), Ui.dp(this, 6), Ui.dp(this, 20), Ui.dp(this, 4));
         r.parent().addView(handsFreeLevel, lvl);
 
@@ -218,7 +215,7 @@ public final class VoiceActivity extends BaseActivity {
     }
 
     private TextView handsFreeStatus;
-    private android.widget.ProgressBar handsFreeLevel;
+    private com.google.android.material.progressindicator.LinearProgressIndicator handsFreeLevel;
 
     private String statusText() {
         if (!HandsFreeService.isRunning()) return getString(R.string.handsfree_stopped);
@@ -241,7 +238,7 @@ public final class VoiceActivity extends BaseActivity {
         @Override
         public void onLevel(float level) {
             runOnUiThread(() -> {
-                if (handsFreeLevel != null) handsFreeLevel.setProgress(Math.round(level * 100));
+                if (handsFreeLevel != null) handsFreeLevel.setProgressCompat(Math.round(level * 100), true);
             });
         }
     };

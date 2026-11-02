@@ -106,8 +106,7 @@ public final class TerminalActivity extends BaseActivity {
             cur.setSize(Ui.dp(this, 8), Ui.dp(this, 18)); // block cursor, like a terminal
             input.setTextCursorDrawable(cur);
         }
-        android.widget.ProgressBar busy = findViewById(R.id.term_busy);
-        busy.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(GREEN));
+        Progress.style(findViewById(R.id.term_busy), GREEN, 20, false);
         ((TextView) findViewById(R.id.term_dollar)).setText(dollar(false));
         backend = g.settings.str(Settings.SHELL_BACKEND, "local");
         cwd = defaultCwd(backend);

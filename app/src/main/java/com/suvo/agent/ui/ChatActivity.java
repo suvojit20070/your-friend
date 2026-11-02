@@ -295,7 +295,7 @@ public final class ChatActivity extends BaseActivity {
      * never make the agent act on its own.
      */
     private void handleDeepLink(android.net.Uri u) {
-        if ("1".equals(u.getQueryParameter("new"))) {
+        if ("1".equals(u.getQueryParameter("new")) && !switchLocked()) {
             conversationId = g.agent.newConversation();
             reload();
         }
@@ -792,7 +792,7 @@ public final class ChatActivity extends BaseActivity {
         g.agent.removeListener(agentListener);
         browserPanel.stop();
         if (ChatBlocks.actions == blockActions) ChatBlocks.actions = null;
-        ChatBlocks.stopPlayer();
+        ChatMedia.stopVideo(); // audio keeps playing with its notification
         if (speechInput.isListening()) speechInput.cancel();
         super.onStop();
     }
@@ -821,11 +821,7 @@ public final class ChatActivity extends BaseActivity {
             com.google.android.material.loadingindicator.LoadingIndicator li = (com.google.android.material.loadingindicator.LoadingIndicator) progress;
             if (li.getTag(R.id.theme_tint) != pal) {
                 li.setTag(R.id.theme_tint, pal);
-                li.setContainerWidth(Ui.dp(this, 30));
-                li.setContainerHeight(Ui.dp(this, 30));
-                li.setIndicatorSize(Ui.dp(this, 20));
-                li.setIndicatorColor(new int[]{pal.primary});
-                li.setContainerColor(Palette.alpha(pal.primary, 0.16f));
+                Progress.style(li, pal.primary, 30, true);
             }
         }
         ((TextView) findViewById(R.id.chat_status_text)).setText(running && text != null ? text : "");
@@ -1270,7 +1266,18 @@ public final class ChatActivity extends BaseActivity {
         }));
     }
 
+    /**
+     * While a task runs the chat stays on its conversation: switching (history, new chat, a link)
+     * is refused with a short note until the task finishes or is stopped.
+     */
+    private boolean switchLocked() {
+        if (!g.agent.isRunning()) return false;
+        Fx.pill(this, getString(R.string.chat_switch_locked), findViewById(R.id.chat_composer));
+        return true;
+    }
+
     private void showHistory() {
+        if (switchLocked()) return;
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         int pad = Ui.dp(this, 16);
@@ -1303,6 +1310,7 @@ public final class ChatActivity extends BaseActivity {
         search.addTextChangedListener(new SimpleWatcher(load));
         Overlay d = Ui.show(Ui.dialog(this).setTitle(R.string.chat_history).setView(box).setNegativeButton(android.R.string.cancel, null));
         lv.setOnItemClickListener((p, v, pos, id) -> {
+            if (convs.get(pos).id != conversationId && switchLocked()) return;
             conversationId = convs.get(pos).id;
             g.agent.setActiveConversation(conversationId);
             d.dismiss();
@@ -1322,6 +1330,10 @@ public final class ChatActivity extends BaseActivity {
                     g.conversations.setPinned(c.id, !c.pinned);
                     load.run();
                 } else {
+                    if (c.id == conversationId && g.agent.isRunning()) {
+                        Ui.toast(this, R.string.chat_switch_locked);
+                        return;
+                    }
                     Ui.confirm(this, R.string.delete_conversation_title, getString(R.string.delete_conversation_message), () -> {
                         g.conversations.delete(c.id);
                         load.run();
@@ -1370,6 +1382,7 @@ public final class ChatActivity extends BaseActivity {
         GlassDrawer d = Nav.drawer(this);
         d.section(getString(R.string.drawer_this_chat));
         d.item(R.drawable.ic_add, getString(R.string.chat_new), false, () -> {
+            if (switchLocked()) return;
             conversationId = g.agent.newConversation();
             lastError = null;
             reload();

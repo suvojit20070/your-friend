@@ -29,6 +29,7 @@ public final class Notifications {
     public static final String CHANNEL_GENERAL = "general";
     public static final String CHANNEL_AUTO_REPLY = "auto_reply";
     public static final String CHANNEL_APP_ALERT = "app_alert";
+    public static final String CHANNEL_MEDIA = "media";
 
     /** Channels that ring (their sound follows the user's tone). */
     private static final String[] SOUNDED = {CHANNEL_GENERAL, CHANNEL_APPROVAL, CHANNEL_AUTO_REPLY, CHANNEL_APP_ALERT};
@@ -55,6 +56,9 @@ public final class Notifications {
         nm.createNotificationChannel(new NotificationChannel(CHANNEL_CAPTURE, ctx.getString(R.string.channel_capture), NotificationManager.IMPORTANCE_LOW));
         nm.createNotificationChannel(new NotificationChannel(CHANNEL_LISTEN, ctx.getString(R.string.channel_listen), NotificationManager.IMPORTANCE_LOW));
         nm.createNotificationChannel(new NotificationChannel(CHANNEL_COMPANION, ctx.getString(R.string.channel_companion), NotificationManager.IMPORTANCE_MIN));
+        NotificationChannel media = new NotificationChannel(CHANNEL_MEDIA, ctx.getString(R.string.channel_media), NotificationManager.IMPORTANCE_LOW);
+        media.setShowBadge(false);
+        nm.createNotificationChannel(media);
         createSounded(ctx, nm);
     }
 

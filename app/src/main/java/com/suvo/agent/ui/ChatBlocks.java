@@ -20,8 +20,6 @@ import android.webkit.MimeTypeMap;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.MediaController;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.VideoView;
 
@@ -508,6 +506,7 @@ final class ChatBlocks {
 
     // ---- video
 
+    /** Video: thumbnail + play badge; a real tap plays it inline with the app's own controls. */
     private static View video(Context ctx, Parsed p, Markdown.Style st) {
         LinearLayout c = card(ctx, st);
         FrameLayout frame = new FrameLayout(ctx);
@@ -528,9 +527,39 @@ final class ChatBlocks {
             }
         });
         c.addView(frame, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h));
+
+        // The app's own controls over the bottom of the video (hidden until it plays).
+        LinearLayout controls = new LinearLayout(ctx);
+        controls.setOrientation(LinearLayout.HORIZONTAL);
+        controls.setGravity(Gravity.CENTER_VERTICAL);
+        controls.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
+                new int[]{0xB3000000, 0x00000000}));
+        FrameLayout ctlPlay = badge(ctx, R.drawable.ic_pause, 0xFFFFFFFF, 0x33FFFFFF, -1, 36, 18);
+        ctlPlay.setClickable(true);
+        LiquidPress.attach(ctlPlay, LiquidPress.CIRCLE);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cp.setMargins(Ui.dp(ctx, 10), Ui.dp(ctx, 18), 0, Ui.dp(ctx, 8));
+        controls.addView(ctlPlay, cp);
+        LiquidSlider seek = new LiquidSlider(ctx);
+        seek.setValueFrom(0);
+        seek.setValueTo(1000);
+        seek.setStepSize(0);
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        sp.setMargins(Ui.dp(ctx, -18), Ui.dp(ctx, 14), Ui.dp(ctx, -18), Ui.dp(ctx, 4));
+        controls.addView(seek, sp);
+        TextView time = new TextView(ctx, null, 0, R.style.YF_Caption);
+        time.setTextColor(0xFFFFFFFF);
+        time.setTextSize(11.5f);
+        time.setText("0:00");
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tp.setMargins(0, Ui.dp(ctx, 18), Ui.dp(ctx, 12), Ui.dp(ctx, 8));
+        controls.addView(time, tp);
+        controls.setVisibility(View.GONE);
+        frame.addView(controls, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
+
         LinearLayout bar = row(ctx);
-        TextView name = caption(ctx, p.caption.isEmpty() ? (p.title.isEmpty() ? nameOf(p.src) : p.title) : p.caption, st);
-        bar.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        String name = p.caption.isEmpty() ? (p.title.isEmpty() ? nameOf(p.src) : p.title) : p.caption;
+        bar.addView(caption(ctx, name, st), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         addPill(bar, pill(ctx, R.drawable.ic_upload, ctx.getString(R.string.block_open), st, v -> open(ctx, p.src, isWeb(p.src) ? null : "video/*")));
         c.addView(bar, margins(ctx, 14, 8, 6, 10));
 
@@ -557,33 +586,141 @@ final class ChatBlocks {
             if (fb != null) MAIN.post(() -> thumb.setImageBitmap(fb));
         });
 
-        // Plays only after a real tap on the picture (never by itself when the chat opens or rebinds).
         final VideoView[] holder = new VideoView[1];
+        final ChatMedia.Target[] target = new ChatMedia.Target[1];
+        final boolean[] dragging = new boolean[1];
+        Runnable[] tick = new Runnable[1];
+        Runnable hideLater = () -> {
+            if (holder[0] != null && holder[0].isPlaying()) controls.animate().alpha(0f).setDuration(220)
+                    .withEndAction(() -> controls.setVisibility(View.GONE)).start();
+        };
+        Runnable showControls = () -> {
+            controls.animate().cancel();
+            controls.setAlpha(1f);
+            controls.setVisibility(View.VISIBLE);
+            MAIN.removeCallbacks(hideLater);
+            MAIN.postDelayed(hideLater, 3000);
+        };
+        Runnable paint = () -> {
+            VideoView vv = holder[0];
+            if (vv == null) return;
+            ImageView ic = badgeIcon(ctlPlay);
+            ic.setImageResource(vv.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+        };
+        tick[0] = () -> {
+            VideoView vv = holder[0];
+            if (vv == null) return;
+            try {
+                int d = vv.getDuration(), pos = vv.getCurrentPosition();
+                if (d > 0 && !dragging[0]) seek.setValue(pos * 1000f / d);
+                time.setText(fmt(pos) + " / " + fmt(d));
+            } catch (RuntimeException ignored) {
+            }
+            MAIN.postDelayed(tick[0], 400);
+        };
         Runnable start = () -> {
             if (holder[0] != null) return;
             VideoView vv = new VideoView(ctx);
             holder[0] = vv;
-            MediaController mc = new MediaController(ctx);
-            mc.setAnchorView(vv);
-            vv.setMediaController(mc);
             File f = localFile(ctx, p.src);
             if (f != null) vv.setVideoPath(f.getPath());
             else vv.setVideoURI(Uri.parse(p.src));
+            target[0] = new ChatMedia.Target() {
+                @Override
+                public void play() {
+                    vv.start();
+                    MAIN.post(paint);
+                }
+
+                @Override
+                public void pause() {
+                    vv.pause();
+                    MAIN.post(paint);
+                    showControls.run();
+                }
+
+                @Override
+                public void release() {
+                    MAIN.post(() -> {
+                        vv.stopPlayback();
+                        frame.removeView(vv);
+                        holder[0] = null;
+                        MAIN.removeCallbacks(tick[0]);
+                        controls.setVisibility(View.GONE);
+                        thumb.setVisibility(View.VISIBLE);
+                        play.setVisibility(View.VISIBLE);
+                    });
+                }
+
+                @Override
+                public boolean isPlaying() {
+                    return vv.isPlaying();
+                }
+
+                @Override
+                public int position() {
+                    return vv.getCurrentPosition();
+                }
+
+                @Override
+                public int duration() {
+                    return vv.getDuration();
+                }
+
+                @Override
+                public void seekTo(int ms) {
+                    vv.seekTo(ms);
+                }
+            };
             vv.setOnPreparedListener(mp -> {
                 thumb.setVisibility(View.GONE);
                 play.setVisibility(View.GONE);
                 vv.start();
+                paint.run();
+                showControls.run();
+                MAIN.post(tick[0]);
+                ChatMedia.start(ctx, p.src, name, false, target[0]);
+            });
+            vv.setOnCompletionListener(mp -> {
+                paint.run();
+                showControls.run();
+                ChatMedia.changed();
             });
             vv.setOnErrorListener((mp, what, extra) -> {
                 Ui.toast(ctx, R.string.block_video_error);
+                ChatMedia.stopIf(p.src, target[0]);
                 return true;
             });
             frame.addView(vv, 0, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h, Gravity.CENTER));
         };
+        ctlPlay.setOnClickListener(v -> {
+            VideoView vv = holder[0];
+            if (vv == null) return;
+            if (vv.isPlaying()) target[0].pause();
+            else target[0].play();
+            showControls.run();
+            ChatMedia.changed();
+        });
+        seek.addOnSliderTouchListener(new LiquidSlider.OnSliderTouchListener() {
+            @Override
+            public void onStartTrackingTouch(LiquidSlider s) {
+                dragging[0] = true;
+                MAIN.removeCallbacks(hideLater);
+            }
+
+            @Override
+            public void onStopTrackingTouch(LiquidSlider s) {
+                dragging[0] = false;
+                VideoView vv = holder[0];
+                if (vv != null && vv.getDuration() > 0) vv.seekTo((int) (vv.getDuration() * s.getValue() / 1000f));
+                showControls.run();
+                ChatMedia.changed();
+            }
+        });
+        // Plays only after a real tap on the picture (never by itself when the chat opens or rebinds).
         int slop = android.view.ViewConfiguration.get(ctx).getScaledTouchSlop();
         float[] down = new float[3];
         frame.setOnTouchListener((v, e) -> {
-            if (holder[0] != null) return false; // the player's own controls take over
             switch (e.getActionMasked()) {
                 case android.view.MotionEvent.ACTION_DOWN:
                     down[0] = e.getX();
@@ -591,8 +728,13 @@ final class ChatBlocks {
                     down[2] = e.getEventTime();
                     return true;
                 case android.view.MotionEvent.ACTION_UP:
-                    if (Math.abs(e.getX() - down[0]) < slop && Math.abs(e.getY() - down[1]) < slop
-                            && e.getEventTime() - down[2] < 500) start.run();
+                    boolean tap = Math.abs(e.getX() - down[0]) < slop && Math.abs(e.getY() - down[1]) < slop
+                            && e.getEventTime() - down[2] < 500;
+                    if (tap) {
+                        if (holder[0] == null) start.run();
+                        else if (controls.getVisibility() == View.VISIBLE) hideLater.run();
+                        else showControls.run();
+                    }
                     return true;
                 default:
                     return true;
@@ -605,14 +747,7 @@ final class ChatBlocks {
 
             @Override
             public void onViewDetachedFromWindow(View v) {
-                VideoView vv = holder[0];
-                if (vv != null) {
-                    vv.stopPlayback();
-                    frame.removeView(vv);
-                    holder[0] = null;
-                    thumb.setVisibility(View.VISIBLE);
-                    play.setVisibility(View.VISIBLE);
-                }
+                if (holder[0] != null) ChatMedia.stopIf(p.src, target[0]);
             }
         });
         return c;
@@ -620,9 +755,57 @@ final class ChatBlocks {
 
     // ---- audio
 
-    private static MediaPlayer player;
-    private static String playing;
-    private static Runnable stopUi;
+    /** The audio being played (kept while the chat is closed; the notification controls it). */
+    private static final class AudioTarget implements ChatMedia.Target {
+        final MediaPlayer mp;
+        boolean prepared;
+
+        AudioTarget(MediaPlayer mp) {
+            this.mp = mp;
+        }
+
+        @Override
+        public void play() {
+            if (prepared) mp.start();
+        }
+
+        @Override
+        public void pause() {
+            if (prepared && mp.isPlaying()) mp.pause();
+        }
+
+        @Override
+        public void release() {
+            try {
+                mp.release();
+            } catch (RuntimeException ignored) {
+            }
+        }
+
+        @Override
+        public boolean isPlaying() {
+            try {
+                return prepared && mp.isPlaying();
+            } catch (IllegalStateException e) {
+                return false;
+            }
+        }
+
+        @Override
+        public int position() {
+            return prepared ? mp.getCurrentPosition() : 0;
+        }
+
+        @Override
+        public int duration() {
+            return prepared ? mp.getDuration() : 0;
+        }
+
+        @Override
+        public void seekTo(int ms) {
+            if (prepared) mp.seekTo(ms);
+        }
+    }
 
     private static View audio(Context ctx, Parsed p, Markdown.Style st) {
         LinearLayout c = card(ctx, st);
@@ -630,130 +813,130 @@ final class ChatBlocks {
         FrameLayout btnBox = badge(ctx, R.drawable.ic_play, st.onMarker, st.marker, -1, 42, 20);
         ImageView btn = badgeIcon(btnBox);
         btnBox.setClickable(true);
-        btnBox.setContentDescription(ctx.getString(R.string.block_open));
+        btnBox.setContentDescription(ctx.getString(R.string.media_play));
         LiquidPress.attach(btnBox, LiquidPress.CIRCLE);
         LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         bp.setMarginEnd(Ui.dp(ctx, 12));
         top.addView(btnBox, bp);
         LinearLayout texts = new LinearLayout(ctx);
         texts.setOrientation(LinearLayout.VERTICAL);
-        TextView name = new TextView(ctx, null, 0, R.style.YF_RowTitle);
-        name.setText(p.title.isEmpty() ? (p.caption.isEmpty() ? nameOf(p.src) : p.caption) : p.title);
-        name.setSingleLine(true);
-        name.setEllipsize(TextUtils.TruncateAt.MIDDLE);
-        texts.addView(name);
+        TextView nameView = new TextView(ctx, null, 0, R.style.YF_RowTitle);
+        String name = p.title.isEmpty() ? (p.caption.isEmpty() ? nameOf(p.src) : p.caption) : p.title;
+        nameView.setText(name);
+        nameView.setSingleLine(true);
+        nameView.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        texts.addView(nameView);
         TextView time = caption(ctx, "0:00", st);
         texts.addView(time);
         top.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        c.addView(top, margins(ctx, 12, 12, 12, 4));
-        SeekBar seek = new SeekBar(ctx);
-        seek.setMax(1000);
-        seek.setProgressTintList(android.content.res.ColorStateList.valueOf(st.marker));
-        seek.setThumbTintList(android.content.res.ColorStateList.valueOf(st.marker));
-        c.addView(seek, margins(ctx, 4, 0, 4, 10));
+        c.addView(top, margins(ctx, 12, 12, 12, 0));
+        // The app's liquid slider as the progress bar (drag to seek).
+        LiquidSlider seek = new LiquidSlider(ctx);
+        seek.setValueFrom(0);
+        seek.setValueTo(1000);
+        seek.setStepSize(0);
+        c.addView(seek, margins(ctx, -14, 0, -14, 4));
 
+        final boolean[] dragging = new boolean[1];
         Runnable[] tick = new Runnable[1];
-        Runnable reset = () -> {
-            btn.setImageResource(R.drawable.ic_play);
-            seek.setProgress(0);
-            MAIN.removeCallbacks(tick[0]);
+        Runnable paint = () -> {
+            boolean mine = p.src.equals(ChatMedia.current());
+            ChatMedia.Target t = ChatMedia.target();
+            btn.setImageResource(mine && t != null && t.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play);
+            if (!mine) {
+                if (!dragging[0]) seek.setValue(0);
+                time.setText("0:00");
+            }
         };
         tick[0] = () -> {
-            MediaPlayer mp = player;
-            if (mp == null || !p.src.equals(playing)) return;
-            try {
-                int d = mp.getDuration(), pos = mp.getCurrentPosition();
-                if (d > 0) seek.setProgress((int) (pos * 1000L / d));
-                time.setText(fmt(pos) + " / " + fmt(d));
-            } catch (IllegalStateException ignored) {
-            }
-            MAIN.postDelayed(tick[0], 300);
-        };
-        btnBox.setOnClickListener(v -> {
-            if (player != null && p.src.equals(playing)) {
-                if (player.isPlaying()) {
-                    player.pause();
-                    btn.setImageResource(R.drawable.ic_play);
-                } else {
-                    player.start();
-                    btn.setImageResource(R.drawable.ic_pause);
-                    MAIN.post(tick[0]);
-                }
+            ChatMedia.Target t = ChatMedia.target();
+            if (t == null || !p.src.equals(ChatMedia.current())) {
+                paint.run();
                 return;
             }
-            stopPlayer();
-            MediaPlayer mp = new MediaPlayer();
             try {
+                int d = t.duration(), pos = t.position();
+                if (d > 0 && !dragging[0]) seek.setValue(pos * 1000f / d);
+                time.setText(fmt(pos) + " / " + fmt(d));
+            } catch (RuntimeException ignored) {
+            }
+            paint.run();
+            MAIN.postDelayed(tick[0], 400);
+        };
+        ChatMedia.Listener listener = () -> {
+            MAIN.removeCallbacks(tick[0]);
+            tick[0].run();
+        };
+        btnBox.setOnClickListener(v -> {
+            if (p.src.equals(ChatMedia.current())) {
+                ChatMedia.toggle();
+                return;
+            }
+            MediaPlayer mp = new MediaPlayer();
+            AudioTarget target = new AudioTarget(mp);
+            try {
+                mp.setAudioAttributes(new android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC).build());
                 File f = localFile(ctx, p.src);
                 if (f != null) mp.setDataSource(f.getPath());
                 else mp.setDataSource(ctx, Uri.parse(p.src));
                 mp.setOnPreparedListener(m -> {
+                    target.prepared = true;
                     m.start();
-                    btn.setImageResource(R.drawable.ic_pause);
-                    MAIN.post(tick[0]);
+                    ChatMedia.changed();
                 });
-                mp.setOnCompletionListener(m -> reset.run());
+                mp.setOnCompletionListener(m -> {
+                    try {
+                        m.seekTo(0);
+                    } catch (RuntimeException ignored) {
+                    }
+                    ChatMedia.changed();
+                });
                 mp.setOnErrorListener((m, w, e) -> {
-                    reset.run();
                     Ui.toast(ctx, R.string.block_audio_error);
+                    ChatMedia.stop();
                     return true;
                 });
-                player = mp;
-                playing = p.src;
-                stopUi = reset;
+                ChatMedia.start(ctx, p.src, name, true, target);
                 time.setText(ctx.getString(R.string.block_loading));
                 mp.prepareAsync();
             } catch (Exception e) {
-                mp.release();
+                target.release();
                 Ui.toast(ctx, R.string.block_audio_error);
             }
         });
-        seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        seek.addOnSliderTouchListener(new LiquidSlider.OnSliderTouchListener() {
             @Override
-            public void onProgressChanged(SeekBar sb, int progress, boolean fromUser) {
-                if (!fromUser || player == null || !p.src.equals(playing)) return;
-                try {
-                    player.seekTo((int) ((long) player.getDuration() * progress / 1000));
-                } catch (IllegalStateException ignored) {
+            public void onStartTrackingTouch(LiquidSlider s) {
+                dragging[0] = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(LiquidSlider s) {
+                dragging[0] = false;
+                ChatMedia.Target t = ChatMedia.target();
+                if (t != null && p.src.equals(ChatMedia.current()) && t.duration() > 0) {
+                    t.seekTo((int) (t.duration() * s.getValue() / 1000f));
+                    ChatMedia.changed();
                 }
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar sb) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar sb) {
             }
         });
         c.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override
             public void onViewAttachedToWindow(View v) {
+                ChatMedia.addListener(listener);
+                tick[0].run();
             }
 
             @Override
             public void onViewDetachedFromWindow(View v) {
-                if (p.src.equals(playing)) stopPlayer();
+                // The audio keeps playing (notification); only this card stops listening.
+                ChatMedia.removeListener(listener);
+                MAIN.removeCallbacks(tick[0]);
             }
         });
         return c;
-    }
-
-    /** Stops the chat's audio player (leaving the chat, or another clip starts). */
-    static void stopPlayer() {
-        if (player != null) {
-            try {
-                player.release();
-            } catch (RuntimeException ignored) {
-            }
-        }
-        player = null;
-        playing = null;
-        if (stopUi != null) {
-            Runnable r = stopUi;
-            stopUi = null;
-            r.run();
-        }
     }
 
     private static String fmt(int ms) {

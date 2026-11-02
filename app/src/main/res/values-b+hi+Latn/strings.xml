@@ -1185,4 +1185,11 @@
     <string name="appalert_update_title">App update hua: %1$s</string>
     <string name="appalert_updated_chip">Updated</string>
     <string name="appalert_update_line">Version %1$s</string>
+    <string name="chat_switch_locked">Is chat mein task chal raha hai. Chat badalne ke liye use rok do ya poora hone do.</string>
+    <string name="channel_media">Media playback</string>
+    <string name="media_audio">Your Friend se audio</string>
+    <string name="media_video">Your Friend se video</string>
+    <string name="media_play">Play</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_stop">Stop</string>
 </resources>

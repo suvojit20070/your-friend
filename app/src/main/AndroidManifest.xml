@@ -23,6 +23,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Audio from the chat keeps playing with its media notification -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- Floating companion overlay (granted by the user in system settings) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- py_install_apk: always ends in Android's own install confirmation -->
@@ -299,6 +301,13 @@
         <activity android:name=".ui.ScheduleActivity" android:exported="false" />
         <activity android:name=".ui.MarkdownScaleActivity" android:exported="false" />
         <activity android:name=".ui.ConnectorsActivity" android:exported="false" android:launchMode="singleTop" />
+        <service
+            android:name=".ui.ChatMedia$Holder"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+        <receiver
+            android:name=".ui.ChatMedia$Buttons"
+            android:exported="false" />
         <activity android:name=".ui.AppAlertActivity" android:exported="false" android:launchMode="singleTop" />
         <service
             android:name=".appalert.AppAlertJob"

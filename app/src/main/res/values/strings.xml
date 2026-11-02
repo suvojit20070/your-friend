@@ -1233,4 +1233,11 @@
     <string name="appalert_update_title">App updated: %1$s</string>
     <string name="appalert_updated_chip">Updated</string>
     <string name="appalert_update_line">Version %1$s</string>
+    <string name="chat_switch_locked">A task is running in this chat. Stop it or wait until it finishes to switch chats.</string>
+    <string name="channel_media">Media playback</string>
+    <string name="media_audio">Audio from Your Friend</string>
+    <string name="media_video">Video from Your Friend</string>
+    <string name="media_play">Play</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_stop">Stop</string>
 </resources>

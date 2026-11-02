@@ -51,11 +51,11 @@
                 android:textColor="#FF7D8794"
                 android:textSize="11sp" />
 
-            <ProgressBar
+            <com.google.android.material.loadingindicator.LoadingIndicator
                 android:id="@+id/term_busy"
-                style="?android:attr/progressBarStyleSmall"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
+                style="@style/Widget.Material3.LoadingIndicator"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="12dp"
                 android:visibility="gone" />

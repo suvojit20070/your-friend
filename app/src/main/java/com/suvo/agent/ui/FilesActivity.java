@@ -166,9 +166,8 @@ public final class FilesActivity extends BaseActivity {
         }
         // Listing (especially a shared folder through the Storage Access Framework) is slow:
         // never on the main thread.
-        android.widget.ProgressBar spin = new android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleSmall);
-        spin.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(Ui.accent(this)));
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(Ui.dp(this, 24), Ui.dp(this, 24));
+        android.view.View spin = Progress.loading(this, 40, true);
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40));
         sp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
         sp.setMargins(0, Ui.dp(this, 24), 0, Ui.dp(this, 24));
         r.parent().addView(spin, sp);

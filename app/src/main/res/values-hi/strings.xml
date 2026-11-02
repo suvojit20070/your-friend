@@ -1144,4 +1144,11 @@
     <string name="appalert_update_title">ऐप अपडेट हुआ: %1$s</string>
     <string name="appalert_updated_chip">अपडेट</string>
     <string name="appalert_update_line">संस्करण %1$s</string>
+    <string name="chat_switch_locked">इस चैट में काम चल रहा है। चैट बदलने के लिए उसे रोकें या पूरा होने दें।</string>
+    <string name="channel_media">मीडिया प्लेबैक</string>
+    <string name="media_audio">Your Friend से ऑडियो</string>
+    <string name="media_video">Your Friend से वीडियो</string>
+    <string name="media_play">चलाएँ</string>
+    <string name="media_pause">रोकें</string>
+    <string name="media_stop">बंद करें</string>
 </resources>
