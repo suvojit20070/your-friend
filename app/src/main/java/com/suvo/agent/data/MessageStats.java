@@ -58,7 +58,7 @@ public final class MessageStats {
     private final File file;
     private final LinkedHashMap<Long, Entry> map = new LinkedHashMap<Long, Entry>(64, 0.75f, false) {
         @Override
-        protected boolean removeEldestEntry(Map.Entry<Long, Entry> eldest) {
+        protected boolean removeEldestEntry(java.util.Map.Entry<Long, MessageStats.Entry> eldest) {
             return size() > MAX;
         }
     };
@@ -103,7 +103,7 @@ public final class MessageStats {
             saveQueued = false;
             try {
                 JSONObject root = new JSONObject();
-                for (Map.Entry<Long, Entry> x : map.entrySet()) root.put(String.valueOf(x.getKey()), x.getValue().toJson());
+                for (java.util.Map.Entry<Long, MessageStats.Entry> x : map.entrySet()) root.put(String.valueOf(x.getKey()), x.getValue().toJson());
                 json = root.toString();
             } catch (org.json.JSONException e) {
                 return;
