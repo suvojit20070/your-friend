@@ -301,6 +301,8 @@
         <activity android:name=".ui.ScheduleActivity" android:exported="false" />
         <activity android:name=".ui.MarkdownScaleActivity" android:exported="false" />
         <activity android:name=".ui.ConnectorsActivity" android:exported="false" android:launchMode="singleTop" />
+        <activity android:name=".ui.BrowserActivity" android:exported="false" android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" android:windowSoftInputMode="adjustResize" />
         <service
             android:name=".ui.ChatMedia$Holder"
             android:exported="false"

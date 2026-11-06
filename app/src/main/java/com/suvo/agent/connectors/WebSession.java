@@ -24,6 +24,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.security.SecureRandom;
@@ -62,8 +63,30 @@ public final class WebSession {
     private static final Handler main = new Handler(Looper.getMainLooper());
     private static final SecureRandom RND = new SecureRandom();
     private static final Map<String, Object[]> pending = new ConcurrentHashMap<>();
-    @SuppressLint("StaticFieldLeak") // application context only
-    private static WebView view;
+    /** The open tabs (main thread); {@link #view} is the current one. Application context only. */
+    @SuppressLint("StaticFieldLeak")
+    private static AgentWebView view;
+    private static final java.util.List<AgentWebView> tabs = new java.util.ArrayList<>();
+    private static int nextTabId = 1;
+
+    /** The browser screen redraws its tab strip / address / progress. */
+    public interface TabsListener {
+        void onTabsChanged();
+    }
+
+    private static final java.util.concurrent.CopyOnWriteArrayList<TabsListener> tabListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public static void addTabsListener(TabsListener l) {
+        tabListeners.addIfAbsent(l);
+    }
+
+    public static void removeTabsListener(TabsListener l) {
+        tabListeners.remove(l);
+    }
+
+    private static void tabsChanged() {
+        for (TabsListener l : tabListeners) main.post(l::onTabsChanged);
+    }
     private static volatile CountDownLatch loaded;
     private static volatile String lastError;
     private static volatile String currentName = "";
@@ -86,6 +109,23 @@ public final class WebSession {
     @SuppressLint("StaticFieldLeak")
     private static FrameLayout overlay;
     private static boolean overlayClosed;
+
+    /** The full browser screen (BrowserActivity): while it is open the browser shows there. */
+    private static Host screen;
+
+    public static void setScreen(Host h) {
+        screen = h;
+        if (view != null) attach(currentName.isEmpty() ? "browser" : currentName);
+    }
+
+    public static void clearScreen(Host h) {
+        if (screen != h) return;
+        screen = null;
+        if (view != null && view.getParent() == h.browserSlot()) {
+            h.browserSlot().removeView(view);
+            layoutDetached();
+        }
+    }
 
     /** The chat became visible: the browser shows there from now on. Main thread. */
     public static void setHost(Host h) {
@@ -134,6 +174,16 @@ public final class WebSession {
         if (view == null) return;
         String label = title + (view.getUrl() == null ? "" : " · " + view.getUrl());
         Context ctx = view.getContext();
+        if (screen != null) {
+            ViewGroup slot = screen.browserSlot();
+            if (view.getParent() != slot) {
+                removeOverlay();
+                if (host != null && view.getParent() == host.browserSlot()) host.hideBrowser();
+                view.changeGroup(slot, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            }
+            screen.showBrowser(label);
+            return;
+        }
         if (!overlayClosed && android.provider.Settings.canDrawOverlays(ctx)) {
             if (overlay == null) showOverlay(ctx);
             if (overlay != null) {
@@ -188,6 +238,21 @@ public final class WebSession {
             title.setSingleLine(true);
             title.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
             bar.addView(title, new android.widget.LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            // Open the full browser screen (tabs, address bar, settings).
+            android.widget.TextView full = new android.widget.TextView(ctx);
+            full.setText("⤢");
+            full.setTextColor(Color.WHITE);
+            full.setTextSize(17f);
+            full.setPadding(p, 0, p, 0);
+            full.setContentDescription(ctx.getString(com.suvo.agent.R.string.browser_open_full));
+            full.setOnClickListener(v -> {
+                try {
+                    ctx.startActivity(new android.content.Intent(ctx, com.suvo.agent.ui.BrowserActivity.class)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+                } catch (RuntimeException ignored) {
+                }
+            });
+            bar.addView(full);
             android.widget.TextView close = new android.widget.TextView(ctx);
             close.setText("✕");
             close.setTextColor(Color.WHITE);
@@ -323,39 +388,177 @@ public final class WebSession {
     }
 
     @SuppressLint({"AddJavascriptInterface", "SetJavaScriptEnabled"})
-    private static WebView viewFor(Context ctx, Connector c) {
-        if (view == null) {
-            view = new WebView(ctx.getApplicationContext());
-            view.setBackgroundColor(Color.WHITE);
-            view.addJavascriptInterface(new Bridge(), "YFBridge");
-            view.setWebChromeClient(new WebChromeClient());
-            view.setWebViewClient(new WebViewClient() {
-                @Override
-                public void onPageFinished(WebView v, String url) {
-                    CookieManager.getInstance().flush();
+    private static AgentWebView createTab(Context ctx) {
+        AgentWebView v = new AgentWebView(ctx.getApplicationContext(), nextTabId++);
+        v.setBackgroundColor(Color.WHITE);
+        v.addJavascriptInterface(new Bridge(), "YFBridge");
+        v.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onReceivedTitle(WebView w, String title) {
+                tabsChanged();
+            }
+
+            @Override
+            public void onProgressChanged(WebView w, int p) {
+                v.progress = p;
+                tabsChanged();
+            }
+        });
+        v.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView w, String url) {
+                CookieManager.getInstance().flush();
+                if (w == view) {
                     CountDownLatch l = loaded;
                     if (l != null) l.countDown();
-                    if (host != null && v.getParent() == host.browserSlot()) host.showBrowser(currentName + " · " + url);
                 }
+                if (host != null && w.getParent() == host.browserSlot()) host.showBrowser(currentName + " · " + url);
+                tabsChanged();
+            }
 
-                @Override
-                public boolean shouldOverrideUrlLoading(WebView v, android.webkit.WebResourceRequest req) {
-                    String s = req.getUrl().getScheme();
-                    return s == null || !(s.equals("http") || s.equals("https")); // no app links out of the page
-                }
+            @Override
+            public void onPageStarted(WebView w, String url, Bitmap favicon) {
+                tabsChanged();
+            }
 
-                @Override
-                public void onReceivedError(WebView v, android.webkit.WebResourceRequest req, android.webkit.WebResourceError err) {
-                    if (req.isForMainFrame()) lastError = String.valueOf(err.getDescription());
-                }
-            });
-            view.onResume();
-            view.resumeTimers();
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView w, android.webkit.WebResourceRequest req) {
+                String sc = req.getUrl().getScheme();
+                return sc == null || !(sc.equals("http") || sc.equals("https")); // no app links out of the page
+            }
+
+            @Override
+            public void onReceivedError(WebView w, android.webkit.WebResourceRequest req, android.webkit.WebResourceError err) {
+                if (req.isForMainFrame() && w == view) lastError = String.valueOf(err.getDescription());
+            }
+        });
+        configure(v, Connector.openWeb());
+        v.onResume();
+        v.resumeTimers();
+        return v;
+    }
+
+    private static WebView viewFor(Context ctx, Connector c) {
+        if (view == null) {
+            AgentWebView t = createTab(ctx);
+            tabs.add(t);
+            view = t;
+            tabsChanged();
         }
         configure(view, c);
+        view.owner = c.name;
         currentName = c.name;
         attach(c.name);
         return view;
+    }
+
+    // ------------------------------------------------------------------ tabs (main thread)
+
+    /** The current tab, or null. */
+    public static AgentWebView current() {
+        return view;
+    }
+
+    public static java.util.List<AgentWebView> tabList() {
+        return new java.util.ArrayList<>(tabs);
+    }
+
+    /** Opens a new empty tab and makes it current; it takes the place of the previous one on screen. */
+    public static AgentWebView newTab(Context ctx) {
+        AgentWebView t = createTab(ctx);
+        tabs.add(t);
+        switchTo(t);
+        return t;
+    }
+
+    public static boolean switchTab(int id) {
+        for (AgentWebView t : tabs) {
+            if (t.tabId == id) {
+                switchTo(t);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void switchTo(AgentWebView t) {
+        AgentWebView old = view;
+        if (old == t) return;
+        ViewGroup parent = old == null ? null : (ViewGroup) old.getParent();
+        ViewGroup.LayoutParams lp = old == null ? null : old.getLayoutParams();
+        if (old != null && parent != null) parent.removeView(old);
+        view = t;
+        currentName = t.owner;
+        // The tab in the background keeps running off screen.
+        if (old != null && old.getParent() == null) {
+            old.measure(View.MeasureSpec.makeMeasureSpec(W, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(H, View.MeasureSpec.EXACTLY));
+            old.layout(0, 0, W, H);
+        }
+        if (parent != null) t.changeGroup(parent, lp);
+        else layoutDetached();
+        tabsChanged();
+    }
+
+    public static boolean closeTab(int id) {
+        AgentWebView target = null;
+        for (AgentWebView t : tabs) if (t.tabId == id) target = t;
+        if (target == null) return false;
+        int idx = tabs.indexOf(target);
+        if (target == view) {
+            if (tabs.size() > 1) switchTo(tabs.get(idx > 0 ? idx - 1 : 1));
+            else {
+                if (target.getParent() instanceof ViewGroup) ((ViewGroup) target.getParent()).removeView(target);
+                if (host != null) host.hideBrowser();
+                removeOverlay();
+                view = null;
+            }
+        } else if (target.getParent() instanceof ViewGroup) {
+            ((ViewGroup) target.getParent()).removeView(target);
+        }
+        tabs.remove(target);
+        try {
+            target.stopLoading();
+            target.destroy();
+        } catch (RuntimeException ignored) {
+        }
+        tabsChanged();
+        return true;
+    }
+
+    // ---- the same for the agent's tools (from any thread)
+
+    public static JSONArray tabsJson(Context ctx) throws Exception {
+        return onMain(() -> {
+            JSONArray a = new JSONArray();
+            for (AgentWebView t : tabs) {
+                a.put(new JSONObject().put("tab", t.tabId).put("title", t.getTitle() == null ? "" : t.getTitle())
+                        .put("url", t.getUrl() == null ? "" : t.getUrl()).put("current", t == view).put("by", t.owner));
+            }
+            return a;
+        }, 5000);
+    }
+
+    public static int newTabFor(Context ctx, Connector c) throws Exception {
+        return onMain(() -> {
+            AgentWebView t = newTab(ctx);
+            configure(t, c);
+            t.owner = c.name;
+            currentName = c.name;
+            attach(c.name);
+            return t.tabId;
+        }, 5000);
+    }
+
+    public static boolean switchTabFor(int id) throws Exception {
+        return onMain(() -> {
+            boolean ok = switchTab(id);
+            if (ok && view != null) attach(view.owner);
+            return ok;
+        }, 5000);
+    }
+
+    public static boolean closeTabFor(int id) throws Exception {
+        return onMain(() -> closeTab(id), 5000);
     }
 
     private static <T> T onMain(java.util.concurrent.Callable<T> call, long timeoutMs) throws Exception {

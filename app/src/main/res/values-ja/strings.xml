@@ -1151,4 +1151,24 @@
     <string name="media_queue">トラック %1$s · Your Friend</string>
     <string name="settings_termux_jail">Termux でエージェントを ~/yf 内に制限</string>
     <string name="settings_termux_jail_desc">エージェントのコマンドは Termux の ~/yf だけを見ます（proot 使用）。他の Termux ファイルは見えません。自分のターミナルは制限されません。</string>
+    <string name="browser_title">エージェントブラウザ</string>
+    <string name="browser_desc">エージェントのブラウザ：すべてのタブ、サイトへのログイン、設定</string>
+    <string name="browser_address_hint">検索またはアドレスを入力</string>
+    <string name="browser_forward">進む</string>
+    <string name="browser_reload">再読み込み</string>
+    <string name="browser_new_tab">新しいタブ</string>
+    <string name="browser_tabs">タブ</string>
+    <string name="browser_tabs_count">タブ (%1$d)</string>
+    <string name="browser_close_tab">タブを閉じる</string>
+    <string name="browser_open_full">ブラウザ全画面で開く</string>
+    <string name="browser_settings">ブラウザ設定</string>
+    <string name="browser_desktop_site">PC版サイト</string>
+    <string name="browser_mobile_site">モバイル版サイト</string>
+    <string name="browser_set_home">ホームページ</string>
+    <string name="browser_open_external">別のブラウザで開く</string>
+    <string name="browser_close_all">すべてのタブを閉じる</string>
+    <string name="browser_clear_cache">キャッシュと履歴を消去</string>
+    <string name="browser_clear_cookies">Cookieとサイトデータを消去</string>
+    <string name="browser_clear_cookies_confirm">エージェントブラウザのすべてのサイトからログアウトされます（コネクタも）。</string>
+    <string name="browser_cleared">消去しました</string>
 </resources>

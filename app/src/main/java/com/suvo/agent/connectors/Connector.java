@@ -83,6 +83,15 @@ public final class Connector {
         c.type = WEB;
         c.hosts = "*";
         c.homeUrl = "https://www.google.com";
+        try {
+            com.suvo.agent.AppGraph g = com.suvo.agent.AppGraph.get();
+            if (g != null && g.settings != null) {
+                c.desktopSite = g.settings.bool("browser_desktop", false);
+                c.homeUrl = g.settings.str("browser_home", c.homeUrl);
+            }
+        } catch (RuntimeException ignored) {
+            // Not ready yet: defaults.
+        }
         return c;
     }
 

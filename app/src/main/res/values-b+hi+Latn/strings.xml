@@ -1200,4 +1200,24 @@
     <string name="media_queue">Track %1$s · Your Friend</string>
     <string name="settings_termux_jail">Termux mein agent ko ~/yf ke andar rakho</string>
     <string name="settings_termux_jail_desc">Agent ke commands ko Termux ka sirf ~/yf folder dikhta hai (proot se), tumhari baaki Termux files nahi. Tumhara apna terminal limited nahi hai.</string>
+    <string name="browser_title">Agent browser</string>
+    <string name="browser_desc">Agent ka browser: saare tabs, sites me login, settings</string>
+    <string name="browser_address_hint">Search karo ya address likho</string>
+    <string name="browser_forward">Aage</string>
+    <string name="browser_reload">Reload</string>
+    <string name="browser_new_tab">Naya tab</string>
+    <string name="browser_tabs">Tabs</string>
+    <string name="browser_tabs_count">Tabs (%1$d)</string>
+    <string name="browser_close_tab">Tab band karo</string>
+    <string name="browser_open_full">Pura browser kholo</string>
+    <string name="browser_settings">Browser settings</string>
+    <string name="browser_desktop_site">Desktop site</string>
+    <string name="browser_mobile_site">Mobile site</string>
+    <string name="browser_set_home">Home page</string>
+    <string name="browser_open_external">Dusre browser me kholo</string>
+    <string name="browser_close_all">Saare tabs band karo</string>
+    <string name="browser_clear_cache">Cache aur history saaf karo</string>
+    <string name="browser_clear_cookies">Cookies aur site data saaf karo</string>
+    <string name="browser_clear_cookies_confirm">Agent browser me har site se logout ho jaoge (connectors bhi).</string>
+    <string name="browser_cleared">Saaf ho gaya</string>
 </resources>

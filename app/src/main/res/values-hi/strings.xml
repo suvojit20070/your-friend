@@ -1159,4 +1159,24 @@
     <string name="media_queue">ट्रैक %1$s · Your Friend</string>
     <string name="settings_termux_jail">Termux में एजेंट को ~/yf के अंदर रखें</string>
     <string name="settings_termux_jail_desc">एजेंट के कमांड को Termux का सिर्फ़ ~/yf फ़ोल्डर दिखता है (proot से), आपकी बाकी Termux फ़ाइलें नहीं। आपका अपना टर्मिनल सीमित नहीं है।</string>
+    <string name="browser_title">एजेंट ब्राउज़र</string>
+    <string name="browser_desc">एजेंट का ब्राउज़र: सारे टैब, साइट में लॉगिन, सेटिंग्स</string>
+    <string name="browser_address_hint">खोजें या पता लिखें</string>
+    <string name="browser_forward">आगे</string>
+    <string name="browser_reload">रीलोड</string>
+    <string name="browser_new_tab">नया टैब</string>
+    <string name="browser_tabs">टैब</string>
+    <string name="browser_tabs_count">टैब (%1$d)</string>
+    <string name="browser_close_tab">टैब बंद करें</string>
+    <string name="browser_open_full">पूरा ब्राउज़र खोलें</string>
+    <string name="browser_settings">ब्राउज़र सेटिंग्स</string>
+    <string name="browser_desktop_site">डेस्कटॉप साइट</string>
+    <string name="browser_mobile_site">मोबाइल साइट</string>
+    <string name="browser_set_home">होम पेज</string>
+    <string name="browser_open_external">दूसरे ब्राउज़र में खोलें</string>
+    <string name="browser_close_all">सारे टैब बंद करें</string>
+    <string name="browser_clear_cache">कैश और इतिहास साफ़ करें</string>
+    <string name="browser_clear_cookies">कुकीज़ और साइट डेटा साफ़ करें</string>
+    <string name="browser_clear_cookies_confirm">एजेंट ब्राउज़र में हर साइट से लॉगआउट हो जाएंगे (कनेक्टर भी)।</string>
+    <string name="browser_cleared">साफ़ हो गया</string>
 </resources>

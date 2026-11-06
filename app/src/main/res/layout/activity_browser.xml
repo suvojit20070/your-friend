@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The agent's browser as a full screen: tabs, address bar, the page, navigation. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <include layout="@layout/top_bar" />
+
+    <EditText
+        android:id="@+id/browser_address"
+        style="@style/YF.Input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="16dp"
+        android:hint="@string/browser_address_hint"
+        android:imeOptions="actionGo"
+        android:importantForAutofill="no"
+        android:inputType="textUri"
+        android:selectAllOnFocus="true"
+        android:singleLine="true" />
+
+    <FrameLayout
+        android:id="@+id/browser_progress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="22dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="22dp" />
+
+    <FrameLayout
+        android:id="@+id/browser_slot"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="12dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:id="@+id/browser_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/browser_back"
+            android:layout_width="@dimen/icon_button"
+            android:layout_height="@dimen/icon_button"
+            android:layout_margin="6dp"
+            android:background="@drawable/circle_glass"
+            android:contentDescription="@string/back"
+            android:padding="13dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_back"
+            android:tint="@color/text_primary" />
+
+        <ImageButton
+            android:id="@+id/browser_forward"
+            android:layout_width="@dimen/icon_button"
+            android:layout_height="@dimen/icon_button"
+            android:layout_margin="6dp"
+            android:background="@drawable/circle_glass"
+            android:contentDescription="@string/browser_forward"
+            android:padding="13dp"
+            android:rotation="180"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_back"
+            android:tint="@color/text_primary" />
+
+        <ImageButton
+            android:id="@+id/browser_reload"
+            android:layout_width="@dimen/icon_button"
+            android:layout_height="@dimen/icon_button"
+            android:layout_margin="6dp"
+            android:background="@drawable/circle_glass"
+            android:contentDescription="@string/browser_reload"
+            android:padding="13dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_refresh"
+            android:tint="@color/text_primary" />
+
+        <ImageButton
+            android:id="@+id/browser_new"
+            android:layout_width="@dimen/icon_button"
+            android:layout_height="@dimen/icon_button"
+            android:layout_margin="6dp"
+            android:background="@drawable/circle_glass"
+            android:contentDescription="@string/browser_new_tab"
+            android:padding="13dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_add"
+            android:tint="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/browser_tabs"
+            style="@style/YF.Title"
+            android:layout_width="@dimen/icon_button"
+            android:layout_height="@dimen/icon_button"
+            android:layout_margin="6dp"
+            android:background="@drawable/circle_glass"
+            android:contentDescription="@string/browser_tabs"
+            android:gravity="center"
+            android:textSize="16sp" />
+    </LinearLayout>
+</LinearLayout>

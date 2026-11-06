@@ -1248,4 +1248,24 @@
     <string name="media_queue">Track %1$s · Your Friend</string>
     <string name="settings_termux_jail">Keep the agent inside ~/yf in Termux</string>
     <string name="settings_termux_jail_desc">Its commands see only the ~/yf folder of Termux (with proot), never your other Termux files. Your own terminal is not limited.</string>
+    <string name="browser_title">Agent browser</string>
+    <string name="browser_desc">The agent\'s browser: all tabs, log in to sites, settings</string>
+    <string name="browser_address_hint">Search or type an address</string>
+    <string name="browser_forward">Forward</string>
+    <string name="browser_reload">Reload</string>
+    <string name="browser_new_tab">New tab</string>
+    <string name="browser_tabs">Tabs</string>
+    <string name="browser_tabs_count">Tabs (%1$d)</string>
+    <string name="browser_close_tab">Close tab</string>
+    <string name="browser_open_full">Open the full browser</string>
+    <string name="browser_settings">Browser settings</string>
+    <string name="browser_desktop_site">Desktop site</string>
+    <string name="browser_mobile_site">Mobile site</string>
+    <string name="browser_set_home">Home page</string>
+    <string name="browser_open_external">Open in another browser</string>
+    <string name="browser_close_all">Close all tabs</string>
+    <string name="browser_clear_cache">Clear cache and history</string>
+    <string name="browser_clear_cookies">Clear cookies and site data</string>
+    <string name="browser_clear_cookies_confirm">You will be logged out of every site in the agent browser (connectors too).</string>
+    <string name="browser_cleared">Cleared</string>
 </resources>

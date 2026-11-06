@@ -568,10 +568,11 @@ public final class ConnectorTools {
                             + "Tab, Backspace, Escape, ArrowUp, ArrowDown), scroll (dy pixels, page or the scrollable element around "
                             + "selector/text; negative = up), back, screenshot (picture of the page), url, js (JavaScript: a function "
                             + "body that returns a value, or an expression; prefer tap/type/key for clicking and typing), fetch "
-                            + "(request from inside the page with its cookies). After tap/type/key/scroll call text to see the result.")
+                            + "(request from inside the page with its cookies). After tap/type/key/scroll call text to see the result. Tabs: tabs (list: tab number, title, url, which is current, who opened it), new_tab (optional url), switch_tab (tab), close_tab (tab); every other action works on the current tab.")
                     .schema("{\"type\":\"object\",\"properties\":{"
                             + "\"connector\":{\"type\":\"string\"},"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\"]},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\"]},"
+                            + "\"tab\":{\"type\":\"integer\",\"description\":\"tab number (from tabs) for switch_tab / close_tab\"},"
                             + "\"url\":{\"type\":\"string\"},"
                             + "\"selector\":{\"type\":\"string\",\"description\":\"CSS selector\"},"
                             + "\"text\":{\"type\":\"string\",\"description\":\"Visible text / label of the element\"},"
@@ -629,9 +630,12 @@ public final class ConnectorTools {
                             + "text, links, buttons, inputs), tap (selector or visible text), type (value, after tapping selector/text), "
                             + "key (Enter, Tab, Backspace, Escape, ArrowUp, ArrowDown), scroll (dy, negative = up), back, screenshot, url, "
                             + "js (function body returning a value), fetch (request with the page's cookies). After tap/type/key/scroll "
-                            + "call text to see the result. Never enter passwords or payment details unless the user asked for that site.")
+                            + "call text to see the result. Tabs: tabs (list: tab number, title, url, current, opened by), new_tab (optional url), "
+                            + "switch_tab (tab), close_tab (tab); the user sees the same tabs in the Browser screen. Never enter "
+                            + "passwords or payment details unless the user asked for that site.")
                     .schema("{\"type\":\"object\",\"properties\":{"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\"]},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\"]},"
+                            + "\"tab\":{\"type\":\"integer\",\"description\":\"tab number (from tabs) for switch_tab / close_tab\"},"
                             + "\"url\":{\"type\":\"string\"},"
                             + "\"selector\":{\"type\":\"string\",\"description\":\"CSS selector\"},"
                             + "\"text\":{\"type\":\"string\",\"description\":\"Visible text / label of the element\"},"
@@ -734,6 +738,24 @@ public final class ConnectorTools {
                     String r = WebSession.eval(g.ctx, c, script, 60_000);
                     if (r != null && r.startsWith("ERROR:")) return ToolResult.fail(r + " (open a page of the site first)");
                     return ToolResult.ok("Fetched", J.obj("response", r));
+                }
+                case "tabs":
+                    return ToolResult.ok("Tabs", J.obj("tabs", WebSession.tabsJson(g.ctx)));
+                case "new_tab": {
+                    int id = WebSession.newTabFor(g.ctx, c);
+                    if (inv.str("url").isEmpty()) return ToolResult.ok("Opened tab " + id + " (now current)", J.obj("tab", id));
+                    String state = WebSession.open(g.ctx, c, inv.str("url"), 30_000);
+                    return ToolResult.ok("Tab " + id + ": " + state, J.obj("tab", id, "page", WebSession.text(g.ctx, c, max)));
+                }
+                case "switch_tab": {
+                    int id = (int) inv.num("tab", -1);
+                    if (!WebSession.switchTabFor(id)) return ToolResult.fail("No tab " + id + " — call tabs to see them");
+                    return ToolResult.ok("Switched to tab " + id, J.obj("url", WebSession.url(g.ctx, c)));
+                }
+                case "close_tab": {
+                    int id = (int) inv.num("tab", -1);
+                    if (!WebSession.closeTabFor(id)) return ToolResult.fail("No tab " + id + " — call tabs to see them");
+                    return ToolResult.ok("Closed tab " + id, J.obj("tabs", WebSession.tabsJson(g.ctx)));
                 }
                 case "screenshot": {
                     Bitmap b = WebSession.screenshot(g.ctx, c);
