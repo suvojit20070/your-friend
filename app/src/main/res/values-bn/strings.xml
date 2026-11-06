@@ -1179,4 +1179,6 @@
     <string name="browser_clear_cookies">কুকি ও সাইট ডেটা মুছুন</string>
     <string name="browser_clear_cookies_confirm">এজেন্ট ব্রাউজারে সব সাইট থেকে লগআউট হয়ে যাবেন (কানেক্টরও)।</string>
     <string name="browser_cleared">মুছে গেছে</string>
+    <string name="browser_desktop_on">ডেস্কটপ সাইট চালু</string>
+    <string name="browser_desktop_off">মোবাইল সাইট চালু</string>
 </resources>

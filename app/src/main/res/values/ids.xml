@@ -19,4 +19,6 @@
     <!-- A subtree that themes itself in code: the layout-pass re-theming skips it. -->
     <item name="theme_skip" type="id" />
     <item name="theme_sel" type="id" />
+    <!-- The moving highlight of a status text (ui/Shimmer.java). -->
+    <item name="shimmer" type="id" />
 </resources>

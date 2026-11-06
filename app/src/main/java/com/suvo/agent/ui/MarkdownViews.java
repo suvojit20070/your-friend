@@ -107,6 +107,13 @@ final class MarkdownViews {
         lp.topMargin = i == 0 ? 0 : Ui.dp(ctx, b.type == Markdown.Block.TEXT ? 12 : 10);
         if (old != null) box.removeViewAt(i);
         box.addView(v, i, lp);
+        if (old == null && !selectable && box.getChildCount() > 1) {
+            // A new block of a streaming answer (heading, list, code, table…) rises and fades in.
+            v.setAlpha(0f);
+            v.setTranslationY(Ui.dp(ctx, 8));
+            v.animate().alpha(1f).translationY(0f).setDuration(320)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
+        }
         return v;
     }
 

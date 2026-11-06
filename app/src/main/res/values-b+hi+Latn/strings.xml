@@ -1220,4 +1220,6 @@
     <string name="browser_clear_cookies">Cookies aur site data saaf karo</string>
     <string name="browser_clear_cookies_confirm">Agent browser me har site se logout ho jaoge (connectors bhi).</string>
     <string name="browser_cleared">Saaf ho gaya</string>
+    <string name="browser_desktop_on">Desktop site on</string>
+    <string name="browser_desktop_off">Mobile site on</string>
 </resources>

@@ -309,9 +309,24 @@ public final class ChatActivity extends BaseActivity {
         listBox.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (followPending) list.scrollTo(0, listBox.getHeight());
         });
+        list.setOnTouchListener((v, e) -> {
+            int a = e.getActionMasked();
+            if (a == android.view.MotionEvent.ACTION_DOWN || a == android.view.MotionEvent.ACTION_MOVE) {
+                userTouchUntil = Long.MAX_VALUE;
+            } else if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
+                userTouchUntil = android.os.SystemClock.uptimeMillis() + 1500; // the fling that follows
+            }
+            return false;
+        });
         list.setOnScrollChangeListener((v, x, y, ox, oy) -> {
             // The user scrolled up: stop following the live answer until they come back down.
-            if (y < oy && !paging && !followPending) followingStream = false;
+            boolean byUser = android.os.SystemClock.uptimeMillis() < userTouchUntil;
+            if (y < oy && byUser && !paging) {
+                followingStream = false;
+                followPending = false;
+                userAway = true;
+            }
+            if (userAway && byUser && !list.canScrollVertically(1)) userAway = false;
             pageIfNeeded(y, oy);
         });
         input = findViewById(R.id.chat_input);
@@ -448,7 +463,11 @@ public final class ChatActivity extends BaseActivity {
         LiquidPress.attach(down, LiquidPress.CAPSULE);
         down.setAlpha(0f);
         down.setVisibility(View.GONE);
-        down.setOnClickListener(v -> list.smoothScrollTo(0, listBox.getHeight()));
+        down.setOnClickListener(v -> {
+            userAway = false;
+            followingStream = true;
+            list.smoothScrollTo(0, listBox.getHeight());
+        });
         android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40),
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         ViewGroup frame = (ViewGroup) list.getParent();
@@ -917,7 +936,28 @@ public final class ChatActivity extends BaseActivity {
                 Progress.style(li, pal.primary, 30, true);
             }
         }
-        ((TextView) findViewById(R.id.chat_status_text)).setText(running && text != null ? text : "");
+        TextView st = findViewById(R.id.chat_status_text);
+        String next = running && text != null ? text : "";
+        Palette sp = Palette.of(this);
+        if (running) Shimmer.start(st, Palette.alpha(sp.onSurfaceVariant, 0.75f), sp.onSurface);
+        else Shimmer.stop(st);
+        if (!next.contentEquals(st.getText())) {
+            if (running && st.getText().length() > 0 && st.isAttachedToWindow()) {
+                // The new step slides in: the old text fades up and out, the new one rises in.
+                st.animate().cancel();
+                st.animate().alpha(0f).translationY(-Ui.dp(this, 6)).setDuration(110).withEndAction(() -> {
+                    st.setText(next);
+                    st.setTranslationY(Ui.dp(this, 6));
+                    st.animate().alpha(1f).translationY(0).setDuration(200)
+                            .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+                }).start();
+            } else {
+                st.animate().cancel();
+                st.setAlpha(1f);
+                st.setTranslationY(0);
+                st.setText(next);
+            }
+        }
         send.setImageResource(running ? R.drawable.ic_stop : R.drawable.ic_send);
         send.setContentDescription(getString(running ? R.string.action_stop : R.string.send));
     }
@@ -973,6 +1013,7 @@ public final class ChatActivity extends BaseActivity {
         updateAttachmentHint();
         lastError = null;
         streamItem = null;
+        userAway = false;
         reload();
         scrollToEnd();
         updateRunState(getString(R.string.status_thinking));
@@ -1011,7 +1052,7 @@ public final class ChatActivity extends BaseActivity {
         streamRenderQueued = false;
         followingStream = false;
         // Stay where the user is reading if they scrolled up; follow the end only when already there.
-        final boolean follow = !list.canScrollVertically(1);
+        final boolean follow = !userAway && !list.canScrollVertically(1);
         items.clear();
         streamItem = null;
         ConversationRepo.Conversation conv = g.conversations.get(conversationId);
@@ -1254,7 +1295,8 @@ public final class ChatActivity extends BaseActivity {
         }
         lastStreamRender = now;
         boolean atEnd = !list.canScrollVertically(1);
-        boolean follow = !selecting && (streamJustStarted || atEnd || followingStream);
+        // Never pull the user down while they are reading higher up (new answers after a tool call too).
+        boolean follow = !selecting && !userAway && (streamJustStarted || atEnd || followingStream);
         boolean first = streamJustStarted;
         streamJustStarted = false;
         adapter.notifyDataSetChanged();
@@ -1277,6 +1319,10 @@ public final class ChatActivity extends BaseActivity {
 
     /** Keeps following the live answer while the user has not scrolled up. */
     private boolean followingStream;
+    /** The user scrolled up to read: nothing scrolls by itself until they come back to the end. */
+    private boolean userAway;
+    /** Scrolling before this time is the user's (finger on the list, or its fling). */
+    private long userTouchUntil;
 
     @Override
     protected void onDestroy() {
@@ -1785,6 +1831,7 @@ public final class ChatActivity extends BaseActivity {
             bubble.setOnLongClickListener(null);
             bubble.setClickable(false);
             bubble.setLongClickable(false);
+            Shimmer.stop(text);
             text.setVisibility(View.VISIBLE);
             text.setMaxLines(Integer.MAX_VALUE);
             title.setTextSize(13f);
@@ -1875,7 +1922,7 @@ public final class ChatActivity extends BaseActivity {
                     text.setVisibility(View.GONE); // the thinking card shows what is happening
                 } else if (it.type == STREAM && parts[1].isEmpty()) {
                     text.setText(getString(R.string.status_thinking));
-                    text.setTextColor(pal.onSurfaceVariant);
+                    Shimmer.start(text, Palette.alpha(pal.onSurfaceVariant, 0.75f), pal.onSurface);
                 } else if (parts[1].isEmpty()) {
                     text.setVisibility(View.GONE); // only thinking (the step went on with tools)
                 } else {

@@ -1179,4 +1179,6 @@
     <string name="browser_clear_cookies">कुकीज़ और साइट डेटा साफ़ करें</string>
     <string name="browser_clear_cookies_confirm">एजेंट ब्राउज़र में हर साइट से लॉगआउट हो जाएंगे (कनेक्टर भी)।</string>
     <string name="browser_cleared">साफ़ हो गया</string>
+    <string name="browser_desktop_on">डेस्कटॉप साइट चालू</string>
+    <string name="browser_desktop_off">मोबाइल साइट चालू</string>
 </resources>

@@ -21,6 +21,8 @@ public class AgentWebView extends WebView {
     /** Which account / mode opened it ("browser" or a connector name). */
     public String owner = "browser";
     public int progress = 100;
+    /** Shows pages as on a computer (user agent, client hints, desktop-width layout). */
+    public boolean desktop;
 
     public AgentWebView(Context context, int tabId) {
         super(context);

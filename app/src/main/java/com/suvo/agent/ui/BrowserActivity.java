@@ -56,6 +56,9 @@ public final class BrowserActivity extends BaseActivity implements WebSession.Ho
         address = findViewById(R.id.browser_address);
         slot = findViewById(R.id.browser_slot);
         tabsButton = findViewById(R.id.browser_tabs);
+        // The top bar's back arrow leaves the browser (the phone's back button goes back in the page).
+        View topBack = findViewById(R.id.top_back);
+        if (topBack != null) topBack.setOnClickListener(v -> finish());
         slot.setTag(R.id.theme_skip, Boolean.TRUE);
         slot.setClipToOutline(true);
         slot.setOutlineProvider(new android.view.ViewOutlineProvider() {
@@ -281,7 +284,9 @@ public final class BrowserActivity extends BaseActivity implements WebSession.Ho
                 case 0:
                     g.settings.put(DESKTOP, !desktop);
                     for (AgentWebView t : WebSession.tabList()) WebSession.configure(t, Connector.openWeb());
-                    if (w != null) w.reload();
+                    // Load the address again (not reload(): that can keep the old mobile page and user agent).
+                    if (w != null && w.getUrl() != null) w.loadUrl(w.getUrl());
+                    Ui.toast(this, !desktop ? R.string.browser_desktop_on : R.string.browser_desktop_off);
                     break;
                 case 1:
                     Ui.prompt(this, R.string.browser_set_home, w != null && w.getUrl() != null ? w.getUrl() : home(), false, s -> {

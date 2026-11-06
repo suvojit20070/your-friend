@@ -296,7 +296,9 @@ public final class ScreenTools {
         public Screenshot(AppGraph g) {
             super(g, ToolSpec.builder("screenshot")
                     .description("Capture the current screen as an image (attached for you to look at, if the model supports images) "
-                            + "and save it in the workspace. Prefer screen_operation_accessibility read for text; use this for visual content.")
+                            + "and save it in the workspace. Prefer screen_operation_accessibility read for text; use this for visual content. "
+                            + "This is the whole PHONE screen: for a page in your own browser use browser / web_session action screenshot "
+                            + "instead (only the page, works even when the browser is hidden or the screen is off).")
                     .schema("{\"type\":\"object\",\"properties\":{"
                             + "\"backend\":{\"type\":\"string\",\"enum\":[\"auto\",\"accessibility\",\"media_projection\",\"shizuku\"],\"default\":\"auto\"},"
                             + "\"max_side\":{\"type\":\"integer\",\"minimum\":320,\"maximum\":2048,\"default\":1280}"

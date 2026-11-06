@@ -1268,4 +1268,6 @@
     <string name="browser_clear_cookies">Clear cookies and site data</string>
     <string name="browser_clear_cookies_confirm">You will be logged out of every site in the agent browser (connectors too).</string>
     <string name="browser_cleared">Cleared</string>
+    <string name="browser_desktop_on">Desktop site on</string>
+    <string name="browser_desktop_off">Mobile site on</string>
 </resources>

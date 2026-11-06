@@ -1171,4 +1171,6 @@
     <string name="browser_clear_cookies">Cookieとサイトデータを消去</string>
     <string name="browser_clear_cookies_confirm">エージェントブラウザのすべてのサイトからログアウトされます（コネクタも）。</string>
     <string name="browser_cleared">消去しました</string>
+    <string name="browser_desktop_on">PC版サイトで表示</string>
+    <string name="browser_desktop_off">モバイル版サイトで表示</string>
 </resources>

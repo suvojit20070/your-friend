@@ -371,9 +371,42 @@ public final class WebSession {
         s.setMediaPlaybackRequiresUserGesture(true);
         String ua = userAgent(v.getContext(), c);
         if (!ua.equals(s.getUserAgentString())) s.setUserAgentString(ua);
+        boolean desktop = c != null && c.desktopSite;
+        if (v instanceof AgentWebView) ((AgentWebView) v).desktop = desktop;
+        // Pinch zoom (desktop pages are wide).
+        s.setSupportZoom(true);
+        s.setBuiltInZoomControls(true);
+        s.setDisplayZoomControls(false);
+        // Sites (Google too) also read the client hints, which still say "mobile" with only the user
+        // agent changed: tell them the same thing.
+        clientHints(s, desktop);
         CookieManager cm = CookieManager.getInstance();
         cm.setAcceptCookie(true);
         cm.setAcceptThirdPartyCookies(v, true);
+    }
+
+    /**
+     * Sets Sec-CH-UA-Mobile / navigator.userAgentData (androidx.webkit, called reflectively so an
+     * old WebView or library just keeps the user agent alone).
+     */
+    private static void clientHints(WebSettings s, boolean desktop) {
+        try {
+            Class<?> feature = Class.forName("androidx.webkit.WebViewFeature");
+            String name = (String) feature.getField("USER_AGENT_METADATA").get(null);
+            if (!(Boolean) feature.getMethod("isFeatureSupported", String.class).invoke(null, name)) return;
+            Class<?> compat = Class.forName("androidx.webkit.WebSettingsCompat");
+            Class<?> meta = Class.forName("androidx.webkit.UserAgentMetadata");
+            Class<?> builder = Class.forName("androidx.webkit.UserAgentMetadata$Builder");
+            Object cur = compat.getMethod("getUserAgentMetadata", WebSettings.class).invoke(null, s);
+            if ((Boolean) meta.getMethod("isMobile").invoke(cur) != desktop) return; // already right
+            Object b = builder.getConstructor(meta).newInstance(cur);
+            builder.getMethod("setMobile", boolean.class).invoke(b, !desktop);
+            builder.getMethod("setPlatform", String.class).invoke(b, desktop ? "Linux" : "Android");
+            if (desktop) builder.getMethod("setModel", String.class).invoke(b, "");
+            compat.getMethod("setUserAgentMetadata", WebSettings.class, meta).invoke(null, s, builder.getMethod("build").invoke(b));
+        } catch (Throwable ignored) {
+            // Not available: the user agent alone.
+        }
     }
 
     public static final class Bridge {
@@ -408,6 +441,12 @@ public final class WebSession {
             @Override
             public void onPageFinished(WebView w, String url) {
                 CookieManager.getInstance().flush();
+                if (w instanceof AgentWebView && ((AgentWebView) w).desktop) {
+                    // Responsive pages: lay out at desktop width (the page is then zoomed out to fit).
+                    w.evaluateJavascript("(function(){var m=document.querySelector('meta[name=viewport]');"
+                            + "if(!m){m=document.createElement('meta');m.name='viewport';(document.head||document.documentElement).appendChild(m);}"
+                            + "m.content='width=1280';})()", null);
+                }
                 if (w == view) {
                     CountDownLatch l = loaded;
                     if (l != null) l.countDown();
