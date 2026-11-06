@@ -32,7 +32,16 @@ public final class ProvidersActivity extends BaseActivity {
         setContentView(R.layout.activity_rows);
         setTopBar(R.string.section_providers);
         topAction(R.drawable.ic_add, R.string.provider_add, v -> startActivity(new Intent(this, ProviderEditorActivity.class)));
+        // Opened from the token line under an answer: show that provider's usage right away.
+        long usageId = getIntent() == null ? -1 : getIntent().getLongExtra(EXTRA_USAGE, -1);
+        if (usageId >= 0 && savedInstanceState == null) {
+            UsageStore.Stats st = UsageStore.get(this).get(usageId);
+            String name = st == null || st.name.isEmpty() ? "#" + usageId : st.name;
+            findViewById(R.id.rows).post(() -> details(usageId, name));
+        }
     }
+
+    public static final String EXTRA_USAGE = "usage_provider";
 
     @Override
     protected void onResume() {

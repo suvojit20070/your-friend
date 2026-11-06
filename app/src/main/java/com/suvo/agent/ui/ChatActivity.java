@@ -87,6 +87,8 @@ public final class ChatActivity extends BaseActivity {
         boolean header;
         /** The model's thinking (reasoning_content) for this answer, shown in a thinking card. */
         String reasoning = "";
+        /** Database id of the message (ASSISTANT: its token numbers). */
+        long dbId = -1;
 
         /** Everything the row shows; a row bound to an item with the same signature is left alone. */
         int signature() {
@@ -1200,6 +1202,7 @@ public final class ChatActivity extends BaseActivity {
                         it.reasoning = m.reasoning == null ? "" : m.reasoning.trim();
                         it.time = sm.createdAt;
                         it.dim = sm.compacted;
+                        it.dbId = sm.id;
                         items.add(it);
                     }
                     for (ToolCall c : m.toolCalls) {
@@ -1543,6 +1546,19 @@ public final class ChatActivity extends BaseActivity {
             }
         });
         listBox.requestLayout();
+    }
+
+    /** A provider's tokens so far (its own numbers when it reports them), cached for a moment. */
+    private final java.util.Map<Long, long[]> totals = new java.util.HashMap<>();
+
+    private long providerTotal(long id) {
+        long now = android.os.SystemClock.uptimeMillis();
+        long[] c = totals.get(id);
+        if (c != null && now - c[1] < 5000) return c[0];
+        com.suvo.agent.data.UsageStore.Stats st = com.suvo.agent.data.UsageStore.get(this).get(id);
+        long t = st == null ? 0 : st.providerIn >= 0 && st.providerOut >= 0 ? st.providerIn + st.providerOut : st.inTokens + st.outTokens;
+        totals.put(id, new long[]{t, now});
+        return t;
     }
 
     // ---- your new message at the top
@@ -2185,8 +2201,30 @@ public final class ChatActivity extends BaseActivity {
             lp.width = detail.getVisibility() == View.VISIBLE || prose || it.type == TOOLS ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT;
             bubble.setAlpha(it.dim ? 0.55f : 1f);
             bubble.setLayoutParams(lp);
-            time.setText(it.time == 0 ? "" : DateFormat.getTimeFormat(ChatActivity.this).format(new Date(it.time))
-                    + (it.dim ? " · " + getString(R.string.chat_summarized) : ""));
+            String when = it.time == 0 ? "" : DateFormat.getTimeFormat(ChatActivity.this).format(new Date(it.time))
+                    + (it.dim ? " · " + getString(R.string.chat_summarized) : "");
+            // The time is part of the finished message: hidden while the answer is being written.
+            time.setVisibility(it.type == STREAM ? View.GONE : View.VISIBLE);
+            com.suvo.agent.data.MessageStats.Entry ms = it.type == ASSISTANT && it.dbId > 0
+                    ? com.suvo.agent.data.MessageStats.get(ChatActivity.this).find(it.dbId) : null;
+            if (ms != null) {
+                // "6:17 PM · 230.4 T/S · 5k IN · 1k OUT · 8.79M TOTAL" — tap: that provider's usage.
+                StringBuilder sb = new StringBuilder(when);
+                if (ms.tps > 0) sb.append(" · ").append(String.format(java.util.Locale.US, "%.1f T/S", ms.tps));
+                sb.append(" · ").append(ProvidersActivity.compact(ms.in)).append(" IN · ")
+                        .append(ProvidersActivity.compact(ms.out)).append(" OUT");
+                long total = providerTotal(ms.providerId);
+                if (total > 0) sb.append(" · ").append(ProvidersActivity.compact(total)).append(" TOTAL");
+                time.setText(sb);
+                final long pid = ms.providerId;
+                time.setOnClickListener(x -> startActivity(new Intent(ChatActivity.this, ProvidersActivity.class)
+                        .putExtra(ProvidersActivity.EXTRA_USAGE, pid)));
+                time.setClickable(true);
+            } else {
+                time.setText(when);
+                time.setOnClickListener(null);
+                time.setClickable(false);
+            }
             time.setGravity(it.type == USER ? Gravity.END : Gravity.START);
             time.setTextColor(pal.tertiary);
             ImageView chev = v.findViewById(R.id.msg_chevron);

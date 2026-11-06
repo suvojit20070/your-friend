@@ -222,7 +222,11 @@ public final class AndroidAgentHost implements AgentHost {
 
     @Override
     public void persist(TaskState task, ChatMessage message) {
-        g.conversations.append(conversationId, message, task.id);
+        long id = g.conversations.append(conversationId, message, task.id);
+        if (message.role == ChatMessage.Role.ASSISTANT) {
+            com.suvo.agent.data.MessageStats.Entry e = TrackedLlm.takeLast();
+            if (e != null) com.suvo.agent.data.MessageStats.get(g.ctx).put(id, e);
+        }
     }
 
     @Override

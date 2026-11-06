@@ -58,6 +58,8 @@ public final class Markdown {
         public int codeText = 0;
         public int inlineCodeBackground = 0x22888888;
         public int inlineCodeText = 0;
+        /** Background of a ||spoiler||. */
+        public int spoiler = 0x33888888;
         public int quoteStripe = 0xFF7C5CFF;
         public int quoteBackground = 0x147C5CFF;
         public int link = 0;
@@ -139,6 +141,7 @@ public final class Markdown {
         st.codeText = p.onSurface;
         st.inlineCodeBackground = Palette.alpha(p.primary, p.dark ? 0.20f : 0.12f);
         st.inlineCodeText = p.dark ? p.onPrimaryContainer : p.primary;
+        st.spoiler = Palette.alpha(p.onSurface, p.dark ? 0.16f : 0.12f);
         st.quoteStripe = p.primary;
         st.quoteBackground = Palette.alpha(p.primary, p.dark ? 0.10f : 0.07f);
         st.link = p.primary;
@@ -295,6 +298,7 @@ public final class Markdown {
                     body = body.substring(alert.end());
                 }
                 qb.text = new SpannedString(build(body, st, null, false));
+                qb.code = body; // the quote's own markdown: rendered as blocks (nested quotes, lists, code…)
                 blocks.add(qb);
                 prev = QUOTE;
                 blank = false;
@@ -540,10 +544,22 @@ public final class Markdown {
                     out.append(s.substring(i + ticks, end).trim());
                     out.setSpan(new TypefaceSpan("monospace"), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     out.setSpan(new RelativeSizeSpan(0.92f), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                    out.setSpan(new BackgroundColorSpan(st.inlineCodeBackground), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    out.setSpan(new MdTextView.Pill(st.inlineCodeBackground), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     int fg = st.inlineCodeText != 0 ? st.inlineCodeText : st.codeText;
                     if (fg != 0) out.setSpan(new ForegroundColorSpan(fg), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     i = end + ticks;
+                    continue;
+                }
+            }
+            // ||spoiler||: blurred until tapped
+            if (c == '|' && i + 1 < n && s.charAt(i + 1) == '|') {
+                int end = s.indexOf("||", i + 2);
+                if (end > i + 2) {
+                    flush(out, plain);
+                    int st0 = out.length();
+                    inline(out, s.substring(i + 2, end), st);
+                    out.setSpan(new MdTextView.Spoiler(st.spoiler), st0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    i = end + 2;
                     continue;
                 }
             }
@@ -614,7 +630,7 @@ public final class Markdown {
                         if (AppScreens.find(key) != null) {
                             int accent = st.link != 0 ? st.link : 0xFF7C5CFF;
                             out.setSpan(new AppLink(key, accent), b0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                            out.setSpan(new BackgroundColorSpan((accent & 0x00FFFFFF) | 0x33000000), b0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                            out.setSpan(new MdTextView.Pill((accent & 0x00FFFFFF) | 0x33000000), b0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                             out.setSpan(new StyleSpan(Typeface.BOLD), b0, out.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                         }
                         i = paren + 1;

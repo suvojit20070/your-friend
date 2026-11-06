@@ -87,7 +87,7 @@ final class MarkdownViews {
                 v = code(ctx, b, st, hook, textSp / 17f);
                 break;
             case KIND_TABLE:
-                v = table(ctx, b, st, textSp, textColor);
+                v = table(ctx, b, st, textSp, textColor, selectable, hook);
                 break;
             case KIND_QUOTE:
                 v = quote(ctx, b, st, textSp, lineExtraPx, selectable, hook);
@@ -178,7 +178,7 @@ final class MarkdownViews {
 
     private static TextView text(Context ctx, CharSequence text, Markdown.Style st, float textSp, float lineExtraPx, int color,
                                  boolean selectable, SelectionHook hook) {
-        TextView t = new TextView(ctx, null, 0, R.style.YF_Body);
+        TextView t = new MdTextView(ctx, R.style.YF_Body);
         t.setTextSize(textSp);
         t.setLineSpacing(lineExtraPx, 1f);
         t.setTextColor(color);
@@ -385,8 +385,18 @@ final class MarkdownViews {
             hp.bottomMargin = Ui.dp(ctx, 6);
             col.addView(head, hp);
         }
-        TextView body = text(ctx, b.text, st, Math.max(14f, textSp - 1f), lineExtraPx, Palette.alpha(pal.onSurface, 0.88f), selectable, hook);
-        col.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        float innerSp = Math.max(14f, textSp - 1f);
+        if (b.code != null && !b.code.trim().isEmpty()) {
+            // The quote's own markdown as blocks: a quote inside it becomes a card inside this card
+            // (any depth), and lists / code / tables inside quotes work too.
+            LinearLayout inner = new LinearLayout(ctx);
+            inner.setOrientation(LinearLayout.VERTICAL);
+            fill(inner, Markdown.blocks(b.code, st, selectable), st, innerSp, lineExtraPx, Palette.alpha(pal.onSurface, 0.88f), selectable, hook);
+            col.addView(inner, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        } else {
+            TextView body = text(ctx, b.text, st, innerSp, lineExtraPx, Palette.alpha(pal.onSurface, 0.88f), selectable, hook);
+            col.addView(body, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         cp.setMargins(Ui.dp(ctx, 12), Ui.dp(ctx, 11), Ui.dp(ctx, 14), Ui.dp(ctx, 12));
         card.addView(col, cp);
@@ -395,7 +405,8 @@ final class MarkdownViews {
 
     // ---- Table -----------------------------------------------------------------------------------
 
-    private static View table(Context ctx, Markdown.Block b, Markdown.Style st, float textSp, int textColor) {
+    private static View table(Context ctx, Markdown.Block b, Markdown.Style st, float textSp, int textColor,
+                              boolean selectable, SelectionHook hook) {
         Palette pal = Palette.of(ctx);
         FrameLayout card = new FrameLayout(ctx);
         int line = androidx.core.graphics.ColorUtils.compositeColors(Palette.alpha(pal.outlineVariant, 0.55f), pal.surfaceLow);
@@ -417,7 +428,7 @@ final class MarkdownViews {
             TableRow row = new TableRow(ctx);
             CharSequence[] cells = b.rows.get(r);
             for (int c = 0; c < cells.length; c++) {
-                TextView t = new TextView(ctx, null, 0, R.style.YF_Body);
+                TextView t = new MdTextView(ctx, R.style.YF_Body);
                 t.setTextSize(Math.max(12f, textSp - 2.5f));
                 t.setLineSpacing(Ui.dp(ctx, 2), 1f);
                 t.setTextColor(textColor);
@@ -425,7 +436,10 @@ final class MarkdownViews {
                 t.setText(cells[c]);
                 t.setMaxWidth(maxCell);
                 t.setMinWidth(Ui.dp(ctx, 64));
-                t.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+                // Cell text can be selected and copied (links still open on a tap).
+                t.setLinkTextColor(st.link);
+                t.setHighlightColor(Palette.alpha(st.link, 0.28f));
+                makeSelectable(t, selectable, hook);
                 t.setPadding(Ui.dp(ctx, 12), Ui.dp(ctx, 9), Ui.dp(ctx, 12), Ui.dp(ctx, 9));
                 int a = c < b.align.length ? b.align[c] : 0;
                 t.setGravity((a == 1 ? Gravity.CENTER_HORIZONTAL : a == 2 ? Gravity.END : Gravity.START) | Gravity.CENTER_VERTICAL);

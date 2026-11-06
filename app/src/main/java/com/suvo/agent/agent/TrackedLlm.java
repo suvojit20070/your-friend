@@ -25,6 +25,15 @@ public final class TrackedLlm implements LlmClient {
     private final LlmClient inner;
     private final Context ctx;
 
+    private static final ThreadLocal<com.suvo.agent.data.MessageStats.Entry> LAST = new ThreadLocal<>();
+
+    /** The numbers of the last successful request on this thread (once), or null. */
+    public static com.suvo.agent.data.MessageStats.Entry takeLast() {
+        com.suvo.agent.data.MessageStats.Entry e = LAST.get();
+        LAST.remove();
+        return e;
+    }
+
     public TrackedLlm(Context ctx, LlmClient inner) {
         this.ctx = ctx.getApplicationContext();
         this.inner = inner;
@@ -73,8 +82,19 @@ public final class TrackedLlm implements LlmClient {
         try {
             ChatResponse r = inner.chat(request, watch, cancel);
             long end = SystemClock.elapsedRealtime();
-            store.success(id, name, model, in, TokenCount.of(r), t0, first[0], end,
+            int outCount = TokenCount.of(r);
+            store.success(id, name, model, in, outCount, t0, first[0], end,
                     r == null ? -1 : r.promptTokens, r == null ? -1 : r.completionTokens);
+            // This answer's own numbers, for the line under it in the chat.
+            com.suvo.agent.data.MessageStats.Entry e = new com.suvo.agent.data.MessageStats.Entry();
+            e.providerId = id;
+            boolean reported = r != null && r.promptTokens >= 0 && r.completionTokens >= 0;
+            e.fromProvider = reported;
+            e.in = reported ? r.promptTokens : in;
+            e.out = reported ? r.completionTokens : outCount;
+            long gen = first[0] > 0 && end > first[0] ? end - first[0] : end - t0;
+            e.tps = gen > 0 ? e.out * 1000.0 / gen : 0;
+            LAST.set(e);
             return r;
         } catch (LlmException e) {
             long end = SystemClock.elapsedRealtime();

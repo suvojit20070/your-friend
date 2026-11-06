@@ -63,7 +63,9 @@ public final class PromptAssembler {
                     + "```draft — a message/email draft: optional \"to: …\" and \"subject: …\" lines, a blank line, then the text "
                     + "(the user can Copy, Use it in the message box, or Share). ```buttons — one button per line: \"Label\" (tapping "
                     + "sends Label as the user's reply), \"Label | send: text\", \"Label | open: https://…\", \"Label | copy: text\", "
-                    + "\"Label | draft: text\". Offer buttons for quick choices instead of asking the user to type.";
+                    + "\"Label | draft: text\". Offer buttons for quick choices instead of asking the user to type. "
+                    + "Inline: ||spoiler|| hides text until the user taps it (answers to quizzes, plot twists, punchlines); "
+                    + "quotes can be nested (> outer, > > inner).";
 
     /**
      * How to work: a fixed playbook so the model uses its tools like a careful human assistant
