@@ -253,9 +253,9 @@ public final class WebSession {
      * move it; drag the corner grip to resize it.
      */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
-    private static void showOverlay(Context ctx) {
+    private static void showOverlay(Context from) {
         // The floating window belongs to the app, not to a screen (the tab may carry an Activity context).
-        ctx = ctx.getApplicationContext();
+        final Context ctx = from.getApplicationContext();
         try {
             float d = ctx.getResources().getDisplayMetrics().density;
             WindowManager wm = (WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
