@@ -611,7 +611,73 @@ public final class ConnectorTools {
 
         @Override
         public ToolResult execute(ToolInvocation inv) throws Exception {
-            Connector c = need(g, inv, Connector.WEB);
+            return runWeb(g, inv, need(g, inv, Connector.WEB));
+        }
+    }
+
+    /**
+     * browser: the agent's own floating browser for ANY public website (search, read, click, fill
+     * forms, log in once and stay logged in) — the same engine as web_session, without needing a
+     * connected account.
+     */
+    public static final class Browser extends BaseTool {
+        public Browser(AppGraph g) {
+            super(g, ToolSpec.builder("browser")
+                    .description("Your own real browser for ANY website, shown floating to the user while you work (they can also log in "
+                            + "there themselves; cookies stay). Use it when a page needs JavaScript, clicking, forms, a login or looking "
+                            + "at it; for plain reading prefer web_fetch / https_request. Actions: open (url), text (title, url, visible "
+                            + "text, links, buttons, inputs), tap (selector or visible text), type (value, after tapping selector/text), "
+                            + "key (Enter, Tab, Backspace, Escape, ArrowUp, ArrowDown), scroll (dy, negative = up), back, screenshot, url, "
+                            + "js (function body returning a value), fetch (request with the page's cookies). After tap/type/key/scroll "
+                            + "call text to see the result. Never enter passwords or payment details unless the user asked for that site.")
+                    .schema("{\"type\":\"object\",\"properties\":{"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\"]},"
+                            + "\"url\":{\"type\":\"string\"},"
+                            + "\"selector\":{\"type\":\"string\",\"description\":\"CSS selector\"},"
+                            + "\"text\":{\"type\":\"string\",\"description\":\"Visible text / label of the element\"},"
+                            + "\"value\":{\"type\":\"string\",\"description\":\"Text to type\"},"
+                            + "\"key\":{\"type\":\"string\"},"
+                            + "\"dy\":{\"type\":\"integer\",\"default\":800},"
+                            + "\"script\":{\"type\":\"string\",\"maxLength\":20000},"
+                            + "\"method\":{\"type\":\"string\",\"default\":\"GET\"},"
+                            + "\"headers\":{\"type\":\"object\"},"
+                            + "\"body\":{\"type\":\"string\"},"
+                            + "\"max_chars\":{\"type\":\"integer\",\"minimum\":500,\"maximum\":100000,\"default\":12000}"
+                            + "},\"required\":[\"action\"],\"additionalProperties\":false}")
+                    .requires(Capability.NETWORK).risk(RiskLevel.MEDIUM).backend("browser").timeoutMs(120_000).build());
+        }
+
+        @Override
+        public RiskLevel riskFor(JSONObject args) {
+            String a = args.optString("action");
+            if ("js".equals(a) || "tap".equals(a) || "type".equals(a) || "key".equals(a)) return RiskLevel.MEDIUM;
+            if ("fetch".equals(a)) return "GET".equalsIgnoreCase(args.optString("method", "GET")) ? RiskLevel.READ_ONLY : RiskLevel.MEDIUM;
+            return RiskLevel.READ_ONLY;
+        }
+
+        @Override
+        public String describeCall(JSONObject args) {
+            String a = args.optString("action");
+            if ("js".equals(a)) return "Browser JS: " + abbreviate(args.optString("script"), 300);
+            if ("tap".equals(a)) return "Browser: tap \"" + args.optString("text", args.optString("selector")) + "\"";
+            if ("type".equals(a)) return "Browser: type " + abbreviate(args.optString("value"), 300);
+            return "browser " + a + " " + args.optString("url");
+        }
+
+        @Override
+        public ToolResult execute(ToolInvocation inv) throws Exception {
+            String a = inv.str("action");
+            if (("open".equals(a) || "fetch".equals(a)) && !inv.str("url").isEmpty()) {
+                String why = com.suvo.agent.core.util.UrlSafety.check(inv.str("url"), false);
+                if (why != null) return ToolResult.of(ToolResult.Status.DENIED, why);
+            }
+            return runWeb(g, inv, Connector.openWeb());
+        }
+    }
+
+    /** The browser actions, shared by web_session (a connected site) and browser (any site). */
+    static ToolResult runWeb(AppGraph g, ToolInvocation inv, Connector c) throws Exception {
+        {
             int max = (int) inv.num("max_chars", 12000);
             String a = inv.str("action");
             switch (a) {

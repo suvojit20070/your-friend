@@ -67,6 +67,7 @@ public final class BuiltinTools {
         add(g, () -> new ConnectorTools.ConnectorApi(g));
         add(g, () -> new ConnectorTools.Email(g));
         add(g, () -> new ConnectorTools.Web(g));
+        add(g, () -> new ConnectorTools.Browser(g));
         add(g, () -> new AutoReplyTool(g));
         add(g, () -> new HttpsRequestTool(g));
         add(g, () -> new FileTransferTool(g));

@@ -71,6 +71,21 @@ public final class Connector {
     /** What the agent should know about this service's API (from the preset). */
     public String apiHint = "";
 
+    /**
+     * The agent's general browser (not a connected account): any public website, the same floating
+     * browser and cookies, so a site the user logs in to there stays logged in.
+     */
+    public static Connector openWeb() {
+        Connector c = new Connector();
+        c.id = "browser";
+        c.name = "browser";
+        c.service = "browser";
+        c.type = WEB;
+        c.hosts = "*";
+        c.homeUrl = "https://www.google.com";
+        return c;
+    }
+
     public List<String> hostList() {
         List<String> out = new ArrayList<>();
         for (String h : hosts.split(",")) {
@@ -84,6 +99,7 @@ public final class Connector {
     public boolean allowsHost(String host) {
         if (host == null) return false;
         String h = host.toLowerCase(Locale.ROOT);
+        if (hostList().contains("*")) return true; // the general browser: any public site
         for (String a : hostList()) {
             if (h.equals(a) || h.endsWith("." + a)) return true;
         }
