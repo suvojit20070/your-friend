@@ -113,6 +113,8 @@ public final class ChatActivity extends BaseActivity {
     private long revealLastAdvance;
     private float revealCarry;
     private long revealLastFrame, revealWaitSince;
+    /** The finished answer whose icons and time fade in after its text (once). */
+    private long actsRevealFor = Long.MIN_VALUE;
     private boolean revealRunning, streamFinishing;
     /** Reveal speed (characters / second), eased toward what the backlog needs: never jumps. */
     private float revealCps;
@@ -393,6 +395,10 @@ public final class ChatActivity extends BaseActivity {
         listBox.setTag(R.id.theme_skip, Boolean.TRUE);
         listBox.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             if (followPending) list.scrollTo(0, listBox.getHeight());
+            updatePin();
+        });
+        list.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+            if (b - t != ob - ot) updatePin(); // keyboard / window size
         });
         list.setOnTouchListener((v, e) -> {
             int a = e.getActionMasked();
@@ -1099,8 +1105,17 @@ public final class ChatActivity extends BaseActivity {
         lastError = null;
         streamItem = null;
         userAway = false;
+        // Your message glides up to the top of the screen and the answer is written below it, like
+        // the Claude / ChatGPT apps (the empty space under it fills as the answer grows).
+        pinAfterId = lastUserId();
+        pinUserId = Long.MIN_VALUE;
+        pinWanted = true;
+        pinConversation = conversationId;
+        if (!winAtEnd || (winEnd >= 0 && winEnd < items.size())) {
+            winAtEnd = true;
+            adapter.notifyDataSetChanged();
+        }
         reload();
-        scrollToEnd();
         updateRunState(getString(R.string.status_thinking));
     }
 
@@ -1121,7 +1136,7 @@ public final class ChatActivity extends BaseActivity {
             reloadPending = true;
             return;
         }
-        if (streamItem != null && streamShown < streamFull.length()) {
+        if (streamItem != null && (streamShown < streamFull.length() || fadeLength() > 0)) {
             // Let the live text finish appearing first (faster), then swap in the final message.
             long now = android.os.SystemClock.uptimeMillis();
             if (revealWaitSince == 0) revealWaitSince = now;
@@ -1138,6 +1153,7 @@ public final class ChatActivity extends BaseActivity {
         followingStream = false;
         // Stay where the user is reading if they scrolled up; follow the end only when already there.
         final boolean follow = !userAway && !list.canScrollVertically(1);
+        boolean wasStreaming = streamItem != null && !streamFull.isEmpty();
         items.clear();
         streamItem = null;
         ConversationRepo.Conversation conv = g.conversations.get(conversationId);
@@ -1228,6 +1244,15 @@ public final class ChatActivity extends BaseActivity {
             items.add(e);
         }
         assignIds();
+        if (wasStreaming) {
+            // The answer just finished writing: its copy / more icons and time come in after it, softly.
+            for (int k = items.size() - 1; k >= 0; k--) {
+                if (items.get(k).type == ASSISTANT) {
+                    actsRevealFor = items.get(k).id;
+                    break;
+                }
+            }
+        }
         adapter.notifyDataSetChanged();
         if (follow) scrollToEnd();
     }
@@ -1424,6 +1449,7 @@ public final class ChatActivity extends BaseActivity {
             winAtEnd = true;
             adapter.notifyDataSetChanged();
         }
+        if (pinWanted && !pinScrolled && pinConversation == conversationId) return; // your message is gliding to the top
         followPending = true;
         list.post(() -> {
             list.scrollTo(0, listBox.getHeight());
@@ -1517,6 +1543,65 @@ public final class ChatActivity extends BaseActivity {
             }
         });
         listBox.requestLayout();
+    }
+
+    // ---- your new message at the top
+
+    private boolean pinWanted, pinScrolled;
+    private long pinUserId = Long.MIN_VALUE, pinAfterId = Long.MIN_VALUE, pinConversation = -1;
+
+    private long lastUserId() {
+        for (int i = items.size() - 1; i >= 0; i--) if (items.get(i).type == USER) return items.get(i).id;
+        return Long.MIN_VALUE;
+    }
+
+    private View rowOf(long id) {
+        for (int i = 0; i < listBox.getChildCount(); i++) {
+            Object t = listBox.getChildAt(i).getTag(R.id.chat_bound);
+            if (t instanceof long[] && ((long[]) t)[0] == id) return listBox.getChildAt(i);
+        }
+        return null;
+    }
+
+    /**
+     * Keeps the column at least tall enough that the message you just sent can sit at the top of
+     * the screen (so the space below it is for the answer), and glides it there once.
+     */
+    private void updatePin() {
+        if (pinConversation != conversationId) {
+            pinWanted = false;
+            pinUserId = Long.MIN_VALUE;
+            if (listBox.getMinimumHeight() != 0) {
+                listBox.setMinimumHeight(0);
+                listBox.post(listBox::requestLayout);
+            }
+            return;
+        }
+        if (pinWanted && pinUserId == Long.MIN_VALUE) {
+            long id = lastUserId();
+            if (id != Long.MIN_VALUE && id != pinAfterId) {
+                pinUserId = id;
+                pinScrolled = false;
+            }
+        }
+        if (pinUserId == Long.MIN_VALUE) return;
+        View a = rowOf(pinUserId);
+        if (a == null) return;
+        int gap = Ui.dp(this, 10);
+        int viewport = list.getHeight() - list.getPaddingTop() - list.getPaddingBottom();
+        int want = Math.max(0, a.getTop() - gap + viewport);
+        if (listBox.getMinimumHeight() != want) {
+            listBox.setMinimumHeight(want);
+            listBox.post(listBox::requestLayout);
+            return;
+        }
+        if (!pinScrolled && listBox.getHeight() >= want) {
+            pinScrolled = true;
+            followPending = false;
+            followingStream = true;
+            final int y = Math.max(0, a.getTop() - gap);
+            list.post(() -> list.smoothScrollTo(0, y));
+        }
     }
 
     private int indexOfId(long id) {
@@ -2095,6 +2180,21 @@ public final class ChatActivity extends BaseActivity {
             LinearLayout acts = v.findViewById(R.id.msg_actions);
             boolean showActs = it.type == USER || it.type == ASSISTANT;
             acts.setVisibility(showActs ? View.VISIBLE : View.GONE);
+            if (it.id == actsRevealFor && it.type == ASSISTANT) {
+                actsRevealFor = Long.MIN_VALUE;
+                for (View f : new View[]{acts, time}) {
+                    f.animate().cancel();
+                    f.setAlpha(0f);
+                    f.setTranslationY(Ui.dp(ChatActivity.this, 6));
+                    f.animate().alpha(1f).translationY(0f).setStartDelay(120).setDuration(320)
+                            .setInterpolator(new android.view.animation.DecelerateInterpolator(1.5f)).start();
+                }
+            } else if (acts.getAlpha() < 1f && !acts.hasTransientState()) {
+                acts.setAlpha(1f);
+                time.setAlpha(1f);
+                acts.setTranslationY(0);
+                time.setTranslationY(0);
+            }
             if (showActs) {
                 ((LinearLayout.LayoutParams) acts.getLayoutParams()).gravity = it.type == USER ? Gravity.END : Gravity.START;
                 View copy = v.findViewById(R.id.msg_copy), more = v.findViewById(R.id.msg_more);
