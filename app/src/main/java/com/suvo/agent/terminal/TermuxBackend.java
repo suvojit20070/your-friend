@@ -118,28 +118,47 @@ public final class TermuxBackend implements ShellBackend {
     }
 
     /**
-     * Keeps an agent command inside ~/yf. With proot (installed automatically the first time,
-     * if possible) ~/yf is mounted over the Termux home: the agent sees only its own folder there,
-     * "cd .." stops at it, and the rest of the user's Termux files are not visible. Without proot,
-     * a softer guard: home and working folder are ~/yf and "cd" refuses to leave it.
+     * Keeps an agent command inside ~/yf — a hard guard, not a suggestion:
+     * <ul>
+     * <li>The command runs under proot with ~/yf mounted OVER the Termux home (also under its
+     * /data/user/0 alias). Whatever the agent does — cd .., cd /, absolute paths, builtin cd,
+     * sub-shells, scripts — the real home with the user's files does not exist for it; ~ is ~/yf.</li>
+     * <li>On top of that, cd / pushd refuse to leave ~ (except /sdcard, /storage and tmp), and this
+     * is inherited by every bash the command starts.</li>
+     * <li>Without proot nothing runs: it is installed automatically (retried at most every ten
+     * minutes); if that is not possible the command fails with how to install it. No soft fallback.</li>
+     * </ul>
      * Packages ($PREFIX), shared storage (/sdcard) and the job logs stay reachable.
      */
     static String jail(String command) {
         String q = "'" + command.replace("'", "'\\''") + "'";
         String real = HOME;
+        String alias = "/data/user/0/com.termux/files/home";
+        String guard = real + "/.yourfriend/jail.sh";
+        String rc = "YF_ROOT=\"$HOME\"\n"
+                + "__yf_ok() { case \"$1\" in \"$YF_ROOT\"|\"$YF_ROOT\"/*|/sdcard|/sdcard/*|/storage|/storage/*|\"$PREFIX\"/tmp|\"$PREFIX\"/tmp/*|/tmp|/tmp/*) return 0;; esac; return 1; }\n"
+                + "cd() { local d=\"${1:-$YF_ROOT}\" t; [ \"$d\" = - ] && d=\"${OLDPWD:-$YF_ROOT}\"; "
+                + "t=$(builtin cd \"$d\" 2>/dev/null && pwd -P) || { echo \"cd: $d: no such folder\" >&2; return 1; }; "
+                + "__yf_ok \"$t\" || { echo \"cd: $d: outside your folder (~ is your root)\" >&2; return 1; }; builtin cd \"$t\"; }\n"
+                + "pushd() { cd \"$@\"; }\npopd() { cd \"$YF_ROOT\"; }\n"
+                + "export -f cd pushd popd __yf_ok 2>/dev/null\n";
         return "mkdir -p \"" + AGENT_HOME + "\" \"" + real + "/.yourfriend\" 2>/dev/null\n"
-                + "if ! command -v proot >/dev/null 2>&1 && [ ! -e \"" + real + "/.yourfriend/proot_tried\" ]; then "
-                + "touch \"" + real + "/.yourfriend/proot_tried\"; (yes | pkg install -y proot) >/dev/null 2>&1; fi\n"
-                + "if command -v proot >/dev/null 2>&1; then\n"
-                + "  proot -b \"" + AGENT_HOME + ":" + real + "\" -b \"" + real + "/.yourfriend:" + real + "/.yourfriend\" -w \"" + real + "\" "
-                + BASH + " -lc " + q + "\n"
-                + "else\n"
-                + "  export YF_ROOT=\"" + AGENT_HOME + "\" HOME=\"" + AGENT_HOME + "\"; cd \"$YF_ROOT\"\n"
-                + "  cd() { local d=\"${1:-$YF_ROOT}\" t; t=$(builtin cd \"$d\" 2>/dev/null && pwd -P) || { echo \"cd: $d: no such folder\" >&2; return 1; }; "
-                + "case \"$t\" in \"$YF_ROOT\"|\"$YF_ROOT\"/*) builtin cd \"$t\";; *) echo \"cd: only ~/yf is allowed for the agent\" >&2; return 1;; esac; }\n"
-                + "  export -f cd\n"
-                + "  eval " + q + "\n"
-                + "fi";
+                + "if ! command -v proot >/dev/null 2>&1; then\n"
+                + "  m=\"" + real + "/.yourfriend/proot_tried\"\n"
+                + "  if [ ! -e \"$m\" ] || [ -n \"$(find \"$m\" -mmin +10 2>/dev/null)\" ]; then touch \"$m\"; (yes | pkg install -y proot) >/dev/null 2>&1; fi\n"
+                + "fi\n"
+                + "if ! command -v proot >/dev/null 2>&1; then\n"
+                + "  echo \"Blocked: the agent's Termux folder guard needs proot and it could not be installed. "
+                + "Open Termux and run: pkg install proot\" >&2; exit 126\n"
+                + "fi\n"
+                + "printf '%s' " + shq(rc) + " > \"" + guard + "\"\n"
+                + "proot -b \"" + AGENT_HOME + ":" + real + "\" -b \"" + AGENT_HOME + ":" + alias + "\" "
+                + "-b \"" + real + "/.yourfriend:" + real + "/.yourfriend\" -w \"" + real + "\" "
+                + "/data/data/com.termux/files/usr/bin/env HOME=\"" + real + "\" BASH_ENV=\"" + guard + "\" " + BASH + " -c " + shq(". \"" + guard + "\"; cd ~; eval " + q) + "\n";
+    }
+
+    private static String shq(String s) {
+        return "'" + s.replace("'", "'\\''") + "'";
     }
 
     @Override

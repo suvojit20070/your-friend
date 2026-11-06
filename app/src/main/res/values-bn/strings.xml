@@ -1181,4 +1181,7 @@
     <string name="browser_cleared">মুছে গেছে</string>
     <string name="browser_desktop_on">ডেস্কটপ সাইট চালু</string>
     <string name="browser_desktop_off">মোবাইল সাইট চালু</string>
+    <string name="chat_check_first">না বলার আগে এজেন্টকে ডিভাইস চেক করতে বলা হয়েছে</string>
+    <string name="chat_completion_check">অ্যাপ কাজ চেক করেছে: কিছু এখনও বাকি ছিল</string>
+    <string name="status_writing">লিখছে…</string>
 </resources>

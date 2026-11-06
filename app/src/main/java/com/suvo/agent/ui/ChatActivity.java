@@ -109,14 +109,16 @@ public final class ChatActivity extends BaseActivity {
      */
     private String streamFull = "";
     private int streamShown;
-    /** When characters were last revealed (the fade ends FADE_MS after the text stops). */
+    /** When characters were last revealed. */
     private long revealLastAdvance;
     private float revealCarry;
     private long revealLastFrame, revealWaitSince;
     private boolean revealRunning, streamFinishing;
-    /** (time ms, shown chars) of recent frames: how many characters are still fading in. */
-    private final java.util.ArrayDeque<long[]> revealHistory = new java.util.ArrayDeque<>();
-    private static final long FADE_MS = 280;
+    /** Reveal speed (characters / second), eased toward what the backlog needs: never jumps. */
+    private float revealCps;
+    /** When each shown character appeared (uptime ms): every character fades in on its own clock. */
+    private long[] revealTimes = new long[1024];
+    private static final long FADE_MS = 520;
 
     private final android.view.Choreographer.FrameCallback revealFrame = new android.view.Choreographer.FrameCallback() {
         @Override
@@ -129,33 +131,45 @@ public final class ChatActivity extends BaseActivity {
             int total = streamFull.length();
             int remaining = total - streamShown;
             if (remaining > 0) {
-                // Characters per second: steady when close, catching up when far behind.
-                float cps = Math.max(55f, remaining * (streamFinishing ? 16f : 6f));
-                revealCarry += cps * dt;
+                // Write the backlog out over ~1.4 s (0.6 s once the answer is complete), at a speed
+                // that changes gently: a burst of tokens does not appear at once, it flows.
+                float target = remaining / (streamFinishing ? 0.6f : 1.4f);
+                target = Math.max(streamFinishing ? 120f : 38f, Math.min(1400f, target));
+                if (revealCps <= 0) revealCps = Math.min(target, 90f);
+                revealCps += (target - revealCps) * Math.min(1f, dt * (target > revealCps ? 2.2f : 4f));
+                revealCarry += revealCps * dt;
                 int n = (int) revealCarry;
                 if (n > 0) {
                     revealCarry -= n;
+                    int from = streamShown;
                     int to = Math.min(total, streamShown + n);
                     // Never split a surrogate pair (emoji).
                     if (to < total && Character.isHighSurrogate(streamFull.charAt(to - 1))) to++;
+                    if (to > revealTimes.length) revealTimes = java.util.Arrays.copyOf(revealTimes, Math.max(to, revealTimes.length * 2));
+                    // Spread this frame's characters across the frame, so they light up one after another.
+                    long span = (long) (dt * 1000);
+                    int k = to - from;
+                    for (int i = from; i < to; i++) revealTimes[i] = now - span + (span * (i - from + 1)) / k;
                     streamShown = to;
                     streamItem.text = streamFull.substring(0, streamShown);
                     revealLastAdvance = now;
                 }
+            } else {
+                revealCps *= 0.9f;
             }
-            revealHistory.addLast(new long[]{now, streamShown});
-            while (revealHistory.size() > 2 && now - revealHistory.peekFirst()[0] > FADE_MS) revealHistory.removeFirst();
             boolean fading = fadeLength() > 0;
             if (streamShown < streamFull.length() || fading) {
                 renderStreamNow();
+                followStep(dt);
                 startReveal();
             } else {
                 // Caught up and fully faded in: one last draw, never skipped by the throttle.
                 revealLastFrame = 0;
                 revealCarry = 0;
-                revealHistory.clear();
                 lastStreamRender = 0;
                 renderStreamNow();
+                followStep(dt);
+                if (followingStream && !userAway && list.canScrollVertically(1)) startGlide();
             }
         }
     };
@@ -166,14 +180,60 @@ public final class ChatActivity extends BaseActivity {
         android.view.Choreographer.getInstance().postFrameCallback(revealFrame);
     }
 
-    /** How many of the newest characters are still fading in. */
+    /** How many of the newest characters are still fading in (by their own reveal times). */
     private int fadeLength() {
-        if (revealHistory.isEmpty()) return 0;
-        if (streamShown >= streamFull.length() && android.os.SystemClock.uptimeMillis() - revealLastAdvance > FADE_MS) return 0;
-        long[] oldest = revealHistory.peekFirst();
+        if (streamShown <= 0) return 0;
         long now = android.os.SystemClock.uptimeMillis();
-        if (now - oldest[0] > FADE_MS && revealHistory.size() <= 2 && streamShown == oldest[1]) return 0;
-        return Math.max(0, Math.min(48, streamShown - (int) oldest[1]));
+        if (now - revealLastAdvance > FADE_MS) return 0;
+        int n = 0;
+        for (int i = streamShown - 1; i >= 0 && n < 400; i--, n++) {
+            if (i >= revealTimes.length || now - revealTimes[i] >= FADE_MS) break;
+        }
+        return n;
+    }
+
+    /** Opacity of the i-th newest character (0 = newest): eased in over FADE_MS from when it appeared. */
+    private float fadeAlpha(int fromEnd, long now) {
+        int idx = streamShown - 1 - fromEnd;
+        if (idx < 0 || idx >= revealTimes.length) return 1f;
+        float t = Math.max(0f, Math.min(1f, (now - revealTimes[idx]) / (float) FADE_MS));
+        return t * t * (3f - 2f * t); // smoothstep
+    }
+
+    /**
+     * Follows the end of the live answer by gliding a part of the way every frame (no jumps, no
+     * fighting scroll animations); stops as soon as the user scrolls up.
+     */
+    private void followStep(float dt) {
+        if (!followingStream || userAway || selecting || paging) return;
+        int target = Math.max(0, listBox.getHeight() - list.getHeight() + list.getPaddingBottom() + list.getPaddingTop());
+        int cur = list.getScrollY();
+        int dy = target - cur;
+        if (dy <= 0) return;
+        int step = Math.max(1, Math.round(dy * Math.min(1f, dt * 10f)));
+        list.scrollTo(0, cur + Math.min(dy, step));
+    }
+
+    private final android.view.Choreographer.FrameCallback glideFrame = new android.view.Choreographer.FrameCallback() {
+        private long last;
+
+        @Override
+        public void doFrame(long nanos) {
+            glideRunning = false;
+            long now = android.os.SystemClock.uptimeMillis();
+            float dt = last == 0 || now - last > 100 ? 0.016f : (now - last) / 1000f;
+            last = now;
+            followStep(dt);
+            if (followingStream && !userAway && list.canScrollVertically(1)) startGlide();
+            else last = 0;
+        }
+    };
+    private boolean glideRunning;
+
+    private void startGlide() {
+        if (glideRunning || revealRunning) return;
+        glideRunning = true;
+        android.view.Choreographer.getInstance().postFrameCallback(glideFrame);
     }
 
     /** The live answer row (created on the first streamed text or thinking). */
@@ -183,7 +243,7 @@ public final class ChatActivity extends BaseActivity {
         streamShown = 0;
         revealCarry = 0;
         revealLastFrame = 0;
-        revealHistory.clear();
+        revealCps = 0;
         streamFinishing = false;
         streamItem = new Item();
         streamItem.type = STREAM;
@@ -244,6 +304,7 @@ public final class ChatActivity extends BaseActivity {
         public void onTextDelta(TaskState task, String delta) {
             if (task.conversationId != conversationId) return;
             ensureStreamItem();
+            if (streamFull.isEmpty() && g.agent.isRunning()) updateRunState(getString(R.string.status_writing));
             streamFull += delta;
             startReveal();
         }
@@ -1040,7 +1101,7 @@ public final class ChatActivity extends BaseActivity {
             // Let the live text finish appearing first (faster), then swap in the final message.
             long now = android.os.SystemClock.uptimeMillis();
             if (revealWaitSince == 0) revealWaitSince = now;
-            if (now - revealWaitSince < 2500) {
+            if (now - revealWaitSince < 6000) {
                 streamFinishing = true;
                 startReveal();
                 uiHandler.postDelayed(reloadRunnable, 90);
@@ -1080,7 +1141,10 @@ public final class ChatActivity extends BaseActivity {
                     boolean toolImage = m.contentOrEmpty().startsWith("[Image output from");
                     boolean appCheck = m.contentOrEmpty().startsWith(com.suvo.agent.core.agent.FollowThrough.MARKER);
                     it.type = toolImage || appCheck ? NOTICE : USER;
-                    it.text = appCheck ? getString(R.string.chat_follow_through) : toolImage ? getString(R.string.chat_tool_image, m.images.size())
+                    String c0 = m.contentOrEmpty();
+                    it.text = appCheck ? getString(c0.startsWith(com.suvo.agent.core.agent.FollowThrough.CHECK_FIRST.substring(0, 40))
+                            ? R.string.chat_check_first : c0.startsWith(com.suvo.agent.core.agent.FollowThrough.REMINDER.substring(0, 40))
+                            ? R.string.chat_follow_through : R.string.chat_completion_check) : toolImage ? getString(R.string.chat_tool_image, m.images.size())
                             : com.suvo.agent.core.util.Attachments.forDisplay(m.contentOrEmpty(), getString(R.string.chat_file_attached), getString(R.string.chat_folder_attached))
                             + (m.images.isEmpty() ? "" : "\n" + getString(R.string.chat_images_attached, m.images.size()));
                     it.time = sm.createdAt;
@@ -1285,11 +1349,15 @@ public final class ChatActivity extends BaseActivity {
     /** Draws the live answer now (at most ~40 times a second) and follows the end smoothly. */
     private void renderStreamNow() {
         long now = android.os.SystemClock.uptimeMillis();
-        if (now - lastStreamRender < 33) {
+        // Every frame (60 fps) while the paragraph being written is short; a very long paragraph
+        // is laid out again at most every 33 ms.
+        int para = streamItem == null || streamItem.text == null ? 0 : streamItem.text.length() - streamItem.text.lastIndexOf("\n\n");
+        long gap = para > 2500 ? 33 : 15;
+        if (now - lastStreamRender < gap) {
             // Too soon: draw the latest state a moment later (so the last frame is never lost).
             if (!streamRenderQueued) {
                 streamRenderQueued = true;
-                uiHandler.postDelayed(streamRender, 33 - (now - lastStreamRender));
+                uiHandler.postDelayed(streamRender, gap - (now - lastStreamRender));
             }
             return;
         }
@@ -1307,13 +1375,9 @@ public final class ChatActivity extends BaseActivity {
         followingStream = true;
         if (first) {
             scrollToEnd();
-        } else {
-            // Glide down as lines are added instead of jumping.
-            list.post(() -> {
-                int target = Math.max(0, listBox.getHeight() - list.getHeight() + list.getPaddingBottom() + list.getPaddingTop());
-                int dy = target - list.getScrollY();
-                if (dy > 0) list.smoothScrollBy(0, dy);
-            });
+        } else if (!revealRunning) {
+            // Glide down as lines are added (the reveal frames glide while text is being written).
+            startGlide();
         }
     }
 
@@ -1711,10 +1775,22 @@ public final class ChatActivity extends BaseActivity {
         int len = sb.length();
         int n = Math.min(fade, len);
         int base = Palette.of(this).onSurface;
+        long now = android.os.SystemClock.uptimeMillis();
+        // Each new character comes up from transparent on its own clock (not a gradient that slides
+        // along with the text): the newest letters ink in softly one after another.
+        int runStart = len, runAlpha = -1;
         for (int i = 0; i < n; i++) {
             int at = len - 1 - i;
-            float a = 0.12f + 0.88f * (1f - (i + 1f) / (n + 1f));
-            sb.setSpan(new android.text.style.ForegroundColorSpan(Palette.alpha(base, Math.max(0.12f, a))), at, at + 1,
+            int a = Math.round(255 * fadeAlpha(i, now) * (android.graphics.Color.alpha(base) / 255f));
+            if (a != runAlpha && runAlpha >= 0) {
+                sb.setSpan(new android.text.style.ForegroundColorSpan((base & 0x00FFFFFF) | (runAlpha << 24)), at + 1, runStart,
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                runStart = at + 1;
+            }
+            runAlpha = a;
+        }
+        if (runAlpha >= 0 && runStart > len - n) {
+            sb.setSpan(new android.text.style.ForegroundColorSpan((base & 0x00FFFFFF) | (runAlpha << 24)), len - n, runStart,
                     android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         Markdown.Block b = new Markdown.Block();

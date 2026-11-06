@@ -22,7 +22,9 @@ public final class FollowThrough {
             + "if something must finish first, call wait (seconds) and then check again; "
             + "continue until the task is done. If you are truly blocked, say exactly what blocks you and what the user can do — "
             + "do not just say you are working on it. Before saying something is impossible, check the device "
-            + "(e.g. shell: which <tool>, pkg install -y <package> in Termux) and the installed skills.";
+            + "(e.g. shell: which <tool>, pkg install -y <package> in Termux) and the installed skills. "
+            + "If your reply was in fact a complete answer, an offer or a question for the user (no action is needed), do NOT "
+            + "run any tool because of this note: just repeat your final answer briefly.";
 
     private static final Pattern PROMISE = Pattern.compile(
             "(\\bi('ll| will| am going to|'m going to| am now|'m now)\\b"
@@ -42,19 +44,27 @@ public final class FollowThrough {
             "(\\b(done|finished|completed|all set|here is|here's|saved to|installed|created)\\b|ho gaya|ho gya|bana diya|kar diya|"
                     + "हो गया|बना दिया|कर दिया|হয়ে গেছে|করে দিয়েছি|বানিয়ে দিয়েছি|hoye geche|kore diyechi)");
 
-    public static final String CHECK_FIRST = MARKER + " You told the user you cannot do this, but in this task you have not "
-            + "checked the device yet. Do not refuse without trying. Now: (1) load the matching skill if one is listed (for "
-            + "Android apps: load_skill android-app-builder), (2) use the shell tool (Termux backend) to see what is installed "
-            + "(which javac aapt2 d8 apksigner python clang) and install what is missing with pkg install -y, (3) continue the "
-            + "task. Only if a real tool call fails and cannot be fixed, report that exact error and what the user can do.";
+    private static final Pattern OFFER = Pattern.compile(
+            "(\\b(if you('d)? (want|like|prefer)|would you like|do you want|let me know|just (say|tell me)|tell me (how|what|which|if)"
+            + "|happy to|i can (also|write|make|do|expand|go deeper))\\b|chaho to|chahiye to|batao|bolo to|bolo|chaile)");
+
+    public static final String CHECK_FIRST = MARKER + " You told the user the device / your tools cannot do this, but in this "
+            + "task you have not checked yet. If the task really needs a tool, check before refusing: load the matching skill if "
+            + "one is listed, or use the shell tool to see what is installed (which <tool>) and install what is missing "
+            + "(pkg install -y), then continue. Only check what THIS task needs. If the task does not need any tool at all "
+            + "(writing, explaining, chatting, an opinion, a limit of the text itself), ignore this note completely: do not run "
+            + "anything, just give your final answer again briefly.";
 
     private static final Pattern REFUSAL = Pattern.compile(
-            "(\\bi (can ?not|can't|am unable to|am not able to|don't have (the )?(ability|tools|access|environment))\\b"
+            "(\\bi (can ?not|can't|am unable to|am not able to) (run|execute|install|build|compile|access|open|download|control|"
+                    + "create (an? )?(app|apk|file|folder|project)|make (an? )?(app|apk)|use (the )?(terminal|shell|termux|phone|device))\\b"
+                    + "|\\bi (don't|do not) have (the )?(ability|tools|access|environment|a (terminal|shell|computer|device))\\b"
                     + "|\\b(my|this) environment (does not|doesn't) (include|have|support)\\b|\\bnot possible (for me|here)\\b"
-                    + "|\\bi'?m (unable|not able) to\\b|\\bbeyond my (capabilities|abilities)\\b"
-                    + "|nahi kar sakta|nahi kar sakti|nhi kar skta|nahi bana sakta|nahi bana sakti|mere paas .{0,30}nahi hai"
-                    + "|korte parbo na|banate parbo na|amar kache .{0,30}nei"
-                    + "|नहीं कर सकता|नहीं कर सकती|नहीं बना सकता|করতে পারব না|বানাতে পারব না)");
+                    + "|\\bi'?m (unable|not able) to (run|execute|install|build|compile|access|open|download|control)\\b"
+                    + "|(install|run|build|apk|app|access) nahi kar (sakta|sakti)|(app|apk) nahi bana (sakta|sakti)"
+                    + "|mere paas (terminal|shell|tool|access) nahi"
+                    + "|(install|run|build|access) korte parbo na|(app|apk) banate parbo na"
+                    + "|इंस्टॉल नहीं कर सकता|ऐप नहीं बना सकता|অ্যাপ বানাতে পারব না)");
 
     private FollowThrough() {
     }
@@ -88,6 +98,7 @@ public final class FollowThrough {
         String tail = t.length() > 320 ? t.substring(t.length() - 320) : t;
         String low = tail.toLowerCase(Locale.ROOT);
         if (DONE.matcher(low).find()) return false;
+        if (OFFER.matcher(low).find()) return false; // "if you want, I can… just tell me" waits for the user
         return PROMISE.matcher(low).find() || PROMISE_NATIVE.matcher(tail).find();
     }
 }

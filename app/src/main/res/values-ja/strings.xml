@@ -1173,4 +1173,7 @@
     <string name="browser_cleared">消去しました</string>
     <string name="browser_desktop_on">PC版サイトで表示</string>
     <string name="browser_desktop_off">モバイル版サイトで表示</string>
+    <string name="chat_check_first">できないと言う前に端末を確認するよう求めました</string>
+    <string name="chat_completion_check">アプリが作業を確認：まだ終わっていない部分がありました</string>
+    <string name="status_writing">書いています…</string>
 </resources>

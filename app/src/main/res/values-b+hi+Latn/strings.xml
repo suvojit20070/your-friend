@@ -1222,4 +1222,7 @@
     <string name="browser_cleared">Saaf ho gaya</string>
     <string name="browser_desktop_on">Desktop site on</string>
     <string name="browser_desktop_off">Mobile site on</string>
+    <string name="chat_check_first">Agent ko mana karne se pehle device check karne ko kaha gaya</string>
+    <string name="chat_completion_check">App ne kaam check kiya: kuch abhi baaki tha</string>
+    <string name="status_writing">Likh raha hai…</string>
 </resources>

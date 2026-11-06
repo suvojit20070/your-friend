@@ -1181,4 +1181,7 @@
     <string name="browser_cleared">साफ़ हो गया</string>
     <string name="browser_desktop_on">डेस्कटॉप साइट चालू</string>
     <string name="browser_desktop_off">मोबाइल साइट चालू</string>
+    <string name="chat_check_first">एजेंट से मना करने से पहले डिवाइस जांचने को कहा गया</string>
+    <string name="chat_completion_check">ऐप ने काम जांचा: कुछ अभी बाकी था</string>
+    <string name="status_writing">लिख रहा है…</string>
 </resources>

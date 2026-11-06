@@ -39,4 +39,15 @@ public class FollowThroughTest {
         assertFalse(FollowThrough.isUncheckedRefusal(reply, t)); // it checked; a real failure may be reported
         assertFalse(FollowThrough.isUncheckedRefusal("Here is the APK in Download.", new TaskState(1, "x")));
     }
+
+    @Test
+    public void writingLimitsAndOffersAreNotCaught() {
+        TaskState t = new TaskState(1, "Write a paragraph in 10k tokens about humans");
+        String reply = "I can't write to a token count — tokens aren't something I can measure while writing. Humans are the "
+                + "strangest animal we know of. If you want a genuinely huge piece, I can write that properly, with sections. "
+                + "Just say how long in words and what angle.";
+        assertFalse(FollowThrough.isUncheckedRefusal(reply, t));
+        assertFalse(FollowThrough.isEmptyPromise(reply));
+        assertFalse(FollowThrough.isEmptyPromise("If you want, I'll make it longer — just tell me."));
+    }
 }

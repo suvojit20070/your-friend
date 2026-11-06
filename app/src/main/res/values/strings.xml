@@ -1270,4 +1270,7 @@
     <string name="browser_cleared">Cleared</string>
     <string name="browser_desktop_on">Desktop site on</string>
     <string name="browser_desktop_off">Mobile site on</string>
+    <string name="chat_check_first">The agent was asked to check the device before saying it can\'t</string>
+    <string name="chat_completion_check">The app checked the work: something was not finished yet</string>
+    <string name="status_writing">Writing…</string>
 </resources>

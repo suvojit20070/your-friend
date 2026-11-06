@@ -148,7 +148,9 @@ public final class AndroidAgentHost implements AgentHost {
             sb.append("no external folder is granted, so use the private workspace (the user can add a folder in Files).");
         }
         boolean jail = g.settings.bool(com.suvo.agent.terminal.TermuxBackend.JAIL_SETTING, true);
-        sb.append(" In Termux your folder is ~/yf").append(jail ? " (your home and root; nothing outside it is visible to you)" : "")
+        sb.append(" In Termux your folder is ~/yf").append(jail ? " — for your commands it IS ~ (your home and root: pwd shows the "
+                + "Termux home path, 'cd ..' / cd outside is refused, the user's other Termux files do not exist for you; /sdcard and "
+                + "$PREFIX/tmp are reachable). Never try to get out of it" : "")
                 .append("; use file_transfer to move files between the workspace / ext: folders and termux:<path in ~/yf>.");
         return sb.toString();
     }
