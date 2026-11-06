@@ -1176,4 +1176,8 @@
     <string name="chat_check_first">できないと言う前に端末を確認するよう求めました</string>
     <string name="chat_completion_check">アプリが作業を確認：まだ終わっていない部分がありました</string>
     <string name="status_writing">書いています…</string>
+    <plurals name="browser_service_tabs">
+        <item quantity="other">%d 個のタブ</item>
+    </plurals>
+    <string name="browser_service_close">ブラウザを閉じる</string>
 </resources>

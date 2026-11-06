@@ -115,7 +115,6 @@ public final class WebSession {
 
     public static void setScreen(Host h) {
         screen = h;
-        rememberUi(h);
         if (view != null) attach(currentName.isEmpty() ? "browser" : currentName);
     }
 
@@ -136,31 +135,43 @@ public final class WebSession {
             h.browserSlot().removeView(view);
             layoutDetached();
         }
-    }
-
-    /** The newest screen that showed the browser: new tabs are made with its (Activity) context. */
-    private static java.lang.ref.WeakReference<Context> uiContext;
-
-    private static void rememberUi(Host h) {
-        ViewGroup slot = h == null ? null : h.browserSlot();
-        if (slot != null) uiContext = new java.lang.ref.WeakReference<>(slot.getContext());
+        rebase(h);
     }
 
     /**
-     * The context a tab is made with: an Activity (WebView popups — select lists, date pickers,
-     * alerts — need one), kept for the tab's whole life; switching it later would pause the page.
+     * The context a new tab is made with, inside a MutableContextWrapper: the Activity's when a
+     * screen opens the tab (WebView popups — select lists, date pickers, alerts — need one), the
+     * application's when the agent opens it. When that Activity is destroyed the tab stays with
+     * BrowserService and its context is switched to the application's ({@link #rebase}).
      */
-    private static Context tabContext(Context ctx) {
-        if (ctx instanceof android.app.Activity && !((android.app.Activity) ctx).isFinishing()) return ctx;
-        Context ui = uiContext == null ? null : uiContext.get();
-        if (ui instanceof android.app.Activity && !((android.app.Activity) ui).isDestroyed()) return ui;
-        return ctx.getApplicationContext();
+    private static android.content.MutableContextWrapper tabContext(Context ctx) {
+        boolean activity = ctx instanceof android.app.Activity && !((android.app.Activity) ctx).isFinishing();
+        return new android.content.MutableContextWrapper(activity ? ctx : ctx.getApplicationContext());
+    }
+
+    /** The Activity of a screen is gone: its tabs carry on with the application context. */
+    private static void rebase(Host h) {
+        ViewGroup slot = h == null ? null : h.browserSlot();
+        Context gone = slot == null ? null : slot.getContext();
+        if (gone == null) return;
+        for (AgentWebView t : tabs) {
+            if (t.context.getBaseContext() == gone) t.context.setBaseContext(gone.getApplicationContext());
+        }
+    }
+
+    /** Number of open tabs. */
+    public static int tabCount() {
+        return tabs.size();
+    }
+
+    /** Closes every tab (the browser notification's "Close"). Main thread. */
+    public static void closeAllTabs() {
+        for (AgentWebView t : new java.util.ArrayList<>(tabs)) closeTab(t.tabId);
     }
 
     /** The chat became visible: the browser shows there from now on. Main thread. */
     public static void setHost(Host h) {
         host = h;
-        rememberUi(h);
         overlayClosed = false;
         // The browser floats; the chat panel is only the fallback without the overlay permission.
         if (view != null && view.getParent() != null && overlay == null) attach(currentName);
@@ -180,6 +191,7 @@ public final class WebSession {
             h.hideBrowser();
             layoutDetached();
         }
+        rebase(h);
     }
 
     /** The user closed the panel: the agent keeps working, unseen, until the next call shows it again. */
@@ -462,6 +474,7 @@ public final class WebSession {
     @SuppressLint({"AddJavascriptInterface", "SetJavaScriptEnabled"})
     private static AgentWebView createTab(Context ctx) {
         AgentWebView v = new AgentWebView(tabContext(ctx), nextTabId++);
+        BrowserService.start(ctx);
         v.setBackgroundColor(Color.WHITE);
         v.addJavascriptInterface(new Bridge(), "YFBridge");
         v.setWebChromeClient(new WebChromeClient() {
@@ -594,11 +607,15 @@ public final class WebSession {
             ((ViewGroup) target.getParent()).removeView(target);
         }
         tabs.remove(target);
+        Context app = target.context.getApplicationContext();
         try {
             target.stopLoading();
             target.destroy();
         } catch (RuntimeException ignored) {
         }
+        // The last tab closed: the browser service ends; otherwise its notification shows the new count.
+        if (tabs.isEmpty()) BrowserService.stop(app);
+        else BrowserService.start(app);
         tabsChanged();
         return true;
     }

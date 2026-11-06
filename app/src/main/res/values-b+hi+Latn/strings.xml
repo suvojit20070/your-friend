@@ -1225,4 +1225,9 @@
     <string name="chat_check_first">Agent ko mana karne se pehle device check karne ko kaha gaya</string>
     <string name="chat_completion_check">App ne kaam check kiya: kuch abhi baaki tha</string>
     <string name="status_writing">Likh raha hai…</string>
+    <plurals name="browser_service_tabs">
+        <item quantity="one">%d tab khula hai</item>
+        <item quantity="other">%d tabs khule hai</item>
+    </plurals>
+    <string name="browser_service_close">Browser band karo</string>
 </resources>

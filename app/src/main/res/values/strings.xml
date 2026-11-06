@@ -1273,4 +1273,9 @@
     <string name="chat_check_first">The agent was asked to check the device before saying it can\'t</string>
     <string name="chat_completion_check">The app checked the work: something was not finished yet</string>
     <string name="status_writing">Writing…</string>
+    <plurals name="browser_service_tabs">
+        <item quantity="one">%d tab open</item>
+        <item quantity="other">%d tabs open</item>
+    </plurals>
+    <string name="browser_service_close">Close browser</string>
 </resources>

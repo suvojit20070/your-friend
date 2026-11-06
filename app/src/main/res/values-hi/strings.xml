@@ -1184,4 +1184,9 @@
     <string name="chat_check_first">एजेंट से मना करने से पहले डिवाइस जांचने को कहा गया</string>
     <string name="chat_completion_check">ऐप ने काम जांचा: कुछ अभी बाकी था</string>
     <string name="status_writing">लिख रहा है…</string>
+    <plurals name="browser_service_tabs">
+        <item quantity="one">%d टैब खुला है</item>
+        <item quantity="other">%d टैब खुले हैं</item>
+    </plurals>
+    <string name="browser_service_close">ब्राउज़र बंद करें</string>
 </resources>

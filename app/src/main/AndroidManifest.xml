@@ -342,6 +342,15 @@
             android:theme="@style/Theme.YourFriend.Transparent" />
 
         <service
+            android:name=".connectors.BrowserService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the assistant's in-app browser tabs (pages, logins, media the user started) running while the user is in other apps, until the user closes the browser." />
+        </service>
+
+        <service
             android:name=".agent.AgentForegroundService"
             android:exported="false"
             android:foregroundServiceType="specialUse">

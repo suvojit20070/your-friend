@@ -1,6 +1,5 @@
 package com.suvo.agent.connectors;
 
-import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
@@ -24,8 +23,15 @@ public class AgentWebView extends WebView {
     /** Shows pages as on a computer (user agent, client hints, desktop-width layout). */
     public boolean desktop;
 
-    public AgentWebView(Context context, int tabId) {
+    /**
+     * The tab's context: an Activity's while that screen lives (popups need it), then the
+     * application's (WebSession switches it; the page does not notice).
+     */
+    public final android.content.MutableContextWrapper context;
+
+    public AgentWebView(android.content.MutableContextWrapper context, int tabId) {
         super(context);
+        this.context = context;
         this.tabId = tabId;
     }
 

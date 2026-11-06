@@ -1184,4 +1184,9 @@
     <string name="chat_check_first">না বলার আগে এজেন্টকে ডিভাইস চেক করতে বলা হয়েছে</string>
     <string name="chat_completion_check">অ্যাপ কাজ চেক করেছে: কিছু এখনও বাকি ছিল</string>
     <string name="status_writing">লিখছে…</string>
+    <plurals name="browser_service_tabs">
+        <item quantity="one">%d টি ট্যাব খোলা</item>
+        <item quantity="other">%d টি ট্যাব খোলা</item>
+    </plurals>
+    <string name="browser_service_close">ব্রাউজার বন্ধ করুন</string>
 </resources>
