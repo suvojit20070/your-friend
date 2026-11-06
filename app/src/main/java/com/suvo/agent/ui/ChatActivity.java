@@ -118,7 +118,10 @@ public final class ChatActivity extends BaseActivity {
     private float revealCps;
     /** When each shown character appeared (uptime ms): every character fades in on its own clock. */
     private long[] revealTimes = new long[1024];
-    private static final long FADE_MS = 520;
+    /** How long one word takes to ink in. */
+    private static final long FADE_MS = 240;
+    /** Never more than this many characters fading at once (a short soft edge, not a grey block). */
+    private static final int FADE_MAX_CHARS = 42;
 
     private final android.view.Choreographer.FrameCallback revealFrame = new android.view.Choreographer.FrameCallback() {
         @Override
@@ -131,28 +134,46 @@ public final class ChatActivity extends BaseActivity {
             int total = streamFull.length();
             int remaining = total - streamShown;
             if (remaining > 0) {
-                // Write the backlog out over ~1.4 s (0.6 s once the answer is complete), at a speed
-                // that changes gently: a burst of tokens does not appear at once, it flows.
-                float target = remaining / (streamFinishing ? 0.6f : 1.4f);
-                target = Math.max(streamFinishing ? 120f : 38f, Math.min(1400f, target));
-                if (revealCps <= 0) revealCps = Math.min(target, 90f);
-                revealCps += (target - revealCps) * Math.min(1f, dt * (target > revealCps ? 2.2f : 4f));
+                // A calm, steady pace like the Claude / ChatGPT / Grok apps (~180 characters a second);
+                // only a big backlog is written faster, and the speed always changes gently.
+                float target = Math.max(170f, Math.min(900f, remaining / 2.4f));
+                if (revealCps < 150f) revealCps = 150f;
+                revealCps += (target - revealCps) * Math.min(1f, dt * 1.5f);
                 revealCarry += revealCps * dt;
-                int n = (int) revealCarry;
-                if (n > 0) {
-                    revealCarry -= n;
+                if ((int) revealCarry > 0) {
                     int from = streamShown;
-                    int to = Math.min(total, streamShown + n);
-                    // Never split a surrogate pair (emoji).
-                    if (to < total && Character.isHighSurrogate(streamFull.charAt(to - 1))) to++;
-                    if (to > revealTimes.length) revealTimes = java.util.Arrays.copyOf(revealTimes, Math.max(to, revealTimes.length * 2));
-                    // Spread this frame's characters across the frame, so they light up one after another.
-                    long span = (long) (dt * 1000);
-                    int k = to - from;
-                    for (int i = from; i < to; i++) revealTimes[i] = now - span + (span * (i - from + 1)) / k;
-                    streamShown = to;
-                    streamItem.text = streamFull.substring(0, streamShown);
-                    revealLastAdvance = now;
+                    int to = Math.min(total, streamShown + (int) revealCarry);
+                    // Whole words only: finish the word we are in (a word that is still arriving waits).
+                    while (to < total && !Character.isWhitespace(streamFull.charAt(to - 1))
+                            && !Character.isWhitespace(streamFull.charAt(to))) to++;
+                    while (to < total && Character.isWhitespace(streamFull.charAt(to))) to++;
+                    if (to >= total && !streamFinishing) {
+                        // The last word may be cut mid-way by the network: show it once it is complete.
+                        int ws = total - 1;
+                        while (ws > from && !Character.isWhitespace(streamFull.charAt(ws))) ws--;
+                        if (now - revealLastAdvance < 400) to = ws > from ? ws + 1 : from;
+                    }
+                    if (to > from) {
+                        revealCarry = Math.max(0f, revealCarry - (to - from));
+                        if (to > revealTimes.length) revealTimes = java.util.Arrays.copyOf(revealTimes, Math.max(to, revealTimes.length * 2));
+                        // Words of this frame light up one after another across the frame; every letter
+                        // of a word shares its word's clock, so a word fades in as one.
+                        long span = (long) (dt * 1000);
+                        int words = 0;
+                        for (int i = from; i < to; i++) if (i == from || Character.isWhitespace(streamFull.charAt(i - 1))) words++;
+                        int w = 0;
+                        long t = now - span;
+                        for (int i = from; i < to; i++) {
+                            if (i == from || Character.isWhitespace(streamFull.charAt(i - 1))) {
+                                w++;
+                                t = now - span + (span * w) / Math.max(1, words);
+                            }
+                            revealTimes[i] = t;
+                        }
+                        streamShown = to;
+                        streamItem.text = streamFull.substring(0, streamShown);
+                        revealLastAdvance = now;
+                    }
                 }
             } else {
                 revealCps *= 0.9f;
@@ -186,7 +207,7 @@ public final class ChatActivity extends BaseActivity {
         long now = android.os.SystemClock.uptimeMillis();
         if (now - revealLastAdvance > FADE_MS) return 0;
         int n = 0;
-        for (int i = streamShown - 1; i >= 0 && n < 400; i--, n++) {
+        for (int i = streamShown - 1; i >= 0 && n < FADE_MAX_CHARS; i--, n++) {
             if (i >= revealTimes.length || now - revealTimes[i] >= FADE_MS) break;
         }
         return n;
@@ -197,7 +218,10 @@ public final class ChatActivity extends BaseActivity {
         int idx = streamShown - 1 - fromEnd;
         if (idx < 0 || idx >= revealTimes.length) return 1f;
         float t = Math.max(0f, Math.min(1f, (now - revealTimes[idx]) / (float) FADE_MS));
-        return t * t * (3f - 2f * t); // smoothstep
+        // Also a soft edge by position, so a fast burst never leaves more than a few words faint.
+        float edge = Math.min(1f, (FADE_MAX_CHARS - fromEnd) / (FADE_MAX_CHARS * 0.6f));
+        t = Math.max(t, 1f - edge);
+        return 0.06f + 0.94f * (t * t * (3f - 2f * t)); // smoothstep
     }
 
     /**
@@ -1101,7 +1125,7 @@ public final class ChatActivity extends BaseActivity {
             // Let the live text finish appearing first (faster), then swap in the final message.
             long now = android.os.SystemClock.uptimeMillis();
             if (revealWaitSince == 0) revealWaitSince = now;
-            if (now - revealWaitSince < 6000) {
+            if (now - revealWaitSince < 12000) {
                 streamFinishing = true;
                 startReveal();
                 uiHandler.postDelayed(reloadRunnable, 90);
