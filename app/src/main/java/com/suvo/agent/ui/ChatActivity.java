@@ -1443,6 +1443,7 @@ public final class ChatActivity extends BaseActivity {
     @Override
     protected void onDestroy() {
         uiHandler.removeCallbacksAndMessages(null);
+        browserPanel.release();
         super.onDestroy();
     }
 

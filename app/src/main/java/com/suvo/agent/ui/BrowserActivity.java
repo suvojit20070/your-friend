@@ -125,6 +125,12 @@ public final class BrowserActivity extends BaseActivity implements WebSession.Ho
     }
 
     @Override
+    protected void onDestroy() {
+        WebSession.releaseScreen(this);
+        super.onDestroy();
+    }
+
+    @Override
     public void onBackPressed() {
         AgentWebView w = WebSession.current();
         if (w != null && w.canGoBack() && !Overlay.anyOpen(this)) {

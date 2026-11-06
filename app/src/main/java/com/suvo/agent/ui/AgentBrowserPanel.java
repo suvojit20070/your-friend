@@ -185,6 +185,10 @@ final class AgentBrowserPanel implements WebSession.Host {
         WebSession.clearHost(this);
     }
 
+    void release() {
+        WebSession.releaseHost(this);
+    }
+
     @Override
     public ViewGroup browserSlot() {
         return slot;

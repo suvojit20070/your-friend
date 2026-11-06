@@ -115,33 +115,70 @@ public final class WebSession {
 
     public static void setScreen(Host h) {
         screen = h;
+        rememberUi(h);
         if (view != null) attach(currentName.isEmpty() ? "browser" : currentName);
     }
 
+    /**
+     * The browser screen went to the background (home, another app). The page stays where it is,
+     * inside that screen's window: only the window is hidden, which AgentWebView ignores, so music,
+     * video and scripts keep running. Taking it out of the window here is what paused it.
+     */
     public static void clearScreen(Host h) {
         if (screen != h) return;
         screen = null;
+    }
+
+    /** The browser screen is gone for good (closed): only now the page leaves its window. */
+    public static void releaseScreen(Host h) {
+        if (screen == h) screen = null;
         if (view != null && view.getParent() == h.browserSlot()) {
             h.browserSlot().removeView(view);
             layoutDetached();
         }
     }
 
+    /** The newest screen that showed the browser: new tabs are made with its (Activity) context. */
+    private static java.lang.ref.WeakReference<Context> uiContext;
+
+    private static void rememberUi(Host h) {
+        ViewGroup slot = h == null ? null : h.browserSlot();
+        if (slot != null) uiContext = new java.lang.ref.WeakReference<>(slot.getContext());
+    }
+
+    /**
+     * The context a tab is made with: an Activity (WebView popups — select lists, date pickers,
+     * alerts — need one), kept for the tab's whole life; switching it later would pause the page.
+     */
+    private static Context tabContext(Context ctx) {
+        if (ctx instanceof android.app.Activity && !((android.app.Activity) ctx).isFinishing()) return ctx;
+        Context ui = uiContext == null ? null : uiContext.get();
+        if (ui instanceof android.app.Activity && !((android.app.Activity) ui).isDestroyed()) return ui;
+        return ctx.getApplicationContext();
+    }
+
     /** The chat became visible: the browser shows there from now on. Main thread. */
     public static void setHost(Host h) {
         host = h;
+        rememberUi(h);
         overlayClosed = false;
         // The browser floats; the chat panel is only the fallback without the overlay permission.
         if (view != null && view.getParent() != null && overlay == null) attach(currentName);
     }
 
-    /** The chat went away. Main thread. */
+    /** The chat went to the background: the page stays in its window (keeps playing). Main thread. */
     public static void clearHost(Host h) {
         if (host != h) return;
         host = null;
+    }
+
+    /** The chat is gone for good: only now the page leaves its window. Main thread. */
+    public static void releaseHost(Host h) {
+        if (host == h) host = null;
         if (view != null && view.getParent() == h.browserSlot()) {
             h.browserSlot().removeView(view);
             h.hideBrowser();
+            layoutDetached();
         }
     }
 
@@ -217,6 +254,8 @@ public final class WebSession {
      */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     private static void showOverlay(Context ctx) {
+        // The floating window belongs to the app, not to a screen (the tab may carry an Activity context).
+        ctx = ctx.getApplicationContext();
         try {
             float d = ctx.getResources().getDisplayMetrics().density;
             WindowManager wm = (WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
@@ -422,7 +461,7 @@ public final class WebSession {
 
     @SuppressLint({"AddJavascriptInterface", "SetJavaScriptEnabled"})
     private static AgentWebView createTab(Context ctx) {
-        AgentWebView v = new AgentWebView(ctx.getApplicationContext(), nextTabId++);
+        AgentWebView v = new AgentWebView(tabContext(ctx), nextTabId++);
         v.setBackgroundColor(Color.WHITE);
         v.addJavascriptInterface(new Bridge(), "YFBridge");
         v.setWebChromeClient(new WebChromeClient() {
