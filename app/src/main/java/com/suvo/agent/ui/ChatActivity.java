@@ -1563,18 +1563,22 @@ public final class ChatActivity extends BaseActivity {
         return null;
     }
 
+    /** The column's own bottom padding (before any space added under your new message). */
+    private int listBoxBasePad = -1;
+
     /**
-     * Keeps the column at least tall enough that the message you just sent can sit at the top of
-     * the screen (so the space below it is for the answer), and glides it there once.
+     * Adds just enough empty space under the conversation that the message you just sent can sit
+     * near the top of the screen with the answer written below it, and glides it there once. The
+     * space is the column's bottom padding, so the rows themselves never move (the column is
+     * bottom-gravity: a minimum height would push them down). It shrinks to nothing as the answer
+     * grows past the screen.
      */
     private void updatePin() {
+        if (listBoxBasePad < 0) listBoxBasePad = listBox.getPaddingBottom();
         if (pinConversation != conversationId) {
             pinWanted = false;
             pinUserId = Long.MIN_VALUE;
-            if (listBox.getMinimumHeight() != 0) {
-                listBox.setMinimumHeight(0);
-                listBox.post(listBox::requestLayout);
-            }
+            setPinSpace(0);
             return;
         }
         if (pinWanted && pinUserId == Long.MIN_VALUE) {
@@ -1586,22 +1590,33 @@ public final class ChatActivity extends BaseActivity {
         }
         if (pinUserId == Long.MIN_VALUE) return;
         View a = rowOf(pinUserId);
-        if (a == null) return;
-        int gap = Ui.dp(this, 10);
-        int viewport = list.getHeight() - list.getPaddingTop() - list.getPaddingBottom();
-        int want = Math.max(0, a.getTop() - gap + viewport);
-        if (listBox.getMinimumHeight() != want) {
-            listBox.setMinimumHeight(want);
-            listBox.post(listBox::requestLayout);
+        if (a == null) {
+            setPinSpace(0);
             return;
         }
-        if (!pinScrolled && listBox.getHeight() >= want) {
+        int gap = Ui.dp(this, 16);
+        int viewport = list.getHeight() - list.getPaddingTop() - list.getPaddingBottom();
+        int content = listBox.getHeight() - listBox.getPaddingBottom(); // rows only
+        int below = content - a.getTop(); // your message + everything after it
+        int space = Math.max(0, viewport - gap - below);
+        if (setPinSpace(space)) return; // laid out again, this runs once more
+        if (!pinScrolled) {
             pinScrolled = true;
             followPending = false;
             followingStream = true;
             final int y = Math.max(0, a.getTop() - gap);
             list.post(() -> list.smoothScrollTo(0, y));
         }
+    }
+
+    /** True when the space changed (a new layout pass follows). */
+    private boolean setPinSpace(int space) {
+        if (listBoxBasePad < 0) listBoxBasePad = listBox.getPaddingBottom();
+        int pad = listBoxBasePad + space;
+        if (listBox.getPaddingBottom() == pad) return false;
+        listBox.setPadding(listBox.getPaddingLeft(), listBox.getPaddingTop(), listBox.getPaddingRight(), pad);
+        listBox.post(listBox::requestLayout);
+        return true;
     }
 
     private int indexOfId(long id) {
