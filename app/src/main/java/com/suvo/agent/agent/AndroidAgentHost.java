@@ -101,6 +101,7 @@ public final class AndroidAgentHost implements AgentHost {
         pa.capabilitySummary = g.capabilities.summaryForPrompt();
         String accounts = g.connectors.summaryForPrompt();
         if (!accounts.isEmpty()) pa.capabilitySummary = pa.capabilitySummary + "\n" + accounts;
+        pa.capabilitySummary = pa.capabilitySummary + "\n" + workFolderRule();
         pa.skillIndex = g.skills.indexForPrompt();
         pa.conversationSummary = g.conversations.summary(conversationId);
         pa.taskProgress = task.toolCalls > 0 || !task.openItems.isEmpty() ? task.progressSummary(12) : "";
@@ -129,6 +130,27 @@ public final class AndroidAgentHost implements AgentHost {
         pa.lessons = lessons(g, 12);
         pa.teamRoster = teamRoster(g);
         return pa.build();
+    }
+
+    /**
+     * Where the agent keeps its work: in a folder the user granted when there is one (the user can
+     * see and use those files), otherwise in the private workspace; in Termux only inside ~/yf.
+     */
+    private String workFolderRule() {
+        StringBuilder sb = new StringBuilder("Where to work: ");
+        java.util.List<com.suvo.agent.files.SafStore.Grant> grants = g.saf.grants();
+        if (!grants.isEmpty()) {
+            sb.append("the user granted external folder(s) ");
+            for (int i = 0; i < grants.size(); i++) sb.append(i == 0 ? "" : ", ").append("ext:").append(grants.get(i).name);
+            sb.append(". ALWAYS create and save your work there (e.g. ext:").append(grants.get(0).name)
+                    .append("/<project>/…) so the user can open it — not in the private workspace (use that only for scratch files).");
+        } else {
+            sb.append("no external folder is granted, so use the private workspace (the user can add a folder in Files).");
+        }
+        boolean jail = g.settings.bool(com.suvo.agent.terminal.TermuxBackend.JAIL_SETTING, true);
+        sb.append(" In Termux your folder is ~/yf").append(jail ? " (your home and root; nothing outside it is visible to you)" : "")
+                .append("; use file_transfer to move files between the workspace / ext: folders and termux:<path in ~/yf>.");
+        return sb.toString();
     }
 
     /** The parts of the system prompt the user edits in Settings → System prompt. */

@@ -604,7 +604,7 @@ public final class TerminalActivity extends BaseActivity {
     private ShellBackend shellFor(String id) {
         switch (id) {
             case "termux":
-                return g.termux;
+                return g.termuxUser; // the user's own terminal is not confined to ~/yf
             case "shizuku":
                 return g.shizuku;
             default:

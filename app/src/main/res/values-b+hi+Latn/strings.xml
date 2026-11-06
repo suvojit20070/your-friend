@@ -1198,4 +1198,6 @@
     <string name="media_prev">Pichhla</string>
     <string name="media_next">Agla</string>
     <string name="media_queue">Track %1$s · Your Friend</string>
+    <string name="settings_termux_jail">Termux mein agent ko ~/yf ke andar rakho</string>
+    <string name="settings_termux_jail_desc">Agent ke commands ko Termux ka sirf ~/yf folder dikhta hai (proot se), tumhari baaki Termux files nahi. Tumhara apna terminal limited nahi hai.</string>
 </resources>

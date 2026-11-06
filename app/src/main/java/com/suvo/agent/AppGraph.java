@@ -59,6 +59,8 @@ public final class AppGraph {
     public final Workspace workspace;
     public final SafStore saf;
     public final TermuxBackend termux;
+    /** Termux for the user's own terminal (agent commands use {@link #termux}, kept inside ~/yf). */
+    public final TermuxBackend termuxUser;
     public final ShizukuManager shizuku;
     public final CapabilityRegistry capabilities;
     public final ToolRegistry tools;
@@ -107,6 +109,7 @@ public final class AppGraph {
         workspace = new Workspace(ctx);
         saf = new SafStore(ctx);
         termux = new TermuxBackend(ctx);
+        termuxUser = termux.forUser();
         shizuku = new ShizukuManager(ctx);
         capabilities = new CapabilityRegistry(ctx, settings, shizuku, termux, saf);
         tools = new ToolRegistry();

@@ -1246,4 +1246,6 @@
     <string name="media_prev">Previous</string>
     <string name="media_next">Next</string>
     <string name="media_queue">Track %1$s · Your Friend</string>
+    <string name="settings_termux_jail">Keep the agent inside ~/yf in Termux</string>
+    <string name="settings_termux_jail_desc">Its commands see only the ~/yf folder of Termux (with proot), never your other Termux files. Your own terminal is not limited.</string>
 </resources>

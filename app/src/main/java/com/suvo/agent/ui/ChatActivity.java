@@ -109,6 +109,8 @@ public final class ChatActivity extends BaseActivity {
      */
     private String streamFull = "";
     private int streamShown;
+    /** When characters were last revealed (the fade ends FADE_MS after the text stops). */
+    private long revealLastAdvance;
     private float revealCarry;
     private long revealLastFrame, revealWaitSince;
     private boolean revealRunning, streamFinishing;
@@ -138,17 +140,22 @@ public final class ChatActivity extends BaseActivity {
                     if (to < total && Character.isHighSurrogate(streamFull.charAt(to - 1))) to++;
                     streamShown = to;
                     streamItem.text = streamFull.substring(0, streamShown);
+                    revealLastAdvance = now;
                 }
             }
             revealHistory.addLast(new long[]{now, streamShown});
             while (revealHistory.size() > 2 && now - revealHistory.peekFirst()[0] > FADE_MS) revealHistory.removeFirst();
-            renderStreamNow();
             boolean fading = fadeLength() > 0;
             if (streamShown < streamFull.length() || fading) {
+                renderStreamNow();
                 startReveal();
             } else {
+                // Caught up and fully faded in: one last draw, never skipped by the throttle.
                 revealLastFrame = 0;
                 revealCarry = 0;
+                revealHistory.clear();
+                lastStreamRender = 0;
+                renderStreamNow();
             }
         }
     };
@@ -162,6 +169,7 @@ public final class ChatActivity extends BaseActivity {
     /** How many of the newest characters are still fading in. */
     private int fadeLength() {
         if (revealHistory.isEmpty()) return 0;
+        if (streamShown >= streamFull.length() && android.os.SystemClock.uptimeMillis() - revealLastAdvance > FADE_MS) return 0;
         long[] oldest = revealHistory.peekFirst();
         long now = android.os.SystemClock.uptimeMillis();
         if (now - oldest[0] > FADE_MS && revealHistory.size() <= 2 && streamShown == oldest[1]) return 0;
@@ -341,8 +349,15 @@ public final class ChatActivity extends BaseActivity {
         updateModelTitle();
 
         send.setOnClickListener(v -> {
-            if (g.agent.isRunning()) g.agent.cancel();
-            else submit(input.getText().toString());
+            if (g.agent.isRunning()) {
+                g.agent.cancel();
+                return;
+            }
+            // Let the button's press spring play first; the list rebuild follows a moment later.
+            String text = input.getText().toString();
+            uiHandler.postDelayed(() -> {
+                if (!isFinishing()) submit(text);
+            }, 110);
         });
         findViewById(R.id.chat_mic).setOnClickListener(v -> toggleMic());
         String prefill = getIntent().getStringExtra(EXTRA_PREFILL);
@@ -1229,11 +1244,11 @@ public final class ChatActivity extends BaseActivity {
     /** Draws the live answer now (at most ~40 times a second) and follows the end smoothly. */
     private void renderStreamNow() {
         long now = android.os.SystemClock.uptimeMillis();
-        if (now - lastStreamRender < 24) {
+        if (now - lastStreamRender < 33) {
             // Too soon: draw the latest state a moment later (so the last frame is never lost).
             if (!streamRenderQueued) {
                 streamRenderQueued = true;
-                uiHandler.postDelayed(streamRender, 24 - (now - lastStreamRender));
+                uiHandler.postDelayed(streamRender, 33 - (now - lastStreamRender));
             }
             return;
         }

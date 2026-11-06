@@ -91,9 +91,55 @@ public final class TermuxBackend implements ShellBackend {
     private static final Map<String, Job> JOBS = new ConcurrentHashMap<>();
 
     private final Context ctx;
+    /** Agent commands are kept inside ~/yf (see {@link #jail}); the user's own terminal is not. */
+    private final boolean agent;
+
+    /** Settings key: confine the agent's Termux commands to ~/yf (default on). */
+    public static final String JAIL_SETTING = "termux_jail";
+    /** The agent's own folder inside Termux; it is its home and root. */
+    public static final String AGENT_HOME = HOME + "/yf";
 
     public TermuxBackend(Context ctx) {
+        this(ctx, true);
+    }
+
+    public TermuxBackend(Context ctx, boolean agent) {
         this.ctx = ctx.getApplicationContext();
+        this.agent = agent;
+    }
+
+    /** The same Termux, for the user's own terminal (not confined to ~/yf). */
+    public TermuxBackend forUser() {
+        return new TermuxBackend(ctx, false);
+    }
+
+    private boolean jailed() {
+        return agent && ctx.getSharedPreferences("settings", Context.MODE_PRIVATE).getBoolean(JAIL_SETTING, true);
+    }
+
+    /**
+     * Keeps an agent command inside ~/yf. With proot (installed automatically the first time,
+     * if possible) ~/yf is mounted over the Termux home: the agent sees only its own folder there,
+     * "cd .." stops at it, and the rest of the user's Termux files are not visible. Without proot,
+     * a softer guard: home and working folder are ~/yf and "cd" refuses to leave it.
+     * Packages ($PREFIX), shared storage (/sdcard) and the job logs stay reachable.
+     */
+    static String jail(String command) {
+        String q = "'" + command.replace("'", "'\\''") + "'";
+        String real = HOME;
+        return "mkdir -p \"" + AGENT_HOME + "\" \"" + real + "/.yourfriend\" 2>/dev/null\n"
+                + "if ! command -v proot >/dev/null 2>&1 && [ ! -e \"" + real + "/.yourfriend/proot_tried\" ]; then "
+                + "touch \"" + real + "/.yourfriend/proot_tried\"; (yes | pkg install -y proot) >/dev/null 2>&1; fi\n"
+                + "if command -v proot >/dev/null 2>&1; then\n"
+                + "  proot -b \"" + AGENT_HOME + ":" + real + "\" -b \"" + real + "/.yourfriend:" + real + "/.yourfriend\" -w \"" + real + "\" "
+                + BASH + " -lc " + q + "\n"
+                + "else\n"
+                + "  export YF_ROOT=\"" + AGENT_HOME + "\" HOME=\"" + AGENT_HOME + "\"; cd \"$YF_ROOT\"\n"
+                + "  cd() { local d=\"${1:-$YF_ROOT}\" t; t=$(builtin cd \"$d\" 2>/dev/null && pwd -P) || { echo \"cd: $d: no such folder\" >&2; return 1; }; "
+                + "case \"$t\" in \"$YF_ROOT\"|\"$YF_ROOT\"/*) builtin cd \"$t\";; *) echo \"cd: only ~/yf is allowed for the agent\" >&2; return 1;; esac; }\n"
+                + "  export -f cd\n"
+                + "  eval " + q + "\n"
+                + "fi";
     }
 
     @Override
@@ -175,7 +221,7 @@ public final class TermuxBackend implements ShellBackend {
         PENDING.put(execId, pending);
         boolean keep = false;
         try {
-            String err = send(execId, wrap(execId, command), stdin);
+            String err = send(execId, wrap(execId, jailed() ? jail(command) : command), stdin);
             if (err != null) return ExecResult.backendError(id(), err);
             boolean got = await(pending, t0 + timeoutMs, cancel);
             if (!got) {
@@ -245,7 +291,7 @@ public final class TermuxBackend implements ShellBackend {
         i.setClassName(PACKAGE, SERVICE);
         i.putExtra(EXTRA_PATH, BASH);
         i.putExtra(EXTRA_ARGUMENTS, new String[]{"-lc", script});
-        i.putExtra(EXTRA_WORKDIR, HOME);
+        i.putExtra(EXTRA_WORKDIR, HOME); // the jail moves agent commands into ~/yf
         i.putExtra(EXTRA_BACKGROUND, true);
         i.putExtra(EXTRA_COMMAND_LABEL, "Your Friend");
         if (stdin != null && !stdin.isEmpty()) i.putExtra(EXTRA_STDIN, stdin);

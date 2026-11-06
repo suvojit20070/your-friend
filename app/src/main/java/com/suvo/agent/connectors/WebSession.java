@@ -91,7 +91,8 @@ public final class WebSession {
     public static void setHost(Host h) {
         host = h;
         overlayClosed = false;
-        if (view != null && view.getParent() != null) attach(currentName); // move it here at once
+        // The browser floats; the chat panel is only the fallback without the overlay permission.
+        if (view != null && view.getParent() != null && overlay == null) attach(currentName);
     }
 
     /** The chat went away. Main thread. */
@@ -124,11 +125,30 @@ public final class WebSession {
         view.layout(0, 0, W, H);
     }
 
-    /** Puts the browser on screen: in the chat, else a floating window, else off screen. Main thread. */
+    /**
+     * Puts the browser on screen: always as the floating window (over the chat and over other apps,
+     * movable and resizable); inside the chat only when floating windows are not allowed; else off
+     * screen. Main thread.
+     */
     private static void attach(String title) {
         if (view == null) return;
         String label = title + (view.getUrl() == null ? "" : " · " + view.getUrl());
-        if (host != null) {
+        Context ctx = view.getContext();
+        if (!overlayClosed && android.provider.Settings.canDrawOverlays(ctx)) {
+            if (overlay == null) showOverlay(ctx);
+            if (overlay != null) {
+                if (view.getParent() != overlay.findViewById(android.R.id.content)) {
+                    if (host != null && view.getParent() == host.browserSlot()) host.hideBrowser();
+                    if (view.getParent() instanceof ViewGroup) ((ViewGroup) view.getParent()).removeView(view);
+                    ((FrameLayout) overlay.findViewById(android.R.id.content)).addView(view,
+                            new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                }
+                android.widget.TextView t = overlay.findViewById(android.R.id.title);
+                if (t != null) t.setText(label);
+                return;
+            }
+        }
+        if (host != null && !overlayClosed) {
             ViewGroup slot = host.browserSlot();
             if (view.getParent() != slot) {
                 removeOverlay();
@@ -137,20 +157,6 @@ public final class WebSession {
             }
             host.showBrowser(label);
             return;
-        }
-        Context ctx = view.getContext();
-        if (!overlayClosed && android.provider.Settings.canDrawOverlays(ctx)) {
-            if (overlay == null) showOverlay(ctx);
-            if (overlay != null && view.getParent() != overlay.findViewById(android.R.id.content)) {
-                if (view.getParent() instanceof ViewGroup) ((ViewGroup) view.getParent()).removeView(view);
-                ((FrameLayout) overlay.findViewById(android.R.id.content)).addView(view,
-                        new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-            }
-            if (overlay != null) {
-                android.widget.TextView t = overlay.findViewById(android.R.id.title);
-                if (t != null) t.setText(label);
-                return;
-            }
         }
         layoutDetached();
     }

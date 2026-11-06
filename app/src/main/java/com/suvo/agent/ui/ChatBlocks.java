@@ -548,7 +548,9 @@ final class ChatBlocks {
         seek.setValueTo(1000);
         seek.setStepSize(0);
         LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        sp.setMargins(Ui.dp(ctx, -18), Ui.dp(ctx, 14), Ui.dp(ctx, -18), Ui.dp(ctx, 4));
+        sp.setMargins(0, Ui.dp(ctx, 14), 0, Ui.dp(ctx, 4));
+        controls.setClipChildren(false);
+        controls.setClipToPadding(false);
         controls.addView(seek, sp);
         TextView time = new TextView(ctx, null, 0, R.style.YF_Caption);
         time.setTextColor(0xFFFFFFFF);
@@ -804,6 +806,8 @@ final class ChatBlocks {
 
     private static View audio(Context ctx, Parsed p, Markdown.Style st) {
         LinearLayout c = card(ctx, st);
+        c.setClipChildren(false);
+        c.setClipToPadding(false);
         LinearLayout top = row(ctx);
         FrameLayout btnBox = badge(ctx, R.drawable.ic_play, st.onMarker, st.marker, -1, 42, 20);
         ImageView btn = badgeIcon(btnBox);
@@ -834,7 +838,11 @@ final class ChatBlocks {
         seek.setValueFrom(0);
         seek.setValueTo(1000);
         seek.setStepSize(0);
-        player.addView(seek, margins(ctx, -14, -8, -14, 0));
+        // The slider keeps room for its thumb at both ends by itself; the pressed glass thumb grows a
+        // little past its box, so the containers never clip their children.
+        player.setClipChildren(false);
+        player.setClipToPadding(false);
+        player.addView(seek, margins(ctx, 0, 0, 0, 2));
         LinearLayout ctl = row(ctx);
         ctl.setGravity(Gravity.CENTER);
         int on = st.marker, off = Palette.alpha(st.muted, 0.9f);

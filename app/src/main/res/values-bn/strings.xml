@@ -1157,4 +1157,6 @@
     <string name="media_prev">আগের</string>
     <string name="media_next">পরের</string>
     <string name="media_queue">ট্র্যাক %1$s · Your Friend</string>
+    <string name="settings_termux_jail">Termux-এ এজেন্টকে ~/yf-এর ভেতরে রাখো</string>
+    <string name="settings_termux_jail_desc">এজেন্টের কমান্ড Termux-এর শুধু ~/yf ফোল্ডার দেখে (proot দিয়ে), আপনার বাকি Termux ফাইল নয়। আপনার নিজের টার্মিনাল সীমিত নয়।</string>
 </resources>

@@ -26,8 +26,8 @@ public final class FileTools {
     }
 
     static final String PATH_DOC = "Workspace path like 'notes/todo.md' or a granted folder path like 'ext:Documents/report.txt'. "
-            + "The workspace is this app's private storage: Termux (shell backend=termux) cannot see it. For anything you will "
-            + "build or run in Termux, write the files inside Termux with the shell tool instead";
+            + "The workspace is this app's private storage: Termux (shell backend=termux) cannot see it. To build or run "
+            + "files in Termux, write them there with the shell tool or copy them with file_transfer (to termux:<path in ~/yf>)";
 
     static FileAccess fa(AppGraph g) {
         return new FileAccess(g.workspace, g.saf);

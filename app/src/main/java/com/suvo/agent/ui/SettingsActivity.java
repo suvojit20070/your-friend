@@ -225,6 +225,8 @@ public final class SettingsActivity extends BaseActivity {
         r.row(R.drawable.ic_bell, getString(R.string.settings_notif_tone), NotificationTone.label(this), null,
                 v -> NotificationTone.choose(this, REQ_TONE_SYSTEM, REQ_TONE_FILE, this::build));
         r.link(R.drawable.ic_shield, R.string.appalert_title, R.string.appalert_settings_desc, AppAlertActivity.class);
+        r.switchRow(R.drawable.ic_terminal, R.string.settings_termux_jail, R.string.settings_termux_jail_desc,
+                com.suvo.agent.terminal.TermuxBackend.JAIL_SETTING, true, null);
         // The current screen goes along with every request (only while another app is on screen).
         r.switchRow(R.drawable.ic_screen, R.string.settings_attach_tree, R.string.settings_attach_tree_desc, Settings.ATTACH_SCREEN_TREE, false, null);
         r.switchRow(R.drawable.ic_eye, R.string.settings_attach_shot, R.string.settings_attach_shot_desc, Settings.ATTACH_SCREENSHOT, false, null);

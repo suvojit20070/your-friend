@@ -183,33 +183,35 @@ public final class AgentRuntime {
         String invalid = p.validate();
         if (invalid != null) return invalid;
         activeConversation = conversationId;
-        ConversationRepo.Conversation conv = g.conversations.get(conversationId);
-        if (conv != null && (conv.title == null || conv.title.isEmpty())) {
-            String t = com.suvo.agent.core.util.Attachments.forDisplay(text, "📎 %s", "📁 %s").replace('\n', ' ').trim();
-            g.conversations.rename(conversationId, t.length() > 48 ? t.substring(0, 48) + "…" : t);
-        }
         g.speech.stop();
-        // Usage (own token count, errors, speed) is recorded per provider.
-        LlmClient llm = TrackedLlm.wrap(g.ctx, new OpenAiCompatClient(p));
         CancellationToken tk = new CancellationToken();
         token = tk;
         TaskState task = new TaskState(conversationId, text);
         current = task;
         log.clear();
         addLog("status", g.ctx.getString(R.string.log_task_started), text);
-        AndroidAgentHost h = new AndroidAgentHost(g, conversationId, llm, tk, n -> {
-            addLog("notice", n, "");
-            dispatch(l -> l.onNotice(task, n));
-        });
-        host = h;
-        g.settings.applyTo(g.policy);
-        AgentConfig cfg = g.settings.agentConfig();
-        AgentLoop lp = new AgentLoop(llm, g.executor, h, cfg, new InternalListener(), tk);
-        loop = lp;
         ChatMessage user = images == null || images.isEmpty() ? ChatMessage.user(text) : ChatMessage.user(text, images);
-        AgentForegroundService.start(g.ctx, text);
-        treeRoot = AgentTree.startRoot(g.characters.active().name, text);
+        // Everything heavier (database, prompt host, foreground service) happens on the task's own
+        // thread, so the send button's press animation never stutters.
         Thread t = new Thread(() -> {
+            ConversationRepo.Conversation conv = g.conversations.get(conversationId);
+            if (conv != null && (conv.title == null || conv.title.isEmpty())) {
+                String title = com.suvo.agent.core.util.Attachments.forDisplay(text, "📎 %s", "📁 %s").replace('\n', ' ').trim();
+                g.conversations.rename(conversationId, title.length() > 48 ? title.substring(0, 48) + "…" : title);
+            }
+            // Usage (own token count, errors, speed) is recorded per provider.
+            LlmClient llm = TrackedLlm.wrap(g.ctx, new OpenAiCompatClient(p));
+            AndroidAgentHost h = new AndroidAgentHost(g, conversationId, llm, tk, n -> {
+                addLog("notice", n, "");
+                dispatch(l -> l.onNotice(task, n));
+            });
+            host = h;
+            g.settings.applyTo(g.policy);
+            AgentConfig cfg = g.settings.agentConfig();
+            AgentLoop lp = new AgentLoop(llm, g.executor, h, cfg, new InternalListener(), tk);
+            loop = lp;
+            AgentForegroundService.start(g.ctx, text);
+            treeRoot = AgentTree.startRoot(g.characters.active().name, text);
             lp.run(task, user);
             afterTask(task, llm, conversationId);
         }, "agent-task");

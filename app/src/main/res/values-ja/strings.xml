@@ -1149,4 +1149,6 @@
     <string name="media_prev">前へ</string>
     <string name="media_next">次へ</string>
     <string name="media_queue">トラック %1$s · Your Friend</string>
+    <string name="settings_termux_jail">Termux でエージェントを ~/yf 内に制限</string>
+    <string name="settings_termux_jail_desc">エージェントのコマンドは Termux の ~/yf だけを見ます（proot 使用）。他の Termux ファイルは見えません。自分のターミナルは制限されません。</string>
 </resources>
