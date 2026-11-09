@@ -103,6 +103,16 @@ public final class WebSession {
 
         /** The browser left this host. */
         void hideBrowser();
+
+        /** A page of the shown tab asks a question (alert / confirm / prompt): show it to the user. False = cannot. */
+        default boolean showPageDialog(AgentWebView tab, AgentWebView.PageDialog d) {
+            return false;
+        }
+
+        /** A page of the shown tab wants files and the agent armed none: let the user pick. False = cannot. */
+        default boolean pickFiles(android.webkit.ValueCallback<Uri[]> cb, WebChromeClient.FileChooserParams params) {
+            return false;
+        }
     }
 
     private static Host host;
@@ -448,11 +458,15 @@ public final class WebSession {
         s.setDatabaseEnabled(true);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
-        s.setSupportMultipleWindows(false);
+        // Pop-up windows (sign in with…, target=_blank) become tabs of the agent's browser.
+        s.setSupportMultipleWindows(v instanceof AgentWebView);
+        s.setJavaScriptCanOpenWindowsAutomatically(v instanceof AgentWebView);
         s.setMediaPlaybackRequiresUserGesture(true);
-        String ua = userAgent(v.getContext(), c);
+        // The agent can switch a tab to the desktop or the mobile site (browser action mode).
+        Boolean forced = v instanceof AgentWebView ? ((AgentWebView) v).modeOverride : null;
+        boolean desktop = forced != null ? forced : c != null && c.desktopSite;
+        String ua = desktop ? DESKTOP_UA : userAgent(v.getContext(), null);
         if (!ua.equals(s.getUserAgentString())) s.setUserAgentString(ua);
-        boolean desktop = c != null && c.desktopSite;
         if (v instanceof AgentWebView) ((AgentWebView) v).desktop = desktop;
         // Pinch zoom (desktop pages are wide).
         s.setSupportZoom(true);
@@ -518,7 +532,90 @@ public final class WebSession {
                 v.progress = p;
                 tabsChanged();
             }
+
+            // ---- alert / confirm / prompt / leave page: wait for the agent (action dialog) or the user
+
+            @Override
+            public boolean onJsAlert(WebView w, String url, String message, android.webkit.JsResult result) {
+                return pageDialog(v, "alert", message, null, result);
+            }
+
+            @Override
+            public boolean onJsConfirm(WebView w, String url, String message, android.webkit.JsResult result) {
+                return pageDialog(v, "confirm", message, null, result);
+            }
+
+            @Override
+            public boolean onJsPrompt(WebView w, String url, String message, String def, android.webkit.JsPromptResult result) {
+                return pageDialog(v, "prompt", message, def, result);
+            }
+
+            @Override
+            public boolean onJsBeforeUnload(WebView w, String url, String message, android.webkit.JsResult result) {
+                return pageDialog(v, "leave_page", message, null, result);
+            }
+
+            // ---- file picker: the agent's armed files, else the user (browser screen), else reported
+
+            @Override
+            public boolean onShowFileChooser(WebView w, android.webkit.ValueCallback<Uri[]> cb, FileChooserParams params) {
+                Uri[] files = v.uploadFiles;
+                String accept = params == null || params.getAcceptTypes() == null ? "" : String.join(",", params.getAcceptTypes());
+                if (files != null && SystemClock.uptimeMillis() < v.uploadUntil) {
+                    if (params != null && params.getMode() != FileChooserParams.MODE_OPEN_MULTIPLE && files.length > 1) files = new Uri[]{files[0]};
+                    v.uploadFiles = null;
+                    v.uploadUsed = true;
+                    cb.onReceiveValue(files);
+                    v.event("file picker (accept " + (accept.isEmpty() ? "any" : accept) + ") got " + files.length + " file(s)");
+                    return true;
+                }
+                if (screen != null && v == view && screen.pickFiles(cb, params)) {
+                    v.event("file picker shown to the user");
+                    return true;
+                }
+                v.event("the page opened a file picker (accept " + (accept.isEmpty() ? "any" : accept)
+                        + ") — use action upload with files to answer it");
+                cb.onReceiveValue(null);
+                return true;
+            }
+
+            // ---- camera / microphone / location: refused, reported
+
+            @Override
+            public void onPermissionRequest(android.webkit.PermissionRequest req) {
+                v.event("the page asked for " + String.join(", ", req.getResources()) + " — refused");
+                req.deny();
+            }
+
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, android.webkit.GeolocationPermissions.Callback cb) {
+                v.event(origin + " asked for the location — refused");
+                cb.invoke(origin, false, false);
+            }
+
+            // ---- new windows → tabs
+
+            @Override
+            public boolean onCreateWindow(WebView w, boolean isDialog, boolean userGesture, android.os.Message resultMsg) {
+                AgentWebView t = createTab(v.context.getBaseContext());
+                configure(t, Connector.openWeb());
+                t.owner = v.owner;
+                tabs.add(t);
+                ((WebView.WebViewTransport) resultMsg.obj).setWebView(t);
+                resultMsg.sendToTarget();
+                switchTo(t);
+                v.event("the page opened a new window: now tab " + t.tabId + " (current)");
+                return true;
+            }
+
+            @Override
+            public void onCloseWindow(WebView w) {
+                if (w instanceof AgentWebView) closeTab(((AgentWebView) w).tabId);
+            }
         });
+        v.setDownloadListener((url, ua, disposition, mime, length) -> PageTools.download(v, url, ua, disposition, mime));
+        // The site's own API calls are recorded from the first line of every page.
+        v.hookedAtStart = PageTools.installDocumentStart(v);
         v.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView w, String url) {
@@ -539,6 +636,8 @@ public final class WebSession {
 
             @Override
             public void onPageStarted(WebView w, String url, Bitmap favicon) {
+                // Without document-start scripts: record from here on (calls before this are read from the timing list).
+                if (!v.hookedAtStart) w.evaluateJavascript(PageTools.HOOK_JS, null);
                 tabsChanged();
             }
 
@@ -557,6 +656,72 @@ public final class WebSession {
         v.onResume();
         v.resumeTimers();
         return v;
+    }
+
+    /** A page asks something: keep it for the agent, show it to the user when the browser screen is open. */
+    private static boolean pageDialog(AgentWebView v, String type, String message, String def, android.webkit.JsResult result) {
+        AgentWebView.PageDialog old = v.dialog;
+        if (old != null) old.answer(false, null);
+        AgentWebView.PageDialog d = new AgentWebView.PageDialog(type, message, def, result);
+        v.dialog = d;
+        v.event("the page shows a " + type + ": \"" + (message == null ? "" : message) + "\" — answer with action dialog");
+        if (screen != null && v == view) screen.showPageDialog(v, d);
+        // Nobody answers in 2 minutes: Cancel (the page's scripts are blocked meanwhile).
+        main.postDelayed(() -> {
+            if (d.answer(false, null)) v.event(type + " dialog closed with Cancel (no answer in 2 min)");
+        }, 120_000);
+        return true;
+    }
+
+    /** The tab the actions work on (for the browser tool's helpers). */
+    public static AgentWebView tabFor(Context ctx, Connector c) throws Exception {
+        return onMain(() -> (AgentWebView) viewFor(ctx, c), 5000);
+    }
+
+    /** A real finger tap at a point of the page (CSS pixels of a viewport {@code vw} wide). */
+    static void touch(Context ctx, Connector c, double x, double y, double vw) throws Exception {
+        onMain(() -> {
+            WebView v = viewFor(ctx, c);
+            float scale = vw > 0 ? v.getWidth() / (float) vw : ctx.getResources().getDisplayMetrics().density;
+            float px = (float) (x * scale), py = (float) (y * scale);
+            long t = SystemClock.uptimeMillis();
+            MotionEvent down = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, px, py, 0);
+            down.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);
+            v.dispatchTouchEvent(down);
+            down.recycle();
+            MotionEvent up = MotionEvent.obtain(t, t + 60, MotionEvent.ACTION_UP, px, py, 0);
+            up.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);
+            v.dispatchTouchEvent(up);
+            up.recycle();
+            return null;
+        }, 5000);
+    }
+
+    /** Taps element number {@code index} of the last element list. */
+    public static String tapIndex(Context ctx, Connector c, int index) throws Exception {
+        String where = eval(ctx, c, PageTools.locateJs(index), 10_000);
+        if (where == null || where.equals("null")) return "ERROR: no element [" + index + "] any more — list elements again";
+        if (where.startsWith("ERROR")) return where;
+        JSONObject o = new JSONObject(where);
+        touch(ctx, c, o.optDouble("x"), o.optDouble("y"), o.optDouble("vw", 0));
+        Thread.sleep(1000);
+        return "tapped [" + index + "] \"" + o.optString("what") + "\"";
+    }
+
+    /** Switches the tab to the desktop or the mobile site and loads the page again. */
+    public static String mode(Context ctx, Connector c, boolean desktop) throws Exception {
+        CountDownLatch l = new CountDownLatch(1);
+        loaded = l;
+        onMain(() -> {
+            AgentWebView v = (AgentWebView) viewFor(ctx, c);
+            v.modeOverride = desktop;
+            configure(v, c);
+            if (v.getUrl() != null) v.loadUrl(v.getUrl());
+            return null;
+        }, 5000);
+        l.await(30, TimeUnit.SECONDS);
+        Thread.sleep(1500);
+        return (desktop ? "desktop" : "mobile") + " site";
     }
 
     private static WebView viewFor(Context ctx, Connector c) {
@@ -753,6 +918,12 @@ public final class WebSession {
      * statements / an expression, whose last value is returned. Promises are awaited.
      */
     public static String eval(Context ctx, Connector c, String script, long timeoutMs) throws Exception {
+        AgentWebView.PageDialog open = view == null ? null : view.dialog;
+        if (open != null && open.open()) {
+            // The page's scripts are stopped until the question is answered.
+            return "ERROR: the page is waiting on a " + open.type + " dialog: \"" + open.message
+                    + "\" — answer it first with action dialog (answer accept or dismiss)";
+        }
         byte[] b = new byte[12];
         RND.nextBytes(b);
         StringBuilder id = new StringBuilder();
@@ -823,22 +994,7 @@ public final class WebSession {
         if (where == null || where.equals("null")) return "ERROR: no element matches " + (selector != null && !selector.isEmpty() ? selector : "\"" + text + "\"");
         if (where.startsWith("ERROR")) return where;
         JSONObject o = new JSONObject(where);
-        double x = o.optDouble("x"), y = o.optDouble("y"), vw = o.optDouble("vw", 0);
-        onMain(() -> {
-            WebView v = viewFor(ctx, c);
-            float scale = vw > 0 ? v.getWidth() / (float) vw : ctx.getResources().getDisplayMetrics().density;
-            float px = (float) (x * scale), py = (float) (y * scale);
-            long t = SystemClock.uptimeMillis();
-            MotionEvent down = MotionEvent.obtain(t, t, MotionEvent.ACTION_DOWN, px, py, 0);
-            down.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);
-            v.dispatchTouchEvent(down);
-            down.recycle();
-            MotionEvent up = MotionEvent.obtain(t, t + 60, MotionEvent.ACTION_UP, px, py, 0);
-            up.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);
-            v.dispatchTouchEvent(up);
-            up.recycle();
-            return null;
-        }, 5000);
+        touch(ctx, c, o.optDouble("x"), o.optDouble("y"), o.optDouble("vw", 0));
         Thread.sleep(1200);
         return "tapped \"" + o.optString("what").replace('\n', ' ') + "\"";
     }

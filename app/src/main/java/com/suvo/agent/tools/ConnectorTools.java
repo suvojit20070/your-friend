@@ -7,6 +7,8 @@ import com.suvo.agent.connectors.Connector;
 import com.suvo.agent.connectors.ConnectorPresets;
 import com.suvo.agent.connectors.EmailClient;
 import com.suvo.agent.connectors.OAuthFlow;
+import com.suvo.agent.connectors.AgentWebView;
+import com.suvo.agent.connectors.PageTools;
 import com.suvo.agent.connectors.WebSession;
 import com.suvo.agent.core.tools.Capability;
 import com.suvo.agent.core.tools.RiskLevel;
@@ -568,10 +570,26 @@ public final class ConnectorTools {
                             + "Tab, Backspace, Escape, ArrowUp, ArrowDown), scroll (dy pixels, page or the scrollable element around "
                             + "selector/text; negative = up), back, screenshot (picture of the page), url, js (JavaScript: a function "
                             + "body that returns a value, or an expression; prefer tap/type/key for clicking and typing), fetch "
-                            + "(request from inside the page with its cookies). After tap/type/key/scroll call text to see the result. Tabs: tabs (list: tab number, title, url, which is current, who opened it), new_tab (optional url), switch_tab (tab), close_tab (tab); every other action works on the current tab.")
+                            + "(request from inside the page with its cookies). After tap/type/key/scroll call text to see the result. Tabs: tabs (list: tab number, title, url, which is current, who opened it), new_tab (optional url), switch_tab (tab), close_tab (tab); every other action works on the current tab. "
+                            + "BEST WAY: elements = numbered list of every button, link, field, icon button, checkbox, dropdown… (like "
+                            + "the phone's screen tree; (covered) = something is over it, (in dialog) = inside an open pop-up); then "
+                            + "tap / type / select / upload with index. type: clear=true replaces the text. select: pick a dropdown "
+                            + "option (value = option text). upload: files = workspace paths; with index = the page's upload button "
+                            + "(its file picker gets the files, no system picker), without index the files go straight into the "
+                            + "page's file input. dialog: an alert / confirm / prompt / leave-page question the page waits on "
+                            + "(answer accept or dismiss, prompt text in value). network: the site's own API calls seen so far "
+                            + "(method, endpoint, status, sample) — call them directly with fetch instead of clicking. mode: value "
+                            + "desktop or mobile site. Every answer also lists page events (file pickers, dialogs, downloads saved "
+                            + "to downloads/, new windows opened as tabs, refused camera/location requests).")
                     .schema("{\"type\":\"object\",\"properties\":{"
                             + "\"connector\":{\"type\":\"string\"},"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\"]},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\",\"elements\",\"select\",\"upload\",\"dialog\",\"network\",\"mode\"]},"
+                            + "\"index\":{\"type\":\"integer\",\"description\":\"element number from elements (tap / type / select / upload)\"},"
+                            + "\"files\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"upload: workspace paths (or ext:…)\"},"
+                            + "\"answer\":{\"type\":\"string\",\"enum\":[\"accept\",\"dismiss\"],\"description\":\"dialog: OK / Cancel (prompt text in value)\"},"
+                            + "\"clear\":{\"type\":\"boolean\",\"description\":\"type: empty the field first\"},"
+                            + "\"all\":{\"type\":\"boolean\",\"description\":\"elements: also the ones off screen\"},"
+                            + "\"limit\":{\"type\":\"integer\"},"
                             + "\"tab\":{\"type\":\"integer\",\"description\":\"tab number (from tabs) for switch_tab / close_tab\"},"
                             + "\"url\":{\"type\":\"string\"},"
                             + "\"selector\":{\"type\":\"string\",\"description\":\"CSS selector\"},"
@@ -596,7 +614,8 @@ public final class ConnectorTools {
         @Override
         public RiskLevel riskFor(JSONObject args) {
             String a = args.optString("action");
-            if ("js".equals(a) || "tap".equals(a) || "type".equals(a) || "key".equals(a)) return RiskLevel.MEDIUM;
+            if ("js".equals(a) || "tap".equals(a) || "type".equals(a) || "key".equals(a) || "upload".equals(a)
+                    || "select".equals(a) || "dialog".equals(a)) return RiskLevel.MEDIUM;
             if ("fetch".equals(a)) return "GET".equalsIgnoreCase(args.optString("method", "GET")) ? RiskLevel.READ_ONLY : RiskLevel.MEDIUM;
             return RiskLevel.READ_ONLY;
         }
@@ -632,9 +651,25 @@ public final class ConnectorTools {
                             + "js (function body returning a value), fetch (request with the page's cookies). After tap/type/key/scroll "
                             + "call text to see the result. Tabs: tabs (list: tab number, title, url, current, opened by), new_tab (optional url), "
                             + "switch_tab (tab), close_tab (tab); the user sees the same tabs in the Browser screen. Never enter "
-                            + "passwords or payment details unless the user asked for that site.")
+                            + "passwords or payment details unless the user asked for that site. "
+                            + "BEST WAY: elements = numbered list of every button, link, field, icon button, checkbox, dropdown… (like "
+                            + "the phone's screen tree; (covered) = something is over it, (in dialog) = inside an open pop-up); then "
+                            + "tap / type / select / upload with index. type: clear=true replaces the text. select: pick a dropdown "
+                            + "option (value = option text). upload: files = workspace paths; with index = the page's upload button "
+                            + "(its file picker gets the files, no system picker), without index the files go straight into the "
+                            + "page's file input. dialog: an alert / confirm / prompt / leave-page question the page waits on "
+                            + "(answer accept or dismiss, prompt text in value). network: the site's own API calls seen so far "
+                            + "(method, endpoint, status, sample) — call them directly with fetch instead of clicking. mode: value "
+                            + "desktop or mobile site. Every answer also lists page events (file pickers, dialogs, downloads saved "
+                            + "to downloads/, new windows opened as tabs, refused camera/location requests).")
                     .schema("{\"type\":\"object\",\"properties\":{"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\"]},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\",\"elements\",\"select\",\"upload\",\"dialog\",\"network\",\"mode\"]},"
+                            + "\"index\":{\"type\":\"integer\",\"description\":\"element number from elements (tap / type / select / upload)\"},"
+                            + "\"files\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"upload: workspace paths (or ext:…)\"},"
+                            + "\"answer\":{\"type\":\"string\",\"enum\":[\"accept\",\"dismiss\"],\"description\":\"dialog: OK / Cancel (prompt text in value)\"},"
+                            + "\"clear\":{\"type\":\"boolean\",\"description\":\"type: empty the field first\"},"
+                            + "\"all\":{\"type\":\"boolean\",\"description\":\"elements: also the ones off screen\"},"
+                            + "\"limit\":{\"type\":\"integer\"},"
                             + "\"tab\":{\"type\":\"integer\",\"description\":\"tab number (from tabs) for switch_tab / close_tab\"},"
                             + "\"url\":{\"type\":\"string\"},"
                             + "\"selector\":{\"type\":\"string\",\"description\":\"CSS selector\"},"
@@ -654,7 +689,8 @@ public final class ConnectorTools {
         @Override
         public RiskLevel riskFor(JSONObject args) {
             String a = args.optString("action");
-            if ("js".equals(a) || "tap".equals(a) || "type".equals(a) || "key".equals(a)) return RiskLevel.MEDIUM;
+            if ("js".equals(a) || "tap".equals(a) || "type".equals(a) || "key".equals(a) || "upload".equals(a)
+                    || "select".equals(a) || "dialog".equals(a)) return RiskLevel.MEDIUM;
             if ("fetch".equals(a)) return "GET".equalsIgnoreCase(args.optString("method", "GET")) ? RiskLevel.READ_ONLY : RiskLevel.MEDIUM;
             return RiskLevel.READ_ONLY;
         }
@@ -679,8 +715,32 @@ public final class ConnectorTools {
         }
     }
 
+    private static byte[] readAll(java.io.InputStream in) throws java.io.IOException {
+        java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[65536];
+        int n;
+        while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+        return bo.toByteArray();
+    }
+
     /** The browser actions, shared by web_session (a connected site) and browser (any site). */
     static ToolResult runWeb(AppGraph g, ToolInvocation inv, Connector c) throws Exception {
+        ToolResult r = runWeb0(g, inv, c);
+        // What the page did meanwhile (dialogs, file pickers, downloads, new tabs) goes with every answer.
+        AgentWebView tab = WebSession.current();
+        if (tab == null) return r;
+        java.util.List<String> ev = tab.takeEvents();
+        AgentWebView.PageDialog d = tab.dialog;
+        StringBuilder note = new StringBuilder();
+        for (String e : ev) note.append("\n• ").append(e);
+        if (d != null && d.open() && !"dialog".equals(inv.str("action"))) {
+            note.append("\n• OPEN DIALOG (").append(d.type).append("): \"").append(d.message)
+                    .append("\" — the page waits: answer with action dialog");
+        }
+        return note.length() == 0 ? r : r.withNote("Page events:" + note);
+    }
+
+    private static ToolResult runWeb0(AppGraph g, ToolInvocation inv, Connector c) throws Exception {
         {
             int max = (int) inv.num("max_chars", 12000);
             String a = inv.str("action");
@@ -694,13 +754,96 @@ public final class ConnectorTools {
                 }
                 case "text":
                     return ToolResult.ok("Page", J.obj("page", WebSession.text(g.ctx, c, max)));
+                case "elements": {
+                    String r = WebSession.eval(g.ctx, c, PageTools.elementsJs((int) inv.num("limit", 150), inv.bool("all", false)), 20_000);
+                    if (r != null && r.startsWith("ERROR")) return ToolResult.fail(r);
+                    return ToolResult.ok("Elements (tap / type / select / upload them by index)", J.obj("page", r));
+                }
+                case "dialog": {
+                    AgentWebView tab = WebSession.current();
+                    AgentWebView.PageDialog d = tab == null ? null : tab.dialog;
+                    if (d == null || !d.open()) return ToolResult.ok("No dialog is open");
+                    String ans = inv.str("answer");
+                    if (ans.isEmpty()) return ToolResult.ok("Open " + d.type + ": \"" + d.message + "\"", J.obj("type", d.type, "message", d.message,
+                            "default", d.defaultValue == null ? "" : d.defaultValue));
+                    boolean accept = !"dismiss".equalsIgnoreCase(ans) && !"cancel".equalsIgnoreCase(ans);
+                    d.answer(accept, inv.args.has("value") ? inv.str("value") : null);
+                    Thread.sleep(800);
+                    return ToolResult.ok((accept ? "Accepted " : "Dismissed ") + d.type + " \"" + d.message + "\"");
+                }
+                case "network": {
+                    String r = WebSession.eval(g.ctx, c, PageTools.networkJs(inv.str("text"), (int) inv.num("limit", 60)), 15_000);
+                    if (r != null && r.startsWith("ERROR")) return ToolResult.fail(r);
+                    return ToolResult.ok("The site's own API calls seen in this page (call one with action fetch)", J.obj("network", abbreviate(r, max)));
+                }
+                case "mode": {
+                    String m = inv.str("value").toLowerCase(Locale.ROOT);
+                    if (!m.equals("desktop") && !m.equals("mobile")) return ToolResult.fail("value must be desktop or mobile");
+                    String r = WebSession.mode(g.ctx, c, m.equals("desktop"));
+                    return ToolResult.ok("Now showing the " + r, J.obj("page", WebSession.eval(g.ctx, c, PageTools.elementsJs(80, false), 20_000)));
+                }
+                case "select": {
+                    if (!inv.args.has("index")) return ToolResult.fail("index of the dropdown (from elements) is required");
+                    String r = WebSession.eval(g.ctx, c, PageTools.selectJs((int) inv.num("index", -1), inv.str("value")), 10_000);
+                    r = r == null ? "null" : r.replace("\"", "");
+                    return r.startsWith("ERROR") ? ToolResult.fail(r) : ToolResult.ok(r);
+                }
+                case "upload": {
+                    android.net.Uri[] files = PageTools.prepareUploads(g.ctx, g, inv.args.optJSONArray("files"));
+                    AgentWebView tab = WebSession.tabFor(g.ctx, c);
+                    int idx = inv.args.has("index") ? (int) inv.num("index", -1) : -1;
+                    // 1) Arm the files and tap the upload button: the page's file picker gets them, no system picker.
+                    tab.uploadUsed = false;
+                    tab.uploadFiles = files;
+                    tab.uploadUntil = android.os.SystemClock.uptimeMillis() + 20_000;
+                    if (idx >= 0) {
+                        String t = WebSession.tapIndex(g.ctx, c, idx);
+                        if (t.startsWith("ERROR")) {
+                            tab.uploadFiles = null;
+                            return ToolResult.fail(t);
+                        }
+                        for (int i = 0; i < 30 && !tab.uploadUsed; i++) Thread.sleep(100);
+                        if (tab.uploadUsed) return ToolResult.ok("Uploaded " + files.length + " file(s) through the page's picker (" + t + ")");
+                    }
+                    tab.uploadFiles = null;
+                    // 2) No picker came: put the files straight into the page's file input.
+                    JSONArray payload = new JSONArray();
+                    long total = 0;
+                    for (android.net.Uri u : files) {
+                        byte[] data;
+                        try (java.io.InputStream in = g.ctx.getContentResolver().openInputStream(u)) {
+                            data = readAll(in);
+                        }
+                        total += data.length;
+                        if (total > 40L * 1024 * 1024) return ToolResult.fail("Too big to put into the page directly (over 40 MB): "
+                                + "tap the page's upload button with index so its picker takes the files");
+                        String name = u.getLastPathSegment() == null ? "file" : u.getLastPathSegment();
+                        name = name.substring(name.lastIndexOf('/') + 1);
+                        String type = g.ctx.getContentResolver().getType(u);
+                        payload.put(J.obj("name", name, "type", type == null ? "application/octet-stream" : type,
+                                "b64", android.util.Base64.encodeToString(data, android.util.Base64.NO_WRAP)));
+                    }
+                    String r = WebSession.eval(g.ctx, c, PageTools.injectFilesJs(idx, payload), 60_000);
+                    r = r == null ? "null" : r.replace("\"", "");
+                    return r.startsWith("ERROR") ? ToolResult.fail(r + (idx < 0 ? " — give index of the page's upload button" : "")) : ToolResult.ok(r);
+                }
                 case "tap": {
+                    if (inv.args.has("index")) {
+                        String r = WebSession.tapIndex(g.ctx, c, (int) inv.num("index", -1));
+                        return r.startsWith("ERROR") ? ToolResult.fail(r) : ToolResult.ok(r);
+                    }
                     String r = WebSession.tap(g.ctx, c, inv.str("selector"), inv.str("text"));
                     return r.startsWith("ERROR") ? ToolResult.fail(r + " — call text to see what is on the page") : ToolResult.ok(r);
                 }
                 case "type": {
                     if (!inv.args.has("value")) return ToolResult.fail("value (the text to type) is required");
-                    String r = WebSession.type(g.ctx, c, inv.str("selector"), inv.str("text"), inv.str("value"));
+                    if (inv.args.has("index")) {
+                        String t = WebSession.tapIndex(g.ctx, c, (int) inv.num("index", -1));
+                        if (t.startsWith("ERROR")) return ToolResult.fail(t);
+                    }
+                    if (inv.bool("clear", false)) WebSession.eval(g.ctx, c, PageTools.clearJs(-1), 5000);
+                    String r = inv.args.has("index") ? WebSession.type(g.ctx, c, "", "", inv.str("value"))
+                            : WebSession.type(g.ctx, c, inv.str("selector"), inv.str("text"), inv.str("value"));
                     r = r == null ? "null" : r;
                     return r.contains("ERROR") ? ToolResult.fail(r) : ToolResult.ok(r.replace("\"", ""));
                 }

@@ -185,6 +185,71 @@ public final class BrowserActivity extends BaseActivity implements WebSession.Ho
         refresh();
     }
 
+    /** A page asks something while the user browses here: shown as a dialog (the agent can answer it too). */
+    @Override
+    public boolean showPageDialog(AgentWebView tab, AgentWebView.PageDialog d) {
+        if (isFinishing()) return false;
+        android.widget.EditText input = null;
+        View body = null;
+        if ("prompt".equals(d.type)) {
+            input = new android.widget.EditText(this, null, 0, R.style.YF_Input);
+            input.setText(d.defaultValue == null ? "" : d.defaultValue);
+            FrameLayout wrap = new FrameLayout(this);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, Ui.dp(this, 8), 0, 0);
+            wrap.addView(input, lp);
+            body = wrap;
+        }
+        final android.widget.EditText field = input;
+        String host = tab.getUrl() == null ? "" : String.valueOf(Uri.parse(tab.getUrl()).getHost());
+        GlassDialog.Builder b = Ui.dialog(this).setTitle(host).setMessage(d.message)
+                .setPositiveButton(android.R.string.ok, (x, w) -> d.answer(true, field == null ? null : field.getText().toString()))
+                .setOnDismissListener(x -> d.answer(false, null));
+        if (!"alert".equals(d.type)) b.setNegativeButton(android.R.string.cancel, (x, w) -> d.answer(false, null));
+        if (body != null) b.setView(body);
+        Ui.show(b);
+        return true;
+    }
+
+    private android.webkit.ValueCallback<Uri[]> fileCallback;
+    private static final int PICK_FILES = 41;
+
+    /** A page wants files and the agent armed none: the system picker, for the user. */
+    @Override
+    public boolean pickFiles(android.webkit.ValueCallback<Uri[]> cb, android.webkit.WebChromeClient.FileChooserParams params) {
+        if (isFinishing()) return false;
+        if (fileCallback != null) fileCallback.onReceiveValue(null);
+        fileCallback = cb;
+        try {
+            Intent i = params != null ? params.createIntent() : new Intent(Intent.ACTION_GET_CONTENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE);
+            if (params != null && params.getMode() == android.webkit.WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE) {
+                i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            }
+            startActivityForResult(i, PICK_FILES);
+            return true;
+        } catch (RuntimeException e) {
+            fileCallback = null;
+            return false;
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != PICK_FILES || fileCallback == null) return;
+        Uri[] picked = null;
+        if (resultCode == RESULT_OK && data != null) {
+            if (data.getClipData() != null) {
+                picked = new Uri[data.getClipData().getItemCount()];
+                for (int i = 0; i < picked.length; i++) picked[i] = data.getClipData().getItemAt(i).getUri();
+            } else if (data.getData() != null) {
+                picked = new Uri[]{data.getData()};
+            }
+        }
+        fileCallback.onReceiveValue(picked);
+        fileCallback = null;
+    }
+
     @Override
     public void onTabsChanged() {
         if (!isFinishing()) refresh();

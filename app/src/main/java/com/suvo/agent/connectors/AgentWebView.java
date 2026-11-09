@@ -22,6 +22,66 @@ public class AgentWebView extends WebView {
     public int progress = 100;
     /** Shows pages as on a computer (user agent, client hints, desktop-width layout). */
     public boolean desktop;
+    /** The agent's choice for this tab (null = the site / setting decides): true desktop, false mobile. */
+    public Boolean modeOverride;
+    /** The network recorder runs at document start (else it is added when each page starts). */
+    public boolean hookedAtStart;
+
+    /** A JavaScript alert / confirm / prompt / leave-page question the page is waiting on (or null). */
+    public volatile PageDialog dialog;
+    /** Files the agent armed for the page's next file picker (and until when they are valid). */
+    public volatile android.net.Uri[] uploadFiles;
+    public volatile long uploadUntil;
+    /** Set when the page's file picker was answered with the armed files. */
+    public volatile boolean uploadUsed;
+
+    /** What happened in the page that the agent should know (file pickers, dialogs, downloads, new tabs, permissions). */
+    private final java.util.ArrayDeque<String> events = new java.util.ArrayDeque<>();
+
+    public void event(String what) {
+        synchronized (events) {
+            events.add(new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(new java.util.Date()) + " " + what);
+            while (events.size() > 40) events.removeFirst();
+        }
+    }
+
+    /** The events since the last call (and forgets them). */
+    public java.util.List<String> takeEvents() {
+        synchronized (events) {
+            java.util.List<String> out = new java.util.ArrayList<>(events);
+            events.clear();
+            return out;
+        }
+    }
+
+    /** A dialog the page opened; answered by the agent (browser action dialog) or the user. */
+    public static final class PageDialog {
+        public final String type, message, defaultValue;
+        final android.webkit.JsResult result;
+        public final long at = System.currentTimeMillis();
+        private boolean done;
+
+        PageDialog(String type, String message, String defaultValue, android.webkit.JsResult result) {
+            this.type = type;
+            this.message = message == null ? "" : message;
+            this.defaultValue = defaultValue;
+            this.result = result;
+        }
+
+        /** accept (OK / leave / with text for a prompt) or dismiss (Cancel). True when it was still open. */
+        public synchronized boolean answer(boolean accept, String text) {
+            if (done) return false;
+            done = true;
+            if (!accept) result.cancel();
+            else if (result instanceof android.webkit.JsPromptResult) ((android.webkit.JsPromptResult) result).confirm(text == null ? (defaultValue == null ? "" : defaultValue) : text);
+            else result.confirm();
+            return true;
+        }
+
+        public synchronized boolean open() {
+            return !done;
+        }
+    }
 
     /**
      * The tab's context: an Activity's while that screen lives (popups need it), then the

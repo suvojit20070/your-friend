@@ -38,24 +38,77 @@ public final class AppTools {
     static final class AppEntry {
         final String label;
         final String pkg;
+        /** The profile the app is in: null = the main one; otherwise a clone / dual app / work profile. */
+        final android.os.UserHandle user;
+        /** Stable number of that profile (0 for the main one), for launch_app's "profile". */
+        final long profile;
+        final android.content.ComponentName component;
 
         AppEntry(String label, String pkg) {
+            this(label, pkg, null, 0, null);
+        }
+
+        AppEntry(String label, String pkg, android.os.UserHandle user, long profile, android.content.ComponentName component) {
             this.label = label;
             this.pkg = pkg;
+            this.user = user;
+            this.profile = profile;
+            this.component = component;
         }
     }
 
-    /** Launchable apps visible through the manifest's &lt;queries&gt; launcher intent declaration. */
+    /**
+     * Launchable apps of every profile the phone shows in its launcher: the main apps and also
+     * clones (dual apps / parallel apps / app twin, often the same package twice) and work-profile
+     * apps, each as its own entry with its profile number.
+     */
     static List<AppEntry> launchableApps(AppGraph g) {
-        PackageManager pm = g.ctx.getPackageManager();
-        Intent main = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
         List<AppEntry> out = new ArrayList<>();
-        for (ResolveInfo ri : pm.queryIntentActivities(main, 0)) {
-            String pkg = ri.activityInfo.packageName;
-            CharSequence label = ri.loadLabel(pm);
-            boolean dup = false;
-            for (AppEntry e : out) if (e.pkg.equals(pkg)) dup = true;
-            if (!dup) out.add(new AppEntry(label == null ? pkg : label.toString(), pkg));
+        android.os.UserHandle me = android.os.Process.myUserHandle();
+        try {
+            android.content.pm.LauncherApps la = g.ctx.getSystemService(android.content.pm.LauncherApps.class);
+            android.os.UserManager um = g.ctx.getSystemService(android.os.UserManager.class);
+            List<android.os.UserHandle> profiles = new ArrayList<>();
+            if (android.os.Build.VERSION.SDK_INT >= 28) profiles.addAll(la.getProfiles());
+            if (um != null) for (android.os.UserHandle u : um.getUserProfiles()) if (!profiles.contains(u)) profiles.add(u);
+            if (!profiles.contains(me)) profiles.add(0, me);
+            for (android.os.UserHandle u : profiles) {
+                long serial = um == null ? 0 : um.getSerialNumberForUser(u);
+                boolean main = u.equals(me);
+                List<android.content.pm.LauncherActivityInfo> acts;
+                try {
+                    acts = la.getActivityList(null, u);
+                } catch (RuntimeException e) {
+                    continue;
+                }
+                for (android.content.pm.LauncherActivityInfo ai : acts) {
+                    String pkg = ai.getComponentName().getPackageName();
+                    boolean dup = false;
+                    for (AppEntry e : out) if (e.pkg.equals(pkg) && e.profile == (main ? 0 : serial)) dup = true;
+                    if (dup) continue;
+                    CharSequence label = ai.getLabel();
+                    String l = label == null ? pkg : label.toString();
+                    if (!main) {
+                        // The launcher shows these with a badge; say which one it is.
+                        CharSequence badged = g.ctx.getPackageManager().getUserBadgedLabel(l, u);
+                        l = badged != null && !badged.toString().equals(l) ? badged.toString() : l + " (clone)";
+                    }
+                    out.add(new AppEntry(l, pkg, main ? null : u, main ? 0 : serial, ai.getComponentName()));
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Fall back below.
+        }
+        if (out.isEmpty()) {
+            PackageManager pm = g.ctx.getPackageManager();
+            Intent main = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+            for (ResolveInfo ri : pm.queryIntentActivities(main, 0)) {
+                String pkg = ri.activityInfo.packageName;
+                CharSequence label = ri.loadLabel(pm);
+                boolean dup = false;
+                for (AppEntry e : out) if (e.pkg.equals(pkg)) dup = true;
+                if (!dup) out.add(new AppEntry(label == null ? pkg : label.toString(), pkg));
+            }
         }
         return out;
     }
@@ -78,7 +131,9 @@ public final class AppTools {
     public static final class FindInstalledApps extends BaseTool {
         public FindInstalledApps(AppGraph g) {
             super(g, ToolSpec.builder("find_installed_apps")
-                    .description("Search installed launchable apps by name or package fragment (e.g. \"whatsapp\", \"camera\"). Returns labels and package names.")
+                    .description("Search installed launchable apps by name or package fragment (e.g. \"whatsapp\", \"camera\"). Returns labels "
+                            + "and package names. Cloned / dual apps and work-profile apps are listed separately (same package, with "
+                            + "\"profile\" and \"clone\": true); open one with launch_app's profile.")
                     .schema("{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"description\":\"Name or package fragment; empty lists all\"},"
                             + "\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":200,\"default\":20}},\"additionalProperties\":false}")
                     .requires(Capability.APP_LIST).risk(RiskLevel.READ_ONLY).timeoutMs(20_000).build());
@@ -96,7 +151,10 @@ public final class AppTools {
             JSONArray arr = new JSONArray();
             for (AppEntry e : apps) {
                 if (arr.length() >= limit) break;
-                if (score(e, q) > 0) arr.put(J.obj("label", e.label, "package", e.pkg));
+                if (score(e, q) > 0) {
+                    arr.put(e.user == null ? J.obj("label", e.label, "package", e.pkg)
+                            : J.obj("label", e.label, "package", e.pkg, "profile", e.profile, "clone", true));
+                }
             }
             return ToolResult.ok(arr.length() == 0 ? "No installed app matches \"" + q + "\"" : arr.length() + " app(s) found",
                     J.obj("apps", arr, "total_launchable", apps.size()));
@@ -106,8 +164,11 @@ public final class AppTools {
     public static final class LaunchApp extends BaseTool {
         public LaunchApp(AppGraph g) {
             super(g, ToolSpec.builder("launch_app")
-                    .description("Open an installed app by package name (preferred) or by its visible name.")
-                    .schema("{\"type\":\"object\",\"properties\":{\"package\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"}},\"additionalProperties\":false}")
+                    .description("Open an installed app by package name (preferred) or by its visible name. For a cloned / dual app "
+                            + "give its profile number from find_installed_apps (without it the main app opens).")
+                    .schema("{\"type\":\"object\",\"properties\":{\"package\":{\"type\":\"string\"},\"name\":{\"type\":\"string\"},"
+                            + "\"profile\":{\"type\":\"integer\",\"description\":\"profile of a clone / dual / work app (from find_installed_apps); 0 or omitted = main\"}},"
+                            + "\"additionalProperties\":false}")
                     .requires(Capability.APP_LIST).risk(RiskLevel.LOW).timeoutMs(20_000).build());
         }
 
@@ -135,6 +196,22 @@ public final class AppTools {
                 if (best == null || bestScore < 60) return ToolResult.fail("No installed app matches \"" + name + "\". Use find_installed_apps.");
                 pkg = best.pkg;
                 label = best.label;
+                if (best.profile != 0 && !inv.args.has("profile")) inv.args.put("profile", best.profile);
+            }
+            long profile = (long) inv.num("profile", 0);
+            if (profile != 0) {
+                // A clone / dual / work-profile app: started through the launcher service in its profile.
+                AppEntry clone = null;
+                for (AppEntry e : launchableApps(g)) if (e.pkg.equals(pkg) && e.profile == profile) clone = e;
+                if (clone == null || clone.component == null) {
+                    return ToolResult.fail("No clone of " + pkg + " in profile " + profile + ". Use find_installed_apps.");
+                }
+                try {
+                    g.ctx.getSystemService(android.content.pm.LauncherApps.class).startMainActivity(clone.component, clone.user, null, null);
+                } catch (RuntimeException e) {
+                    return ToolResult.fail("Android refused to open the clone of " + pkg + ": " + e.getMessage());
+                }
+                return ToolResult.ok("Opened " + clone.label, J.obj("package", pkg, "profile", profile));
             }
             Intent i = g.ctx.getPackageManager().getLaunchIntentForPackage(pkg);
             if (i == null) return ToolResult.fail("Package " + pkg + " is not installed or has no launcher activity");
