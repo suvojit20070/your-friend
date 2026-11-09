@@ -74,7 +74,7 @@ public final class AndroidAgentHost implements AgentHost {
         out.add(ChatMessage.system(system));
         out.addAll(HistorySanitizer.sanitize(HistorySanitizer.limitImages(history, 2)));
         // Optional: the current screen (tree and/or screenshot) goes along with every request.
-        ChatMessage screen = AutoScreenContext.build(g, llm.config().supportsVision);
+        ChatMessage screen = screenOffNow() ? null : AutoScreenContext.build(g, llm.config().supportsVision);
         if (screen != null) out.add(screen);
         return out;
     }
@@ -129,7 +129,28 @@ public final class AndroidAgentHost implements AgentHost {
         }
         pa.lessons = lessons(g, 12);
         pa.teamRoster = teamRoster(g);
-        return pa.build();
+        String built = pa.build();
+        if (screenOffNow()) {
+            built += "\n\n# Screen is OFF\nThis run started by itself (a schedule) and the phone's screen is off right now, so the "
+                    + "screen tools (screen control, screenshot, opening apps or links, camera) are not available. Do only background "
+                    + "work: files, terminal, web requests, your browser, memory, notifications, messages. If the task really needs the "
+                    + "screen, do the rest and say what is left for when the user is back.";
+        }
+        return built;
+    }
+
+    /** Set for a run started by a schedule / self check-in (no one is looking at the phone). */
+    public volatile boolean scheduled;
+
+    /** Tools that need the screen on (UI control, screen pictures, opening apps, camera). */
+    private static final java.util.Set<String> SCREEN_TOOLS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "screen_operation_accessibility", "screen_operation_shell", "screenshot", "launch_app", "open_uri", "camera_capture"));
+
+    /** A scheduled run while the screen is off: no screen tools, no screen context. */
+    private boolean screenOffNow() {
+        if (!scheduled) return false;
+        android.os.PowerManager pm = (android.os.PowerManager) g.ctx.getSystemService(android.content.Context.POWER_SERVICE);
+        return pm != null && !pm.isInteractive();
     }
 
     /**
@@ -238,6 +259,17 @@ public final class AndroidAgentHost implements AgentHost {
     public JSONArray toolDefinitions() {
         if (!g.settings.bool(Settings.TOOL_CALLING, true)) return new JSONArray();
         JSONArray all = g.tools.openAiTools(g.capabilities);
+        if (screenOffNow()) {
+            // Checked before every request: when the screen turns on during the run, the tools come back.
+            JSONArray keep = new JSONArray();
+            for (int i = 0; i < all.length(); i++) {
+                org.json.JSONObject t = all.optJSONObject(i);
+                org.json.JSONObject fn = t == null ? null : t.optJSONObject("function");
+                if (fn != null && SCREEN_TOOLS.contains(fn.optString("name"))) continue;
+                keep.put(t);
+            }
+            all = keep;
+        }
         if (!g.employees.enabled().isEmpty()) return all;
         // No employees: do not offer delegation at all.
         JSONArray out = new JSONArray();

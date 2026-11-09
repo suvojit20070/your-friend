@@ -85,6 +85,10 @@ public final class BrowserService extends Service {
                 .setContentText(getResources().getQuantityString(R.plurals.browser_service_tabs, n, n))
                 .setContentIntent(pOpen)
                 .addAction(0, getString(R.string.browser_service_close), pClose)
+                // Swiped away by mistake: it comes back (the browser is still running). Stop it with
+                // "Close browser" here, in the chat or in the browser screen's menu.
+                .setDeleteIntent(PendingIntent.getService(this, 2, new Intent(this, BrowserService.class),
+                        PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT))
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setSilent(true)

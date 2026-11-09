@@ -159,6 +159,32 @@ public final class WebSession {
         }
     }
 
+    /** Settings key: the agent's browser opens as a floating window by itself when the agent uses it. */
+    public static final String AUTO_FLOAT = "browser_auto_float";
+    /** The user opened the window (chat button): shown even with AUTO_FLOAT off, until closed. */
+    private static boolean manualOpen;
+
+    private static boolean autoFloat(Context ctx) {
+        try {
+            com.suvo.agent.AppGraph g = com.suvo.agent.AppGraph.get();
+            return g == null || g.settings.bool(AUTO_FLOAT, true);
+        } catch (RuntimeException e) {
+            return true;
+        }
+    }
+
+    /**
+     * "Open browser window" from the chat: the current tab as the floating window (or in the chat
+     * when floating windows are not allowed). False when there is no tab. Main thread.
+     */
+    public static boolean openWindow(Context ctx) {
+        if (view == null) return false;
+        manualOpen = true;
+        overlayClosed = false;
+        attach(currentName.isEmpty() ? "browser" : currentName);
+        return true;
+    }
+
     /** Number of open tabs. */
     public static int tabCount() {
         return tabs.size();
@@ -233,7 +259,10 @@ public final class WebSession {
             screen.showBrowser(label);
             return;
         }
-        if (!overlayClosed && android.provider.Settings.canDrawOverlays(ctx)) {
+        // The agent's browser pops up on its own only with "Open the browser window automatically"
+        // on; otherwise it keeps working in the background until the user opens it.
+        boolean show = manualOpen || autoFloat(ctx);
+        if (show && !overlayClosed && android.provider.Settings.canDrawOverlays(ctx)) {
             if (overlay == null) showOverlay(ctx);
             if (overlay != null) {
                 if (view.getParent() != overlay.findViewById(android.R.id.content)) {
@@ -247,7 +276,7 @@ public final class WebSession {
                 return;
             }
         }
-        if (host != null && !overlayClosed) {
+        if (show && host != null && !overlayClosed) {
             ViewGroup slot = host.browserSlot();
             if (view.getParent() != slot) {
                 removeOverlay();
@@ -311,6 +340,7 @@ public final class WebSession {
             close.setPadding(p, 0, p, 0);
             close.setOnClickListener(v -> {
                 overlayClosed = true;
+                manualOpen = false;
                 detach();
             });
             bar.addView(close);

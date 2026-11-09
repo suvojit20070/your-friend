@@ -1278,4 +1278,7 @@
         <item quantity="other">%d tabs open</item>
     </plurals>
     <string name="browser_service_close">Close browser</string>
+    <string name="chat_browser_open">Open browser window</string>
+    <string name="settings_browser_auto_float">Open the agent\'s browser as a floating window by itself</string>
+    <string name="settings_browser_auto_float_desc">When the agent uses the browser, its window opens on its own. Off: it works in the background; open it from the chat.</string>
 </resources>

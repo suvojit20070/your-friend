@@ -160,10 +160,15 @@ public final class AgentRuntime {
             conv = activeConversation();
         }
         quietResult = checkin;
+        scheduledNext = true;
         String why = submit(conv, text, null);
+        scheduledNext = false;
         if (why != null) quietResult = false;
         return why;
     }
+
+    /** The next submit() is a scheduled run (its host then checks the screen). */
+    private volatile boolean scheduledNext;
 
     /** Set for a self check-in: a reply of exactly NOTHING is not spoken or notified. */
     private volatile boolean quietResult;
@@ -191,6 +196,7 @@ public final class AgentRuntime {
         log.clear();
         addLog("status", g.ctx.getString(R.string.log_task_started), text);
         ChatMessage user = images == null || images.isEmpty() ? ChatMessage.user(text) : ChatMessage.user(text, images);
+        final boolean scheduledRun = scheduledNext;
         // Everything heavier (database, prompt host, foreground service) happens on the task's own
         // thread, so the send button's press animation never stutters.
         Thread t = new Thread(() -> {
@@ -205,6 +211,7 @@ public final class AgentRuntime {
                 addLog("notice", n, "");
                 dispatch(l -> l.onNotice(task, n));
             });
+            h.scheduled = scheduledRun;
             host = h;
             g.settings.applyTo(g.policy);
             AgentConfig cfg = g.settings.agentConfig();

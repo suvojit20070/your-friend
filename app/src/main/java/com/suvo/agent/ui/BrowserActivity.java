@@ -283,6 +283,7 @@ public final class BrowserActivity extends BaseActivity implements WebSession.Ho
                 getString(R.string.browser_close_all),
                 getString(R.string.browser_clear_cache),
                 getString(R.string.browser_clear_cookies),
+                getString(R.string.browser_service_close),
         };
         GlassSheet.options(this, getString(R.string.browser_settings), items, -1, null).setOnPick(which -> {
             AgentWebView w = WebSession.current();
@@ -316,6 +317,11 @@ public final class BrowserActivity extends BaseActivity implements WebSession.Ho
                     if (w != null) w.clearCache(true);
                     for (AgentWebView t : WebSession.tabList()) t.clearHistory();
                     Ui.toast(this, R.string.browser_cleared);
+                    break;
+                case 6:
+                    // Close every tab: the browser service stops with the last one.
+                    WebSession.closeAllTabs();
+                    finish();
                     break;
                 default:
                     Ui.confirm(this, R.string.browser_clear_cookies, getString(R.string.browser_clear_cookies_confirm), () -> {

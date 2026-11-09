@@ -389,6 +389,14 @@ public final class ChatActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
         browserPanel = new AgentBrowserPanel(this);
+        findViewById(R.id.chat_browser_open).setOnClickListener(v -> {
+            if (!com.suvo.agent.connectors.WebSession.openWindow(this)) startActivity(new Intent(this, BrowserActivity.class));
+        });
+        findViewById(R.id.chat_browser_open).setOnLongClickListener(v -> {
+            startActivity(new Intent(this, BrowserActivity.class)); // the full browser screen
+            return true;
+        });
+        findViewById(R.id.chat_browser_stop).setOnClickListener(v -> com.suvo.agent.connectors.WebSession.closeAllTabs());
         list = findViewById(R.id.chat_scroll);
         listBox = findViewById(R.id.chat_list);
         ((android.view.ViewGroup) list.getParent()).setClipChildren(true); // never draw over the top bar
@@ -975,11 +983,28 @@ public final class ChatActivity extends BaseActivity {
     /** The agent's browser (web connectors) shows above the messages while it is used. */
     private AgentBrowserPanel browserPanel;
 
+    /** "Open browser window" / "Close browser" above the composer while the browser has tabs. */
+    private final com.suvo.agent.connectors.WebSession.TabsListener browserBarWatch = this::updateBrowserBar;
+
+    private void updateBrowserBar() {
+        View bar = findViewById(R.id.chat_browser_bar);
+        if (bar == null || isFinishing()) return;
+        boolean on = com.suvo.agent.connectors.WebSession.tabCount() > 0;
+        if (on == (bar.getVisibility() == View.VISIBLE)) return;
+        bar.setVisibility(on ? View.VISIBLE : View.GONE);
+        if (on) {
+            bar.setAlpha(0f);
+            bar.animate().alpha(1f).setDuration(200).start();
+        }
+    }
+
     @Override
     protected void onStart() {
         super.onStart();
         g.agent.addListener(agentListener);
         browserPanel.start();
+        com.suvo.agent.connectors.WebSession.addTabsListener(browserBarWatch);
+        updateBrowserBar();
         ChatBlocks.actions = blockActions;
         // Markdown scale changed in settings: rebuild every row at the new size.
         float k = MarkdownScaleActivity.scale(this);
@@ -996,6 +1021,7 @@ public final class ChatActivity extends BaseActivity {
     protected void onStop() {
         g.agent.removeListener(agentListener);
         browserPanel.stop();
+        com.suvo.agent.connectors.WebSession.removeTabsListener(browserBarWatch);
         if (ChatBlocks.actions == blockActions) ChatBlocks.actions = null;
         ChatMedia.stopVideo(); // audio keeps playing with its notification
         if (speechInput.isListening()) speechInput.cancel();

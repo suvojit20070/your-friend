@@ -166,6 +166,8 @@ public final class SettingsActivity extends BaseActivity {
         r.link(R.drawable.ic_edit, R.string.sysprompt_title, R.string.sysprompt_settings_desc, SystemPromptActivity.class);
         r.link(R.drawable.ic_link, R.string.connectors_title, R.string.connectors_desc, ConnectorsActivity.class);
         r.link(R.drawable.ic_globe, R.string.browser_title, R.string.browser_desc, BrowserActivity.class);
+        r.switchRow(R.drawable.ic_globe, R.string.settings_browser_auto_float, R.string.settings_browser_auto_float_desc,
+                com.suvo.agent.connectors.WebSession.AUTO_FLOAT, true, null);
         r.link(R.drawable.ic_chat, R.string.ar_title, R.string.ar_settings_desc, AutoReplyActivity.class);
         r.switchRow(R.drawable.ic_screen, R.string.settings_keep_screen_on, R.string.settings_keep_screen_on_desc, Settings.KEEP_SCREEN_ON, false, null);
         r.switchRow(R.drawable.ic_tools, R.string.settings_tool_calling, R.string.settings_tool_calling_desc, Settings.TOOL_CALLING, true, null);

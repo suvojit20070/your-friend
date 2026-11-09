@@ -1189,4 +1189,7 @@
         <item quantity="other">%d टैब खुले हैं</item>
     </plurals>
     <string name="browser_service_close">ब्राउज़र बंद करें</string>
+    <string name="chat_browser_open">ब्राउज़र विंडो खोलें</string>
+    <string name="settings_browser_auto_float">एजेंट का ब्राउज़र अपने आप फ़्लोटिंग विंडो में खुले</string>
+    <string name="settings_browser_auto_float_desc">एजेंट ब्राउज़र इस्तेमाल करे तो विंडो अपने आप खुलेगी। बंद: बैकग्राउंड में चलेगा; चैट से खोलें।</string>
 </resources>

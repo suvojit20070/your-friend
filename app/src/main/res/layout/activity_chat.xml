@@ -215,6 +215,39 @@
             android:layout_gravity="bottom"
             android:orientation="vertical">
 
+            <!-- While the agent's browser has tabs (its service runs): open its window, or close it. -->
+            <LinearLayout
+                android:id="@+id/chat_browser_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="end|center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/chat_browser_open"
+                    style="@style/YF.Chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="0dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_marginBottom="6dp"
+                    android:drawablePadding="6dp"
+                    android:text="@string/chat_browser_open" />
+
+                <TextView
+                    android:id="@+id/chat_browser_stop"
+                    style="@style/YF.Chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="0dp"
+                    android:layout_marginTop="0dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginBottom="6dp"
+                    android:text="@string/browser_service_close" />
+            </LinearLayout>
+
             <LinearLayout
                 android:id="@+id/chat_status"
                 android:layout_width="match_parent"

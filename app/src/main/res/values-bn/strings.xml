@@ -1189,4 +1189,7 @@
         <item quantity="other">%d টি ট্যাব খোলা</item>
     </plurals>
     <string name="browser_service_close">ব্রাউজার বন্ধ করুন</string>
+    <string name="chat_browser_open">ব্রাউজার উইন্ডো খুলুন</string>
+    <string name="settings_browser_auto_float">এজেন্টের ব্রাউজার নিজে থেকে ফ্লোটিং উইন্ডোতে খুলবে</string>
+    <string name="settings_browser_auto_float_desc">এজেন্ট ব্রাউজার ব্যবহার করলে উইন্ডো নিজে খুলবে। বন্ধ: পেছনে চলবে; চ্যাট থেকে খুলুন।</string>
 </resources>

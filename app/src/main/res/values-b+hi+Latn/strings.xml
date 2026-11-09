@@ -1230,4 +1230,7 @@
         <item quantity="other">%d tabs khule hai</item>
     </plurals>
     <string name="browser_service_close">Browser band karo</string>
+    <string name="chat_browser_open">Browser window kholo</string>
+    <string name="settings_browser_auto_float">Agent ka browser khud floating window me khule</string>
+    <string name="settings_browser_auto_float_desc">Agent browser use kare to window apne aap khulegi. Off: background me chalega; chat se kholo.</string>
 </resources>

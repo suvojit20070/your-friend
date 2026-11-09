@@ -761,7 +761,12 @@ public final class ConnectorTools {
                     Bitmap b = WebSession.screenshot(g.ctx, c);
                     Bitmap small = ImageUtil.scaleToMax(b, 1280);
                     byte[] jpg = ImageUtil.jpeg(small, 80);
-                    return ToolResult.okWithImage("Picture of " + WebSession.url(g.ctx, c), J.obj("bytes", jpg.length),
+                    // Saved in the workspace like phone screenshots, so it can be sent, attached or edited later.
+                    java.io.File f = ImageUtil.save(jpg, g.workspace.dir("screenshots"), "browser", "jpg");
+                    String url = WebSession.url(g.ctx, c);
+                    return ToolResult.okWithImage("Picture of " + url + " saved to " + g.workspace.relative(f),
+                            J.obj("path", g.workspace.relative(f), "url", url, "width", small.getWidth(), "height", small.getHeight(),
+                                    "bytes", jpg.length),
                             ImageUtil.toImage(jpg, "auto"));
                 }
                 default:

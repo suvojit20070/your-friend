@@ -1180,4 +1180,7 @@
         <item quantity="other">%d 個のタブ</item>
     </plurals>
     <string name="browser_service_close">ブラウザを閉じる</string>
+    <string name="chat_browser_open">ブラウザウィンドウを開く</string>
+    <string name="settings_browser_auto_float">エージェントのブラウザを自動でフローティング表示</string>
+    <string name="settings_browser_auto_float_desc">エージェントがブラウザを使うと自動でウィンドウが開きます。オフ：バックグラウンドで動作し、チャットから開けます。</string>
 </resources>
