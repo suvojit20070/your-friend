@@ -1281,4 +1281,14 @@
     <string name="chat_browser_open">Open browser window</string>
     <string name="settings_browser_auto_float">Open the agent\'s browser as a floating window by itself</string>
     <string name="settings_browser_auto_float_desc">When the agent uses the browser, its window opens on its own. Off: it works in the background; open it from the chat.</string>
+    <string name="plugins_title">Plugins</string>
+    <string name="plugins_desc">Native connectors: Instagram, YouTube, Facebook, WhatsApp</string>
+    <string name="plugins_intro">Install the platforms you use. The agent then works with them directly, as your account, without clicking through web pages. Only installed plugins are offered to the agent. Instagram, YouTube and Facebook use your login in the agent\'s browser: log in once below. These use the platforms\' own internal APIs, which they may change, and fast automated use can get an account limited, so the agent acts at a human pace.</string>
+    <string name="plugins_install">Install</string>
+    <string name="plugins_log_in">Log in</string>
+    <string name="plugins_logged_in">Logged in</string>
+    <string name="plugins_login_desc">Opens the agent\'s browser; log in there once</string>
+    <string name="plugins_ok">OK</string>
+    <string name="plugins_needed">Needed</string>
+    <string name="plugins_whatsapp_how">Needs Termux. Ask the agent: “Set up WhatsApp and link my number”. It installs a small bridge in Termux and gives you a pairing code to type in WhatsApp → Linked devices → Link with phone number.</string>
 </resources>

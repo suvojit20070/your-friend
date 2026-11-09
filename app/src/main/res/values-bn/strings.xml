@@ -1192,4 +1192,14 @@
     <string name="chat_browser_open">ব্রাউজার উইন্ডো খুলুন</string>
     <string name="settings_browser_auto_float">এজেন্টের ব্রাউজার নিজে থেকে ফ্লোটিং উইন্ডোতে খুলবে</string>
     <string name="settings_browser_auto_float_desc">এজেন্ট ব্রাউজার ব্যবহার করলে উইন্ডো নিজে খুলবে। বন্ধ: পেছনে চলবে; চ্যাট থেকে খুলুন।</string>
+    <string name="plugins_title">প্লাগইন</string>
+    <string name="plugins_desc">নেটিভ কানেক্টর: Instagram, YouTube, Facebook, WhatsApp</string>
+    <string name="plugins_intro">যে প্ল্যাটফর্মগুলো ব্যবহার করেন সেগুলো ইনস্টল করুন। এজেন্ট সরাসরি আপনার অ্যাকাউন্টে কাজ করবে। শুধু ইনস্টল করা প্লাগইন এজেন্ট পায়। Instagram, YouTube ও Facebook এজেন্টের ব্রাউজারের লগইন ব্যবহার করে: নিচে একবার লগইন করুন। এগুলো প্ল্যাটফর্মের ভেতরের API ব্যবহার করে যা বদলাতে পারে, আর দ্রুত স্বয়ংক্রিয় ব্যবহারে অ্যাকাউন্ট সীমিত হতে পারে।</string>
+    <string name="plugins_install">ইনস্টল</string>
+    <string name="plugins_log_in">লগইন করুন</string>
+    <string name="plugins_logged_in">লগইন আছে</string>
+    <string name="plugins_login_desc">এজেন্টের ব্রাউজার খুলবে; সেখানে একবার লগইন করুন</string>
+    <string name="plugins_ok">ঠিক আছে</string>
+    <string name="plugins_needed">দরকার</string>
+    <string name="plugins_whatsapp_how">Termux লাগবে। এজেন্টকে বলুন: “WhatsApp সেটআপ করো আর আমার নম্বর লিংক করো”। সে Termux-এ একটি ছোট ব্রিজ ইনস্টল করে পেয়ারিং কোড দেবে।</string>
 </resources>

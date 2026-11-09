@@ -1192,4 +1192,14 @@
     <string name="chat_browser_open">ब्राउज़र विंडो खोलें</string>
     <string name="settings_browser_auto_float">एजेंट का ब्राउज़र अपने आप फ़्लोटिंग विंडो में खुले</string>
     <string name="settings_browser_auto_float_desc">एजेंट ब्राउज़र इस्तेमाल करे तो विंडो अपने आप खुलेगी। बंद: बैकग्राउंड में चलेगा; चैट से खोलें।</string>
+    <string name="plugins_title">प्लगइन</string>
+    <string name="plugins_desc">नेटिव कनेक्टर: Instagram, YouTube, Facebook, WhatsApp</string>
+    <string name="plugins_intro">जो प्लेटफ़ॉर्म इस्तेमाल करते हैं उन्हें इंस्टॉल करें। एजेंट उनके साथ सीधे, आपके अकाउंट से काम करेगा। सिर्फ़ इंस्टॉल किए प्लगइन एजेंट को मिलते हैं। Instagram, YouTube और Facebook एजेंट के ब्राउज़र का लॉगिन इस्तेमाल करते हैं: नीचे एक बार लॉगिन करें। ये प्लेटफ़ॉर्म के अंदरूनी API इस्तेमाल करते हैं जो बदल सकते हैं, और तेज़ ऑटोमेटेड इस्तेमाल से अकाउंट सीमित हो सकता है।</string>
+    <string name="plugins_install">इंस्टॉल</string>
+    <string name="plugins_log_in">लॉगिन करें</string>
+    <string name="plugins_logged_in">लॉगिन है</string>
+    <string name="plugins_login_desc">एजेंट का ब्राउज़र खुलेगा; वहाँ एक बार लॉगिन करें</string>
+    <string name="plugins_ok">ठीक</string>
+    <string name="plugins_needed">ज़रूरी</string>
+    <string name="plugins_whatsapp_how">Termux चाहिए। एजेंट से कहें: “WhatsApp सेटअप करो और मेरा नंबर लिंक करो”। वह Termux में एक छोटा ब्रिज इंस्टॉल करेगा और पेयरिंग कोड देगा।</string>
 </resources>

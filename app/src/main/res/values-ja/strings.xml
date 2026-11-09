@@ -1183,4 +1183,14 @@
     <string name="chat_browser_open">ブラウザウィンドウを開く</string>
     <string name="settings_browser_auto_float">エージェントのブラウザを自動でフローティング表示</string>
     <string name="settings_browser_auto_float_desc">エージェントがブラウザを使うと自動でウィンドウが開きます。オフ：バックグラウンドで動作し、チャットから開けます。</string>
+    <string name="plugins_title">プラグイン</string>
+    <string name="plugins_desc">ネイティブコネクタ：Instagram、YouTube、Facebook、WhatsApp</string>
+    <string name="plugins_intro">使うプラットフォームをインストールしてください。エージェントがあなたのアカウントで直接操作します。インストールしたプラグインだけがエージェントに渡されます。Instagram、YouTube、Facebook はエージェントのブラウザのログインを使います：下で一度ログインしてください。これらは各サービスの内部 API を使うため変更されることがあり、速すぎる自動操作はアカウント制限の原因になります。</string>
+    <string name="plugins_install">インストール</string>
+    <string name="plugins_log_in">ログイン</string>
+    <string name="plugins_logged_in">ログイン済み</string>
+    <string name="plugins_login_desc">エージェントのブラウザが開きます。一度ログインしてください</string>
+    <string name="plugins_ok">OK</string>
+    <string name="plugins_needed">必要</string>
+    <string name="plugins_whatsapp_how">Termux が必要です。エージェントに「WhatsApp をセットアップして番号をリンクして」と頼むと、Termux にブリッジを入れてペアリングコードを表示します。</string>
 </resources>

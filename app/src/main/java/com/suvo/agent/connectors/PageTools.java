@@ -48,7 +48,7 @@ public final class PageTools {
     static final String HOOK_JS = "(function(){if(window.__yfNet)return;var L=window.__yfNet=[];"
             + "function add(o){L.push(o);if(L.length>300)L.shift();}"
             + "function abs(u){try{return new URL(u,location.href).href}catch(e){return String(u)}}"
-            + "function txt(b){try{if(typeof b==='string')return b.slice(0,500);if(b instanceof URLSearchParams)return b.toString().slice(0,500);"
+            + "function txt(b){try{if(typeof b==='string')return b.slice(0,3000);if(b instanceof URLSearchParams)return b.toString().slice(0,3000);"
             + "if(b instanceof FormData){var a=[];b.forEach(function(v,k){a.push(k+'='+(typeof v==='string'?v.slice(0,80):'[file]'))});return a.join('&').slice(0,500)}}catch(e){}return b?'['+(b.constructor&&b.constructor.name||'body')+']':''}"
             + "var of=window.fetch;if(of){window.fetch=function(i,init){var u=abs(typeof i==='string'?i:(i&&i.url)||'');"
             + "var m=String((init&&init.method)||(i&&i.method)||'GET').toUpperCase();var t=Date.now();var rec={k:'fetch',m:m,u:u,b:txt(init&&init.body)};"

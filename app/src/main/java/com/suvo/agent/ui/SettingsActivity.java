@@ -165,6 +165,7 @@ public final class SettingsActivity extends BaseActivity {
         r.link(R.drawable.ic_provider, R.string.section_providers, R.string.settings_providers_desc, ProvidersActivity.class);
         r.link(R.drawable.ic_edit, R.string.sysprompt_title, R.string.sysprompt_settings_desc, SystemPromptActivity.class);
         r.link(R.drawable.ic_link, R.string.connectors_title, R.string.connectors_desc, ConnectorsActivity.class);
+        r.link(R.drawable.ic_tools, R.string.plugins_title, R.string.plugins_desc, PluginsActivity.class);
         r.link(R.drawable.ic_globe, R.string.browser_title, R.string.browser_desc, BrowserActivity.class);
         r.switchRow(R.drawable.ic_globe, R.string.settings_browser_auto_float, R.string.settings_browser_auto_float_desc,
                 com.suvo.agent.connectors.WebSession.AUTO_FLOAT, true, null);

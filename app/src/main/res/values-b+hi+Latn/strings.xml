@@ -1233,4 +1233,14 @@
     <string name="chat_browser_open">Browser window kholo</string>
     <string name="settings_browser_auto_float">Agent ka browser khud floating window me khule</string>
     <string name="settings_browser_auto_float_desc">Agent browser use kare to window apne aap khulegi. Off: background me chalega; chat se kholo.</string>
+    <string name="plugins_title">Plugins</string>
+    <string name="plugins_desc">Native connectors: Instagram, YouTube, Facebook, WhatsApp</string>
+    <string name="plugins_intro">Jo platform use karte ho unhe install karo. Agent unke saath seedha, tumhare account se kaam karega, web pages pe click kiye bina. Sirf install kiye plugins agent ko milte hain. Instagram, YouTube aur Facebook agent ke browser ka login use karte hain: neeche ek baar login karo. Ye platforms ke andar ke API use karte hain jo badal sakte hain, aur tez automated use se account limit ho sakta hai, isliye agent insaan ki speed se kaam karta hai.</string>
+    <string name="plugins_install">Install</string>
+    <string name="plugins_log_in">Login karo</string>
+    <string name="plugins_logged_in">Logged in</string>
+    <string name="plugins_login_desc">Agent ka browser khulega; wahan ek baar login karo</string>
+    <string name="plugins_ok">OK</string>
+    <string name="plugins_needed">Zaroori</string>
+    <string name="plugins_whatsapp_how">Termux chahiye. Agent se bolo: “WhatsApp setup karo aur mera number link karo”. Wo Termux me ek chhota bridge install karega aur pairing code dega jo WhatsApp → Linked devices → Link with phone number me daalna hai.</string>
 </resources>
