@@ -1193,4 +1193,8 @@
     <string name="plugins_ok">OK</string>
     <string name="plugins_needed">必要</string>
     <string name="plugins_whatsapp_how">Termux が必要です。エージェントに「WhatsApp をセットアップして番号をリンクして」と頼むと、Termux にブリッジを入れてペアリングコードを表示します。</string>
+    <string name="settings_code_mode">コードモード</string>
+    <string name="settings_code_mode_desc">エージェントが小さなスクリプトで複数のツールを一度に実行できます（手順とトークンを節約）。各操作は従来どおり確認・承認されます。</string>
+    <string name="settings_code_compact">短いツール一覧</string>
+    <string name="settings_code_compact_desc">多くのツールを完全な定義ではなく一行の要約で送ります（スクリプト経由で使用）。毎回のトークンを大きく節約。高性能なコーディングモデル向け。</string>
 </resources>

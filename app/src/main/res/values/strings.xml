@@ -1291,4 +1291,8 @@
     <string name="plugins_ok">OK</string>
     <string name="plugins_needed">Needed</string>
     <string name="plugins_whatsapp_how">Needs Termux. Ask the agent: “Set up WhatsApp and link my number”. It installs a small bridge in Termux and gives you a pairing code to type in WhatsApp → Linked devices → Link with phone number.</string>
+    <string name="settings_code_mode">Code mode</string>
+    <string name="settings_code_mode_desc">The agent can write one small script that uses several tools in a single run (fewer steps, fewer tokens). Every action is still checked and approved as usual.</string>
+    <string name="settings_code_compact">Short tool list</string>
+    <string name="settings_code_compact_desc">Send most tools to the model as one-line summaries used through scripts instead of full definitions. Saves many tokens on every request; best with strong coding models.</string>
 </resources>

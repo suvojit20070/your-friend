@@ -130,6 +130,19 @@ public final class AndroidAgentHost implements AgentHost {
         pa.lessons = lessons(g, 12);
         pa.teamRoster = teamRoster(g);
         String built = pa.build();
+        if (compactTools()) {
+            java.util.List<com.suvo.agent.core.tools.Tool> rest = new java.util.ArrayList<>();
+            boolean off = screenOffNow();
+            for (com.suvo.agent.core.tools.Tool t : g.tools.available(g.capabilities)) {
+                String n = t.spec().name;
+                if (com.suvo.agent.tools.RunCodeTool.ALWAYS_NATIVE.contains(n) || (off && SCREEN_TOOLS.contains(n))) continue;
+                rest.add(t);
+            }
+            built += "\n\n# Your other tools (through run_code)\nThese tools are not sent as separate functions. Call them inside "
+                    + "run_code as `await tools.<name>({...})` — also for a single call. `?` = optional. For a tool's full "
+                    + "description and argument details run `return await tools.docs(\"name\")` first when you are not sure.\n"
+                    + com.suvo.agent.tools.RunCodeTool.signatures(rest);
+        }
         if (screenOffNow()) {
             built += "\n\n# Screen is OFF\nThis run started by itself (a schedule) and the phone's screen is off right now, so the "
                     + "screen tools (screen control, screenshot, opening apps or links, camera) are not available. Do only background "
@@ -137,6 +150,12 @@ public final class AndroidAgentHost implements AgentHost {
                     + "screen, do the rest and say what is left for when the user is back.";
         }
         return built;
+    }
+
+    /** Code mode with the compact tool list (both switches on). */
+    private boolean compactTools() {
+        return g.settings.bool(com.suvo.agent.tools.RunCodeTool.SETTING, true)
+                && g.settings.bool(com.suvo.agent.tools.RunCodeTool.COMPACT, false);
     }
 
     /** Set for a run started by a schedule / self check-in (no one is looking at the phone). */
@@ -267,6 +286,17 @@ public final class AndroidAgentHost implements AgentHost {
                 org.json.JSONObject fn = t == null ? null : t.optJSONObject("function");
                 if (fn != null && SCREEN_TOOLS.contains(fn.optString("name"))) continue;
                 keep.put(t);
+            }
+            all = keep;
+        }
+        if (compactTools()) {
+            // Code mode, compact: only a few tools go as full schemas; the rest are one-line
+            // signatures in the system prompt and are used through run_code.
+            JSONArray keep = new JSONArray();
+            for (int i = 0; i < all.length(); i++) {
+                org.json.JSONObject t = all.optJSONObject(i);
+                org.json.JSONObject fn = t == null ? null : t.optJSONObject("function");
+                if (fn != null && com.suvo.agent.tools.RunCodeTool.ALWAYS_NATIVE.contains(fn.optString("name"))) keep.put(t);
             }
             all = keep;
         }

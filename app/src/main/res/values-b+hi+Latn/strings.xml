@@ -1243,4 +1243,8 @@
     <string name="plugins_ok">OK</string>
     <string name="plugins_needed">Zaroori</string>
     <string name="plugins_whatsapp_how">Termux chahiye. Agent se bolo: “WhatsApp setup karo aur mera number link karo”. Wo Termux me ek chhota bridge install karega aur pairing code dega jo WhatsApp → Linked devices → Link with phone number me daalna hai.</string>
+    <string name="settings_code_mode">Code mode</string>
+    <string name="settings_code_mode_desc">Agent ek chhota script likh ke kai tools ek hi baar me chala sakta hai (kam steps, kam tokens). Har action pehle ki tarah check aur approve hota hai.</string>
+    <string name="settings_code_compact">Chhoti tool list</string>
+    <string name="settings_code_compact_desc">Zyada tar tools model ko ek-line summary me bhejo (script se use honge), poore definition nahi. Har request me bahut tokens bachte hain; strong coding models ke liye.</string>
 </resources>

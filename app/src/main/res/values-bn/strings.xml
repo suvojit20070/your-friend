@@ -1202,4 +1202,8 @@
     <string name="plugins_ok">ঠিক আছে</string>
     <string name="plugins_needed">দরকার</string>
     <string name="plugins_whatsapp_how">Termux লাগবে। এজেন্টকে বলুন: “WhatsApp সেটআপ করো আর আমার নম্বর লিংক করো”। সে Termux-এ একটি ছোট ব্রিজ ইনস্টল করে পেয়ারিং কোড দেবে।</string>
+    <string name="settings_code_mode">কোড মোড</string>
+    <string name="settings_code_mode_desc">এজেন্ট একটি ছোট স্ক্রিপ্ট লিখে এক বারে অনেক টুল চালাতে পারে (কম ধাপ, কম টোকেন)। প্রতিটি কাজ আগের মতোই যাচাই ও অনুমোদিত হয়।</string>
+    <string name="settings_code_compact">ছোট টুল তালিকা</string>
+    <string name="settings_code_compact_desc">বেশিরভাগ টুল মডেলকে এক-লাইনের সারাংশে পাঠান (স্ক্রিপ্ট দিয়ে ব্যবহার হবে)। প্রতি অনুরোধে অনেক টোকেন বাঁচে; শক্তিশালী কোডিং মডেলের জন্য।</string>
 </resources>

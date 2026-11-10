@@ -1202,4 +1202,8 @@
     <string name="plugins_ok">ठीक</string>
     <string name="plugins_needed">ज़रूरी</string>
     <string name="plugins_whatsapp_how">Termux चाहिए। एजेंट से कहें: “WhatsApp सेटअप करो और मेरा नंबर लिंक करो”। वह Termux में एक छोटा ब्रिज इंस्टॉल करेगा और पेयरिंग कोड देगा।</string>
+    <string name="settings_code_mode">कोड मोड</string>
+    <string name="settings_code_mode_desc">एजेंट एक छोटी स्क्रिप्ट लिखकर कई टूल एक ही बार में चला सकता है (कम स्टेप, कम टोकन)। हर काम पहले की तरह जांचा और मंज़ूर किया जाता है।</string>
+    <string name="settings_code_compact">छोटी टूल सूची</string>
+    <string name="settings_code_compact_desc">ज़्यादातर टूल मॉडल को एक-लाइन सार में भेजें (स्क्रिप्ट से इस्तेमाल होंगे)। हर अनुरोध में बहुत टोकन बचते हैं; मज़बूत कोडिंग मॉडल के लिए।</string>
 </resources>
