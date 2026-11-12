@@ -74,9 +74,33 @@ public final class EmployeeRepo {
         prefs = ctx.getSharedPreferences("team", Context.MODE_PRIVATE);
         seedBuiltins();
         seedAllRounder();
+        shellForFiles();
     }
 
     private static final String SEEDED_V2 = "builtin_seeded_v2";
+    private static final String SHELL_FILES = "shell_for_files_v1";
+
+    /**
+     * Files are managed with commands now: a member whose tool list had file tools gets the shell
+     * (and file_transfer) instead, once. Its list keeps the old names, so switching the file tools
+     * on again in Tools gives them back.
+     */
+    private synchronized void shellForFiles() {
+        if (prefs.getBoolean(SHELL_FILES, false)) return;
+        List<Employee> all = list();
+        boolean changed = false;
+        for (Employee e : all) {
+            boolean hadFiles = false;
+            for (String t : e.tools) if (t.startsWith("file_") && !t.equals("file_transfer")) hadFiles = true;
+            if (hadFiles && (!e.tools.contains("shell") || !e.tools.contains("file_transfer"))) {
+                e.tools.add("shell");
+                e.tools.add("file_transfer");
+                changed = true;
+            }
+        }
+        if (changed) write(all);
+        prefs.edit().putBoolean(SHELL_FILES, true).apply();
+    }
 
     /**
      * The boss no longer works itself, so the team needs one member who can do anything that fits
@@ -123,16 +147,16 @@ public final class EmployeeRepo {
                 {"Rhea", "Researcher",
                         "You research on the web. Search with several queries, read the best sources, compare them and answer with "
                                 + "the facts that matter plus the links you used. Say clearly what you could not verify.",
-                        "py_web_search,py_web_read,py_download_file,memory,file_write,file_read"},
+                        "py_web_search,py_web_read,py_download_file,memory,shell,file_transfer"},
                 {"Kai", "Coder",
                         "You write, run and fix code. Work in Termux (shell backend=termux, execute_python / execute_cpp / execute_java). "
                                 + "Run what you write, read the errors, fix them and run again until it works. Long builds keep running as "
                                 + "background jobs: follow them with termux_job. Report what you changed and how to run it.",
-                        "shell,execute_python,execute_cpp,execute_java,termux_job,file_read,file_write,file_edit,file_list,file_search,file_manage,ssh"},
+                        "shell,execute_python,execute_cpp,execute_java,termux_job,file_transfer,ssh"},
                 {"Mira", "Writer",
                         "You write and edit text: messages, posts, emails, summaries, translations, stories. Match the language and "
                                 + "tone you are asked for, keep it clear and natural, and give the finished text first.",
-                        "memory,file_read,file_write"},
+                        "memory,shell,file_transfer"},
                 {"Ozzy", "Phone operator",
                         "You operate the phone: open apps, read the screen, tap, type and scroll until the job is done. Look at the "
                                 + "screen after every action, never guess where something is, and stop to report if a step needs the user.",
@@ -140,7 +164,7 @@ public final class EmployeeRepo {
                 {"Vera", "Reviewer",
                         "You check work before it is shown to the user: facts, code, plans and texts. Point out concrete mistakes and "
                                 + "risks with the fix for each, and say plainly when something is fine.",
-                        "py_web_search,py_web_read,file_read,file_list,file_search,shell"},
+                        "py_web_search,py_web_read,shell,file_transfer"},
         };
         for (String[] t : team) {
             boolean exists = false;

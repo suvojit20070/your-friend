@@ -15,13 +15,13 @@ public class AttachmentsTest {
     public void workspaceNoteGivesExactPathAndShellWarning() {
         String n = Attachments.workspaceFile("app.zip", "uploads/app.zip", 2048, "application/zip");
         assertTrue(n.startsWith(Attachments.NOTE));
-        assertTrue(n.contains("path=uploads/app.zip") && n.contains("workspace root") && n.contains("Termux cannot see"));
+        assertTrue(n.contains("path \"uploads/app.zip\"") && n.contains("backend=local starts in the workspace") && n.contains("Termux cannot see"));
     }
 
     @Test
     public void folderNoteUsesExtPrefix() {
         String n = Attachments.folder("Download", "/storage/emulated/0/Download");
-        assertTrue(n.contains("file_list path=ext:Download/") && n.contains("/storage/emulated/0/Download"));
+        assertTrue(n.contains("\"ext:Download/\"") && n.contains("file_transfer (from=ext:Download/") && n.contains("/storage/emulated/0/Download"));
     }
 
     @Test

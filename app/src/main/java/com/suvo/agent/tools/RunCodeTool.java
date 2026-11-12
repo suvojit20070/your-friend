@@ -58,7 +58,7 @@ public final class RunCodeTool extends BaseTool {
                         + "imports (only tools). Actions that need the user's approval still ask.")
                 .schema("{\"type\":\"object\",\"properties\":{"
                         + "\"code\":{\"type\":\"string\",\"minLength\":1,\"description\":\"body of an async function, e.g. "
-                        + "const r = await tools.file_list({path:'.'}); return r.entries.length;\"},"
+                        + "const r = await tools.shell({command:'ls'}); return r.stdout;\"},"
                         + "\"timeout_s\":{\"type\":\"integer\",\"minimum\":5,\"maximum\":900,\"default\":300}"
                         + "},\"required\":[\"code\"],\"additionalProperties\":false}")
                 .risk(RiskLevel.LOW).backend("code").timeoutMs(16 * 60_000).build());

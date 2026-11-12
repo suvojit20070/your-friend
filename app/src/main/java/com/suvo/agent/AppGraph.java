@@ -145,6 +145,15 @@ public final class AppGraph {
             }
         });
         customTools.registerEnabled(this);
+        // The agent manages files with commands (shell: the app's own shell in the workspace, Termux
+        // in its home), like other agents. The separate file tools stay, switched off once here; the
+        // user can turn any of them on again in Tools.
+        if (!settings.bool(FILE_TOOLS_OFF_ONCE, false)) {
+            java.util.Set<String> off = new java.util.LinkedHashSet<>(settings.set(Settings.DISABLED_TOOLS));
+            off.addAll(SHELL_REPLACES);
+            settings.put(Settings.DISABLED_TOOLS, off);
+            settings.put(FILE_TOOLS_OFF_ONCE, true);
+        }
         tools.setDisabledSet(settings.set(Settings.DISABLED_TOOLS));
         settings.addListener(key -> {
             if (Settings.AUTONOMY.equals(key) || Settings.AUTO_TOOL_EXECUTION.equals(key)
@@ -165,6 +174,11 @@ public final class AppGraph {
         if ("shizuku".equals(id)) return shizuku;
         return localShell();
     }
+
+    private static final String FILE_TOOLS_OFF_ONCE = "file_tools_off_v1";
+    /** The file tools that commands replace (file_transfer stays: shared folders and Termux need it). */
+    public static final java.util.List<String> SHELL_REPLACES = java.util.Arrays.asList(
+            "file_read", "file_write", "file_edit", "file_list", "file_search", "file_info", "file_manage");
 
     public LocalShellBackend localShell() {
         return new LocalShellBackend(workspace.root(), ctx.getCacheDir(), terminalEnv());

@@ -42,13 +42,15 @@ public final class CodeTools {
     public static final class Shell extends BaseTool {
         public Shell(AppGraph g) {
             super(g, ToolSpec.builder("shell")
-                    .description("Run a shell command. backend=local uses Android's sh/toybox in the private workspace (no packages, no root). "
-                            + "backend=termux runs in Termux (bash, pkg, python, clang, node, git) if installed and authorized. "
+                    .description("Run a shell command — also THE way to manage files. backend=local: the app's own shell (sh + toybox), "
+                            + "it starts in your private workspace ($WORKSPACE): ls -la, cat, head/tail, sed -n '10,40p', grep -rn, find, "
+                            + "wc, mkdir -p, cp, mv, rm, diff, base64; write a file with cat > path <<'EOF' ... EOF, change one with sed -i "
+                            + "or by writing it again. backend=termux: Termux (bash, pkg, python, clang, node, git) in its own home (~); it "
+                            + "cannot see the workspace — move files between the two (and to shared folders ext:<name>/) with file_transfer. "
                             + "backend=shizuku runs with ADB-shell identity via Shizuku (input, pm, dumpsys). Output is captured with exit code. "
-                            + "Termux has its own files (it starts in its home folder ~); it cannot read this app's workspace (file_* tools), "
-                            + "so create and edit files for Termux projects with this tool, e.g. cat > ~/apps/x/File.java <<'EOF' ... EOF, "
-                            + "and always cd into the project folder with an absolute path. Long Termux work (pkg install, builds, servers) is never cut off: "
-                            + "if it is still running after timeout_s it continues as a background job (job_id in the result); check or wait for it with termux_job.")
+                            + "Read big files in parts (sed -n / head) instead of all at once. Always cd with an absolute path in Termux. "
+                            + "Long Termux work (pkg install, builds, servers) is never cut off: if it is still running after timeout_s it "
+                            + "continues as a background job (job_id in the result); check or wait for it with termux_job.")
                     .schema("{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":20000},"
                             + "\"backend\":{\"type\":\"string\",\"enum\":[\"default\",\"local\",\"termux\",\"shizuku\"],\"default\":\"default\"},"
                             + "\"stdin\":{\"type\":\"string\",\"maxLength\":200000},"
@@ -63,7 +65,12 @@ public final class CodeTools {
             String b = args.optString("backend", "default");
             if (b.equals("default")) b = g.settings.str(com.suvo.agent.data.Settings.SHELL_BACKEND, "local");
             if (b.equals("shizuku")) return RiskLevel.HIGH;
-            return DANGEROUS.matcher(args.optString("command")).find() ? RiskLevel.HIGH : RiskLevel.MEDIUM;
+            if (DANGEROUS.matcher(args.optString("command")).find()) return RiskLevel.HIGH;
+            if (b.equals("local")) {
+                // Files in the workspace: reading asks nothing, writing counts like writing a file.
+                return com.suvo.agent.core.tools.ShellRisk.local(args.optString("command"), g.workspace.root().getAbsolutePath());
+            }
+            return RiskLevel.MEDIUM;
         }
 
         @Override

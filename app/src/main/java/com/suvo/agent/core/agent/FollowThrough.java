@@ -18,7 +18,7 @@ public final class FollowThrough {
     public static final String MARKER = "[App check]";
 
     public static final String REMINDER = MARKER + " Your last reply announced work but called no tool, so nothing happened yet. "
-            + "Do it now: call the tools needed for the next step (shell / execute_* / file_write / ...), check the result, and "
+            + "Do it now: call the tools needed for the next step (shell / execute_* / ...), check the result, and "
             + "if something must finish first, call wait (seconds) and then check again; "
             + "continue until the task is done. If you are truly blocked, say exactly what blocks you and what the user can do — "
             + "do not just say you are working on it. Before saying something is impossible, check the device "
