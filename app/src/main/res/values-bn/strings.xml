@@ -1180,7 +1180,6 @@
     <string name="voice_engine_server">OmniVoice সার্ভার</string>
     <string name="voice_engine_space">Hugging Face Space (অনলাইন)</string>
     <string name="voice_engine_system">Android টেক্সট-টু-স্পিচ</string>
-    <string name="voice_engine_woof">Underdog Woof (অ্যাপের ভেতরে, ইংরেজি)</string>
     <string name="voice_error">ভয়েস ত্রুটি: %1$s</string>
     <string name="voice_fallback">এটা ব্যর্থ হলে ফোনের ভয়েস ব্যবহার করুন</string>
     <string name="voice_fallback_desc">অফলাইন, কোটা শেষ বা সার্ভার বন্ধ থাকলেও উত্তর Android-এর ভয়েসে বলা হবে</string>
@@ -1250,18 +1249,6 @@
     <string name="voice_wake_words">ওয়েক ওয়ার্ড</string>
     <string name="voice_wake_words_none">নেই — প্রতিটা বাক্যই আদেশ</string>
     <string name="voice_wake_words_note">কমা দিয়ে আলাদা করুন, যেমন tanu, hey tanu, hi alex. শুধু যে বাক্যে এর কোনোটা থাকবে সেটাই যাবে; আদেশ হলো তার পরে যা বলবেন। শুধু ওয়েক ওয়ার্ড বললে অনুরোধের জন্য ৮ সেকেন্ড পাবেন। recognizer যে বানানে লেখে সেটাও দিন (যেমন তনু বা तनु)।</string>
-    <string name="voice_woof">Underdog Woof</string>
-    <string name="voice_woof_done">Woof ইনস্টল ও লোড হয়েছে। শুনতে Test voice ট্যাপ করুন।</string>
-    <string name="voice_woof_failed">শেষ করা যায়নি: %1$s</string>
-    <string name="voice_woof_install">Woof ইনস্টল করুন</string>
-    <string name="voice_woof_installed">ইনস্টল হয়েছে। প্রথম উত্তরে মডেল লোড হয় (কয়েক সেকেন্ড)।</string>
-    <string name="voice_woof_intro">একটি ছোট ইংরেজি ভয়েস (প্রায় 41 MB), যা অ্যাপের ভেতরেই চলে — Termux লাগে না, ডাউনলোডের পরে ইন্টারনেট লাগে না। এক ট্যাপে মডেল ডাউনলোড হয়।</string>
-    <string name="voice_woof_license">Voice by Underdog Woof (ConwayResearch)। Underdog Non-Commercial License 1.0: ব্যক্তিগত, অ-বাণিজ্যিক ব্যবহারে বিনামূল্যে; বাণিজ্যিক ব্যবহারে Underdog-এর লাইসেন্স লাগবে।</string>
-    <string name="voice_woof_not_installed">এখনো ইনস্টল হয়নি।</string>
-    <string name="voice_woof_reinstall">আবার ইনস্টল করুন</string>
-    <string name="voice_woof_starting">শুরু হচ্ছে…</string>
-    <string name="voice_woof_stop">ভয়েস আনলোড করুন (মেমরি খালি হবে)</string>
-    <string name="voice_woof_voice">কণ্ঠ</string>
     <string name="vrm_full_body">পুরো শরীর</string>
     <string name="vrm_upper_body">উপরের অংশ</string>
     <string name="widget_ask_screen">স্ক্রিন নিয়ে জিজ্ঞাসা</string>

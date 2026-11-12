@@ -130,9 +130,8 @@ public final class AndroidAgentHost implements AgentHost {
         pa.lessons = lessons(g, 12);
         pa.teamRoster = teamRoster(g);
         String built = pa.build();
-        final boolean bossOnly = Team.bossDelegatesOnly(g);
-        if (bossOnly) built += BOSS_RULES;
-        if (compactTools() && !bossOnly) {
+        if (Team.bossDelegatesOnly(g)) built += BOSS_RULES;
+        if (compactTools()) {
             java.util.List<com.suvo.agent.core.tools.Tool> rest = new java.util.ArrayList<>();
             boolean off = screenOffNow();
             for (com.suvo.agent.core.tools.Tool t : g.tools.available(g.capabilities)) {
@@ -152,25 +151,22 @@ public final class AndroidAgentHost implements AgentHost {
     }
 
     /** What the boss keeps for itself while it has a team: handing out work, remembering, planning ahead. */
-    public static final java.util.Set<String> BOSS_TOOLS = new java.util.HashSet<>(java.util.Arrays.asList(
-            "delegate_task", "memory", "record_mistake", "schedule_task"));
-
-    private static final String BOSS_RULES = "\n\n# How you work: you are the BOSS\n"
-            + "You never do the work yourself and you have no working tools. Every job — searching, files, code, the phone's "
-            + "screen, the browser, messages, anything — is done by a team member. For each request:\n"
-            + "1. Plain talk, or something you know for sure → just answer.\n"
-            + "2. Anything that has to be done, looked up or checked → delegate_task action=assign to the member whose role fits "
-            + "best, with a complete brief: they cannot see this chat, so put in every fact they need, the exact goal and what "
-            + "to send back. Independent parts can go to several members at once; one member takes one job at a time.\n"
-            + "3. assign returns at once and the member works in the background. Tell the user right away, in one or two short "
-            + "sentences, who is doing what — then END your turn. Never wait for the member, never call status again and again, "
-            + "never make up a result.\n"
-            + "4. When a member is done, the app sends you a message that starts with [Team report]. Then tell the user the "
-            + "result in your own words, or assign the next step. The user can talk to you at any time meanwhile: answer, and "
-            + "use action=status (what everyone is doing), action=tell (more instructions for a working member) or action=stop.\n"
-            + "5. The phone's screen, the camera and the browser can be used by one member at a time: give jobs that need the "
-            + "same one to one member, or assign them one after the other.\n"
-            + "6. You are responsible for your team's quality. Read every report critically. When a member got something wrong "
+    private static final String BOSS_RULES = "\n\n# How you work: you are the BOSS of a team\n"
+            + "Small things you do YOURSELF, right away, with your own tools: anything that takes one or a few tool calls — "
+            + "one web search (the weather, a quick fact), playing a song, opening an app, looking at the screen, a reminder, "
+            + "reading or writing one file, one message. Handing those out only makes the user wait.\n"
+            + "BIG jobs go to the team: many steps or a long time (research across many sources, a coding project, a long run "
+            + "on the phone's screen, a report), or several independent parts that can run side by side. Then:\n"
+            + "1. delegate_task action=assign to the member whose role fits best, with a complete brief: they cannot see this "
+            + "chat, so put in every fact they need, the exact goal and what to send back. One member takes one job at a time.\n"
+            + "2. assign returns at once and the member works in the background. Tell the user in one or two short sentences "
+            + "who is doing what, then END your turn. Never wait for the member, never poll status, never make up a result.\n"
+            + "3. A finished member's report reaches you as a message that starts with [Team report]: tell the user the "
+            + "result in your own words, or assign the next step. Meanwhile keep talking with the user and doing small things "
+            + "yourself; action=status / tell / stop manage running jobs.\n"
+            + "4. The phone's screen, the camera and the browser can be used by one agent at a time (you included): while a "
+            + "member uses one, do not use it yourself.\n"
+            + "5. You are responsible for your team's quality. Read every report critically. When a member got something wrong "
             + "(made-up or unchecked results, ignored the brief, broke a rule, wasted steps), correct it so it never happens "
             + "again: delegate_task action=coach with the mistake and ONE clear rule — it is written into that member's own "
             + "instructions. Then assign the job again if it still has to be done. Do not coach for problems that were not "
@@ -315,16 +311,6 @@ public final class AndroidAgentHost implements AgentHost {
                 keep.put(t);
             }
             all = keep;
-        }
-        if (Team.bossDelegatesOnly(g)) {
-            // The boss only hands out work: nothing else is offered to it.
-            JSONArray keep = new JSONArray();
-            for (int i = 0; i < all.length(); i++) {
-                org.json.JSONObject t = all.optJSONObject(i);
-                org.json.JSONObject fn = t == null ? null : t.optJSONObject("function");
-                if (fn != null && BOSS_TOOLS.contains(fn.optString("name"))) keep.put(t);
-            }
-            return keep;
         }
         if (compactTools()) {
             // Code mode, compact: only a few tools go as full schemas; the rest are one-line

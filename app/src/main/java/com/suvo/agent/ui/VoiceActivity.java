@@ -68,9 +68,8 @@ public final class VoiceActivity extends BaseActivity {
         r.section(R.string.voice_output);
         r.switchRow(R.drawable.ic_voice, R.string.voice_speak_replies, R.string.voice_speak_replies_desc, Settings.VOICE_OUTPUT, false, null);
         r.choiceRow(R.drawable.ic_voice, R.string.voice_engine, Settings.VOICE_ENGINE, "system",
-                new String[]{getString(R.string.voice_engine_space), getString(R.string.voice_engine_server), getString(R.string.voice_engine_woof),
-                        getString(R.string.voice_engine_system)},
-                new String[]{"hf_space", "omnivoice_server", com.suvo.agent.voice.WoofEngine.ID, "system"}, v -> build());
+                new String[]{getString(R.string.voice_engine_space), getString(R.string.voice_engine_server), getString(R.string.voice_engine_system)},
+                new String[]{"hf_space", "omnivoice_server", "system"}, v -> build());
         String why = g.speech.engine().notReadyReason();
         r.note(why == null ? getString(R.string.voice_engine_ready) : getString(R.string.voice_engine_not_ready, why));
         r.button(R.string.voice_test, true, v -> test());
@@ -80,7 +79,6 @@ public final class VoiceActivity extends BaseActivity {
         String engine = g.settings.str(Settings.VOICE_ENGINE, "system");
         if ("omnivoice_server".equals(engine)) serverSection(r);
         else if ("hf_space".equals(engine)) spaceSection(r);
-        else if (com.suvo.agent.voice.WoofEngine.ID.equals(engine)) woofSection(r);
         else r.note(getString(R.string.voice_system_note));
 
         r.section(R.string.voice_reference);
@@ -301,51 +299,6 @@ public final class VoiceActivity extends BaseActivity {
         });
         if (g.speech.serverEngine().isLocal()) r.note(getString(R.string.voice_server_local));
         else r.note(getString(R.string.voice_server_remote_privacy));
-    }
-
-    /** Set while the one-tap Woof install runs (it survives rebuilding the page). */
-    private static volatile String woofProgress;
-
-    /** Underdog Woof on this phone: one-tap install, voice, start / stop, license. */
-    private void woofSection(Rows r) {
-        com.suvo.agent.voice.WoofEngine woof = g.speech.woofEngine();
-        r.section(R.string.voice_woof);
-        r.note(getString(R.string.voice_woof_intro));
-        r.choiceRow(R.drawable.ic_character, R.string.voice_woof_voice, com.suvo.agent.voice.WoofEngine.VOICE_KEY, "juno",
-                new String[]{"Juno", "Mira"}, new String[]{"juno", "mira"}, null);
-        boolean installed = g.settings.bool(com.suvo.agent.voice.WoofEngine.READY_KEY, false);
-        final TextView status = r.note(woofProgress != null ? woofProgress
-                : getString(installed ? R.string.voice_woof_installed : R.string.voice_woof_not_installed));
-        r.button(installed ? R.string.voice_woof_reinstall : R.string.voice_woof_install, !installed, v -> {
-            if (woofProgress != null) return;
-            woofProgress = getString(R.string.voice_woof_starting);
-            status.setText(woofProgress);
-            g.io.execute(() -> {
-                String err;
-                try {
-                    err = woof.install(step -> {
-                        woofProgress = step + "…";
-                        runOnUiThread(() -> status.setText(woofProgress));
-                    }, new CancellationToken());
-                } catch (Exception e) {
-                    err = e.getMessage();
-                }
-                woofProgress = null;
-                String msg = err == null ? getString(R.string.voice_woof_done) : getString(R.string.voice_woof_failed, err);
-                runOnUiThread(() -> {
-                    if (isFinishing()) return;
-                    build();
-                    Ui.show(Ui.dialog(this).setTitle(R.string.voice_woof).setMessage(msg).setPositiveButton(android.R.string.ok, null));
-                });
-            });
-        });
-        if (installed) {
-            r.button(R.string.voice_woof_stop, false, v -> g.io.execute(() -> {
-                woof.unload();
-                runOnUiThread(() -> Ui.toast(this, R.string.done));
-            }));
-        }
-        r.note(getString(R.string.voice_woof_license));
     }
 
     /** The user's own Hugging Face Space (Gradio), e.g. Suvo75/tanu-voice. */

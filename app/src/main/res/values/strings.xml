@@ -1247,7 +1247,6 @@
     <string name="voice_engine_server">OmniVoice server</string>
     <string name="voice_engine_space">Hugging Face Space (online)</string>
     <string name="voice_engine_system">Android text-to-speech</string>
-    <string name="voice_engine_woof">Underdog Woof (inside the app, English)</string>
     <string name="voice_error">Voice error: %1$s</string>
     <string name="voice_fallback">Use the phone\'s voice if this fails</string>
     <string name="voice_fallback_desc">Offline, quota used up or server down: the reply is still spoken with Android\'s voice</string>
@@ -1317,18 +1316,6 @@
     <string name="voice_wake_words">Wake words</string>
     <string name="voice_wake_words_none">None — every sentence is a command</string>
     <string name="voice_wake_words_note">Separate with commas, e.g. tanu, hey tanu, hi alex. Only sentences containing one of them are sent; the command is what you say after it. Say just the wake word and you have 8 seconds for the request. Add the spelling your recognizer writes too (e.g. তনু or तनु for Bengali/Hindi).</string>
-    <string name="voice_woof">Underdog Woof</string>
-    <string name="voice_woof_done">Woof is installed and loaded. Tap Test voice to hear it.</string>
-    <string name="voice_woof_failed">Could not finish: %1$s</string>
-    <string name="voice_woof_install">Install Woof</string>
-    <string name="voice_woof_installed">Installed. The model loads on the first reply (a few seconds).</string>
-    <string name="voice_woof_intro">A small English voice (about 41 MB) that runs inside the app — no Termux, no internet after the download. One tap downloads the model.</string>
-    <string name="voice_woof_license">Voice by Underdog Woof (ConwayResearch). Underdog Non-Commercial License 1.0: free for personal, non-commercial use; commercial use needs a license from Underdog.</string>
-    <string name="voice_woof_not_installed">Not installed yet.</string>
-    <string name="voice_woof_reinstall">Install again</string>
-    <string name="voice_woof_starting">Starting…</string>
-    <string name="voice_woof_stop">Unload the voice (frees memory)</string>
-    <string name="voice_woof_voice">Voice</string>
     <string name="vrm_full_body">Full body</string>
     <string name="vrm_upper_body">Upper body</string>
     <string name="wake_download">Download</string>

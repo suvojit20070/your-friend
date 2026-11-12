@@ -1,6 +1,5 @@
 plugins {
     id 'com.android.application'
-    id 'com.chaquo.python'
 }
 
 android {
@@ -23,8 +22,7 @@ android {
             }
         }
         ndk {
-            // 64-bit ARM phones only: Python + numpy (Woof voice) for every ABI would add ~25 MB each.
-            abiFilters 'arm64-v8a'
+            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
         }
     }
 
@@ -105,16 +103,6 @@ android {
             // jadx and its libraries (gson, protobuf, slf4j) carry the usual licence / index files.
             excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/NOTICE', 'META-INF/INDEX.LIST',
                          'META-INF/versions/9/module-info.class', 'module-info.class']
-        }
-    }
-}
-
-chaquopy {
-    defaultConfig {
-        // The build machine needs the same Python version (CI: actions/setup-python 3.11).
-        version '3.11'
-        pip {
-            install 'numpy'
         }
     }
 }

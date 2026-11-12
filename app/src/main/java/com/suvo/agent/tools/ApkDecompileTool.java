@@ -82,6 +82,14 @@ public final class ApkDecompileTool extends BaseTool {
         }
         inv.progress.update("Decompiling");
         Decompiler d = Decompiler.open(ApkScanner.apkFile(g.ctx, app), new File(g.ctx.getCacheDir(), "jadx"));
+        try {
+            return run(inv, action, d);
+        } finally {
+            Decompiler.release();
+        }
+    }
+
+    private ToolResult run(ToolInvocation inv, String action, Decompiler d) throws Exception {
         int maxChars = Math.max(1000, Math.min(40000, (int) inv.num("max_chars", 12000)));
         String q = inv.str("query").trim();
         String ql = q.toLowerCase(Locale.ROOT);

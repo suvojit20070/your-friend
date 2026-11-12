@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class Team {
 
-    /** Setting: the boss never works itself while it has a team (default on). */
+    /** Setting: big jobs go to the team in the background; the boss does small things itself (default on). */
     public static final String DELEGATE_ONLY = "team_boss_delegates";
     /** Start of the message that carries a member's report to the boss. */
     public static final String REPORT_MARKER = "[Team report]";
@@ -135,7 +135,7 @@ public final class Team {
         }
     }
 
-    /** True when the boss only delegates: the switch is on and there is somebody to delegate to. */
+    /** True when big jobs go to the team: the switch is on and there is somebody to delegate to. */
     public static boolean bossDelegatesOnly(AppGraph g) {
         return g.settings.bool(DELEGATE_ONLY, true) && !g.employees.enabled().isEmpty();
     }

@@ -45,7 +45,9 @@ public final class TeamTools {
     public static final class DelegateTask extends BaseTool {
         public DelegateTask(AppGraph g) {
             super(g, ToolSpec.builder("delegate_task")
-                    .description("Your team (the members listed under \"Your team\"). action=assign hands a task to a member and "
+                    .description("Your team (the members listed under \"Your team\"), for BIG jobs only — many steps, a long time, or "
+                            + "parts that can run side by side; do small things (one search, play a song, look at the screen) "
+                            + "yourself. action=assign hands a task to a member and "
                             + "returns AT ONCE: the member works in the background with its own model and tools, and its report "
                             + "reaches you later as a message that starts with [Team report] — so after assigning, tell the user "
                             + "who is doing what and end your turn; do not wait. Give a complete, self-contained brief (goal, "

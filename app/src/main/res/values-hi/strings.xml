@@ -1180,7 +1180,6 @@
     <string name="voice_engine_server">OmniVoice सर्वर</string>
     <string name="voice_engine_space">Hugging Face Space (ऑनलाइन)</string>
     <string name="voice_engine_system">Android टेक्स्ट-टू-स्पीच</string>
-    <string name="voice_engine_woof">Underdog Woof (ऐप के अंदर, अंग्रेज़ी)</string>
     <string name="voice_error">आवाज़ त्रुटि: %1$s</string>
     <string name="voice_fallback">यह फ़ेल हो तो फ़ोन की आवाज़ इस्तेमाल करें</string>
     <string name="voice_fallback_desc">ऑफ़लाइन, कोटा ख़त्म या सर्वर बंद होने पर भी जवाब Android की आवाज़ में बोला जाएगा</string>
@@ -1250,18 +1249,6 @@
     <string name="voice_wake_words">वेक वर्ड</string>
     <string name="voice_wake_words_none">कोई नहीं — हर वाक्य आदेश है</string>
     <string name="voice_wake_words_note">कॉमा से अलग करें, जैसे tanu, hey tanu, hi alex. सिर्फ़ वही वाक्य जाएगा जिसमें इनमें से कोई हो; आदेश उसके बाद की बात है। सिर्फ़ वेक वर्ड बोलें तो अनुरोध के लिए 8 सेकंड मिलते हैं। recognizer जो वर्तनी लिखता है वह भी डालें (जैसे तनु या তনু)।</string>
-    <string name="voice_woof">Underdog Woof</string>
-    <string name="voice_woof_done">Woof इंस्टॉल और लोड हो गया। सुनने के लिए Test voice दबाएँ।</string>
-    <string name="voice_woof_failed">पूरा नहीं हो सका: %1$s</string>
-    <string name="voice_woof_install">Woof इंस्टॉल करें</string>
-    <string name="voice_woof_installed">इंस्टॉल हो गया। पहले जवाब पर मॉडल लोड होता है (कुछ सेकंड)।</string>
-    <string name="voice_woof_intro">एक छोटी अंग्रेज़ी आवाज़ (लगभग 41 MB) जो ऐप के अंदर चलती है — Termux नहीं, डाउनलोड के बाद इंटरनेट नहीं। एक टैप में मॉडल डाउनलोड होता है।</string>
-    <string name="voice_woof_license">Voice by Underdog Woof (ConwayResearch)। Underdog Non-Commercial License 1.0: निजी, गैर-व्यावसायिक इस्तेमाल मुफ़्त; व्यावसायिक इस्तेमाल के लिए Underdog से लाइसेंस चाहिए।</string>
-    <string name="voice_woof_not_installed">अभी इंस्टॉल नहीं है।</string>
-    <string name="voice_woof_reinstall">फिर से इंस्टॉल करें</string>
-    <string name="voice_woof_starting">शुरू हो रहा है…</string>
-    <string name="voice_woof_stop">वॉइस अनलोड करें (मेमोरी खाली)</string>
-    <string name="voice_woof_voice">आवाज़</string>
     <string name="vrm_full_body">पूरा शरीर</string>
     <string name="vrm_upper_body">ऊपरी हिस्सा</string>
     <string name="widget_ask_screen">स्क्रीन के बारे में पूछें</string>

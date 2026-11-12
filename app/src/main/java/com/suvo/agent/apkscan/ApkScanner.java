@@ -368,16 +368,23 @@ public final class ApkScanner {
         return r;
     }
 
+    private static final Object AUTO_LOCK = new Object();
+
     /** New app installed (App install alert): scan it in the background and tell the result. */
     public static void autoScan(Context ctx, String pkg) {
         AppGraph g = AppGraph.get();
         if (g == null || !g.settings.bool(AUTO, true)) return;
         Thread th = new Thread(() -> {
             Report r;
-            try {
-                r = scan(g, pkg, Progress.NONE, new CancellationToken());
-            } catch (Throwable t) {
-                return;
+            // Several installs at once: scanned one after the other (each needs a lot of memory).
+            synchronized (AUTO_LOCK) {
+                try {
+                    // A just-installed APK can still be settling for a moment.
+                    Thread.sleep(3000);
+                    r = scan(g, pkg, Progress.NONE, new CancellationToken());
+                } catch (Throwable t) {
+                    return;
+                }
             }
             notifyResult(ctx.getApplicationContext(), r);
         }, "yf-apkscan");
@@ -464,26 +471,40 @@ public final class ApkScanner {
 
         // 2. Decompile only what matters.
         StringBuilder code = new StringBuilder();
+        Decompiler d = null;
         try {
             p.step("Decompiling the important parts");
-            Decompiler d = Decompiler.open(t.apk, new File(ctx.getCacheDir(), "jadx"));
+            d = Decompiler.open(t.apk, new File(ctx.getCacheDir(), "jadx"));
             List<String> fromManifest = new ArrayList<>();
             for (String[] pw : powers) fromManifest.add(pw[1]);
             List<String> picks = ScanLogic.pickClasses(fromManifest, d.classNames(), MAX_CLASSES);
+            int failed = 0;
             for (String c : picks) {
                 if (cancel.isCancelled() || code.length() > MAX_CODE_TOTAL) break;
                 p.step("Reading " + c.substring(c.lastIndexOf('.') + 1));
-                String src = d.source(c);
+                String src;
+                try {
+                    src = d.source(c);
+                } catch (Throwable one) {
+                    failed++; // one class jadx cannot handle: the others still count
+                    continue;
+                }
                 if (src == null) continue;
                 if (src.length() > MAX_CODE_PER_CLASS) src = src.substring(0, MAX_CODE_PER_CLASS) + "\n// … cut";
                 code.append("\n// ===== ").append(c).append(" =====\n").append(src).append('\n');
                 r.classesRead.add(c);
             }
-            r.facts.add(d.classNames().size() + " classes in the app, " + r.classesRead.size() + " read");
+            r.facts.add(d.classNames().size() + " classes in the app, " + r.classesRead.size() + " read"
+                    + (failed > 0 ? ", " + failed + " could not be decompiled" : ""));
         } catch (Throwable e) {
-            // Out of memory on a huge app, or an unusual APK: the manifest still says a lot.
-            r.facts.add("The code could not be decompiled (" + e.getClass().getSimpleName() + "): only the manifest was checked");
+            // Out of memory on a huge app, or an unusual APK: the manifest still says a lot. The
+            // exact reason is kept, so a failure can be understood.
+            String why = e.getClass().getSimpleName() + (e.getMessage() == null ? "" : ": " + e.getMessage());
+            if (why.length() > 300) why = why.substring(0, 300) + "…";
+            r.facts.add("The code could not be decompiled (" + why + "): only the manifest was checked");
+            android.util.Log.w("YF.ApkScan", "decompile failed for " + t.pkg, e);
         } finally {
+            if (d != null) Decompiler.release();
             Decompiler.trim(0);
         }
         String all = code.toString();

@@ -61,17 +61,11 @@ public final class SpeechController {
         this.ctx = ctx.getApplicationContext();
         this.settings = settings;
         // The on-device engine was removed; anyone who had picked it now gets the phone's own voice.
-        if ("omnivoice_native".equals(settings.str(Settings.VOICE_ENGINE, ""))) settings.put(Settings.VOICE_ENGINE, "system");
+        String eng = settings.str(Settings.VOICE_ENGINE, "");
+        if ("omnivoice_native".equals(eng) || "woof".equals(eng)) settings.put(Settings.VOICE_ENGINE, "system");
         omniServer = new OmniVoiceServerEngine(settings);
         hfSpace = new HfSpaceEngine(settings);
         system = new SystemTtsEngine(ctx, settings);
-        woof = new WoofEngine(ctx, settings);
-    }
-
-    private final WoofEngine woof;
-
-    public WoofEngine woofEngine() {
-        return woof;
     }
 
     public void addListener(Listener l) {
@@ -111,8 +105,6 @@ public final class SpeechController {
                 return omniServer;
             case "hf_space":
                 return hfSpace;
-            case WoofEngine.ID:
-                return woof;
             default:
                 return system;
         }

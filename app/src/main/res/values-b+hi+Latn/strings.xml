@@ -1212,7 +1212,6 @@
     <string name="voice_engine_server">OmniVoice server</string>
     <string name="voice_engine_space">Hugging Face Space (online)</string>
     <string name="voice_engine_system">Android text-to-speech</string>
-    <string name="voice_engine_woof">Underdog Woof (app ke andar, English)</string>
     <string name="voice_error">Voice error: %1$s</string>
     <string name="voice_fallback">Fail ho to phone ki awaaz use karo</string>
     <string name="voice_fallback_desc">Net nahi, quota khatam ya server down ho to bhi jawab Android ki awaaz mein bola jayega</string>
@@ -1282,18 +1281,6 @@
     <string name="voice_wake_words">Wake words</string>
     <string name="voice_wake_words_none">Koi nahi — har sentence command hai</string>
     <string name="voice_wake_words_note">Comma se alag karo, jaise tanu, hey tanu, hi alex. Sirf wahi sentence jayega jisme inme se koi ho; command uske baad ki baat hai. Sirf wake word bolo to request ke liye 8 second milte hain. Recognizer jo spelling likhta hai wo bhi daalo (jaise তনু ya तनु).</string>
-    <string name="voice_woof">Underdog Woof</string>
-    <string name="voice_woof_done">Woof install aur load ho gaya. Sunne ke liye Test voice dabao.</string>
-    <string name="voice_woof_failed">Poora nahi ho paaya: %1$s</string>
-    <string name="voice_woof_install">Woof install karo</string>
-    <string name="voice_woof_installed">Install ho gaya. Pehle jawab par model load hota hai (kuch second).</string>
-    <string name="voice_woof_intro">Chhoti English voice (lagbhag 41 MB) jo app ke andar chalti hai — Termux nahi, download ke baad internet nahi. Ek tap me model download hota hai.</string>
-    <string name="voice_woof_license">Voice by Underdog Woof (ConwayResearch). Underdog Non-Commercial License 1.0: personal, non-commercial use free; commercial use ke liye Underdog se license chahiye.</string>
-    <string name="voice_woof_not_installed">Abhi install nahi hai.</string>
-    <string name="voice_woof_reinstall">Dobara install karo</string>
-    <string name="voice_woof_starting">Shuru ho raha hai…</string>
-    <string name="voice_woof_stop">Voice unload karo (memory free)</string>
-    <string name="voice_woof_voice">Awaaz</string>
     <string name="vrm_full_body">Poora body</string>
     <string name="vrm_upper_body">Upar ka body</string>
     <string name="wake_download">Download</string>

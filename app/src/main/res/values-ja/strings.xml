@@ -1180,7 +1180,6 @@
     <string name="voice_engine_server">OmniVoice サーバー</string>
     <string name="voice_engine_space">Hugging Face Space（オンライン）</string>
     <string name="voice_engine_system">Android 音声合成</string>
-    <string name="voice_engine_woof">Underdog Woof（アプリ内・英語）</string>
     <string name="voice_error">音声エラー: %1$s</string>
     <string name="voice_fallback">失敗したら端末の音声を使う</string>
     <string name="voice_fallback_desc">オフライン・上限到達・サーバー停止時も Android の音声で読み上げます</string>
@@ -1250,18 +1249,6 @@
     <string name="voice_wake_words">ウェイクワード</string>
     <string name="voice_wake_words_none">なし — すべての発話が命令</string>
     <string name="voice_wake_words_note">カンマ区切りで入力（例: tanu, hey tanu, hi alex）。いずれかを含む発話だけが送られ、その後の言葉が命令になります。ウェイクワードだけを言うと 8 秒以内に続きを話せます。認識結果の表記（তনু や तनु など）も追加してください。</string>
-    <string name="voice_woof">Underdog Woof</string>
-    <string name="voice_woof_done">Woof をインストールして読み込みました。「音声テスト」で聞けます。</string>
-    <string name="voice_woof_failed">完了できませんでした: %1$s</string>
-    <string name="voice_woof_install">Woof をインストール</string>
-    <string name="voice_woof_installed">インストール済み。最初の返答でモデルを読み込みます（数秒）。</string>
-    <string name="voice_woof_intro">アプリ内で動く小さな英語音声（約41 MB）。Termux不要、ダウンロード後はネット不要。ワンタップでモデルをダウンロードします。</string>
-    <string name="voice_woof_license">Voice by Underdog Woof（ConwayResearch）。Underdog Non-Commercial License 1.0：個人・非商用は無料、商用にはUnderdogのライセンスが必要です。</string>
-    <string name="voice_woof_not_installed">未インストールです。</string>
-    <string name="voice_woof_reinstall">再インストール</string>
-    <string name="voice_woof_starting">開始しています…</string>
-    <string name="voice_woof_stop">音声を解放（メモリを空ける）</string>
-    <string name="voice_woof_voice">声</string>
     <string name="vrm_full_body">全身</string>
     <string name="vrm_upper_body">上半身</string>
     <string name="widget_ask_screen">画面について聞く</string>

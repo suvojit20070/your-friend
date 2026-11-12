@@ -22,6 +22,8 @@ public final class Decompiler implements AutoCloseable {
 
     private static Decompiler last;
     private static long lastUsed;
+    /** Callers using {@link #last} right now: it is never closed under them. */
+    private static int users;
 
     private final String key;
     private final JadxDecompiler jadx;
@@ -47,13 +49,26 @@ public final class Decompiler implements AutoCloseable {
 
     /**
      * The decompiler for {@code apk} (the one already loaded when it is the same file). Slow the
-     * first time: never on the main thread.
+     * first time: never on the main thread. Every open() needs a {@link #release()} when done —
+     * the loaded app is never closed while someone still uses it (a scan and the agent's tool at
+     * the same time used to close it under each other).
      */
     public static synchronized Decompiler open(File apk, File work) {
         String k = apk.getAbsolutePath() + ":" + apk.lastModified() + ":" + apk.length();
         if (last != null && last.key.equals(k)) {
             lastUsed = System.currentTimeMillis();
+            users++;
             return last;
+        }
+        // Another app is loaded: wait (up to 5 minutes) until nobody uses it, then replace it.
+        long until = System.currentTimeMillis() + 300_000;
+        while (users > 0 && System.currentTimeMillis() < until) {
+            try {
+                Decompiler.class.wait(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("interrupted");
+            }
         }
         if (last != null) {
             last.closeNow();
@@ -67,15 +82,29 @@ public final class Decompiler implements AutoCloseable {
         if (home.isEmpty() || "/".equals(home) || !new File(home).canWrite()) System.setProperty("user.home", work.getAbsolutePath());
         String tmp = System.getProperty("java.io.tmpdir", "");
         if (tmp.isEmpty() || !new File(tmp).canWrite()) System.setProperty("java.io.tmpdir", work.getAbsolutePath());
-        System.setProperty("XDG_CACHE_HOME", new File(work, "cache").getAbsolutePath());
-        last = new Decompiler(apk, work);
+        try {
+            last = new Decompiler(apk, work);
+        } catch (OutOfMemoryError oom) {
+            // A big app: free what can be freed and try once more.
+            last = null;
+            System.gc();
+            last = new Decompiler(apk, work);
+        }
         lastUsed = System.currentTimeMillis();
+        users = 1;
         return last;
     }
 
-    /** Frees the loaded app when it was not used for a while (memory). */
+    /** Done with the decompiler from open(). */
+    public static synchronized void release() {
+        if (users > 0) users--;
+        lastUsed = System.currentTimeMillis();
+        Decompiler.class.notifyAll();
+    }
+
+    /** Frees the loaded app when nobody uses it and it was not used for a while (memory). */
     public static synchronized void trim(long idleMs) {
-        if (last != null && System.currentTimeMillis() - lastUsed > idleMs) {
+        if (last != null && users == 0 && System.currentTimeMillis() - lastUsed > idleMs) {
             last.closeNow();
             last = null;
         }
