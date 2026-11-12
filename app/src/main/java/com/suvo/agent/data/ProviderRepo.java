@@ -24,6 +24,33 @@ public final class ProviderRepo {
         this.secrets = secrets;
     }
 
+    /**
+     * Every provider, already decrypted. Decrypting an API key goes through the Android Keystore,
+     * which is slow (tens of ms per value, more on some phones), and screens asked for the list
+     * many times while opening — the team list once per member. Now it is read once and kept until
+     * something is saved; callers get copies, so changing one never changes the cache.
+     */
+    private volatile List<ProviderConfig> cache;
+
+    private void invalidate() {
+        cache = null;
+    }
+
+    private List<ProviderConfig> cached() {
+        List<ProviderConfig> c = cache;
+        if (c != null) return c;
+        synchronized (this) {
+            if (cache != null) return cache;
+            List<ProviderConfig> out = new ArrayList<>();
+            try (Cursor cur = db.getReadableDatabase().rawQuery(
+                    "SELECT id, body, api_key_enc, headers_enc, is_default, enabled FROM providers ORDER BY is_default DESC, id", null)) {
+                while (cur.moveToNext()) out.add(read(cur));
+            }
+            cache = java.util.Collections.unmodifiableList(out);
+            return cache;
+        }
+    }
+
     public long save(ProviderConfig p) {
         long now = System.currentTimeMillis();
         SQLiteDatabase w = db.getWritableDatabase();
@@ -58,11 +85,13 @@ public final class ProviderRepo {
             return p.id;
         } finally {
             w.endTransaction();
+            invalidate();
         }
     }
 
     public void delete(long id) {
         db.getWritableDatabase().delete("providers", "id = ?", new String[]{String.valueOf(id)});
+        invalidate();
     }
 
     public void setDefault(long id) {
@@ -78,34 +107,30 @@ public final class ProviderRepo {
             w.setTransactionSuccessful();
         } finally {
             w.endTransaction();
+            invalidate();
         }
     }
 
     public List<ProviderConfig> list() {
         List<ProviderConfig> out = new ArrayList<>();
-        try (Cursor c = db.getReadableDatabase().rawQuery(
-                "SELECT id, body, api_key_enc, headers_enc, is_default, enabled FROM providers ORDER BY is_default DESC, id", null)) {
-            while (c.moveToNext()) out.add(read(c));
-        }
+        for (ProviderConfig p : cached()) out.add(p.copy());
         return out;
     }
 
     public ProviderConfig get(long id) {
-        try (Cursor c = db.getReadableDatabase().rawQuery(
-                "SELECT id, body, api_key_enc, headers_enc, is_default, enabled FROM providers WHERE id = ?", new String[]{String.valueOf(id)})) {
-            return c.moveToFirst() ? read(c) : null;
-        }
+        for (ProviderConfig p : cached()) if (p.id == id) return p.copy();
+        return null;
     }
 
     /** The default enabled provider, else the first enabled one, else null. */
     public ProviderConfig active() {
         ProviderConfig first = null;
-        for (ProviderConfig p : list()) {
+        for (ProviderConfig p : cached()) {
             if (!p.enabled) continue;
-            if (p.isDefault) return p;
+            if (p.isDefault) return p.copy();
             if (first == null) first = p;
         }
-        return first;
+        return first == null ? null : first.copy();
     }
 
     private ProviderConfig read(Cursor c) {

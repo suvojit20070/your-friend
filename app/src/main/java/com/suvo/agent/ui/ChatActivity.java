@@ -45,6 +45,10 @@ public final class ChatActivity extends BaseActivity {
 
     public static final String EXTRA_PREFILL = "prefill";
     public static final String EXTRA_CONVERSATION = "conversation";
+    /** Open the chat with this team job's steps shown (int job id). */
+    public static final String EXTRA_TEAM_JOB = "team_job";
+    /** Team jobs whose steps (tool calls, the member's messages) are shown inside the chat. */
+    private final java.util.Set<Integer> shownJobs = new java.util.HashSet<>();
     private static final int REQ_MIC = 21;
     private static final int REQ_IMAGE = 22;
     private static final int REQ_CAMERA = 23;
@@ -92,6 +96,8 @@ public final class ChatActivity extends BaseActivity {
         String reasoning = "";
         /** Database id of the message (ASSISTANT: its token numbers). */
         long dbId = -1;
+        /** NOTICE about a team job (its report, or the header of its shown steps): tap shows / hides the steps. */
+        int jobId = -1;
         /** USER: what it has attached (shown as previews above the bubble). */
         List<com.suvo.agent.core.util.AttachmentList.Att> atts = java.util.Collections.emptyList();
         List<ChatMessage.Image> images = java.util.Collections.emptyList();
@@ -387,6 +393,7 @@ public final class ChatActivity extends BaseActivity {
             reload();
             updateRunState(null);
             showMemoryChip();
+            if (task.status == TaskState.Status.COMPLETED) maybeAutoListen();
         }
     };
 
@@ -405,7 +412,7 @@ public final class ChatActivity extends BaseActivity {
         findViewById(R.id.chat_browser_stop).setOnClickListener(v -> com.suvo.agent.connectors.WebSession.closeAllTabs());
         // The two browser chips: theme colours set here, and room around them (never clipped, never at the edge).
         Palette chipPal = Palette.of(this);
-        findViewById(R.id.chat_team_office).setOnClickListener(v -> startActivity(new Intent(this, OfficeActivity.class)));
+        findViewById(R.id.chat_team_office).setOnClickListener(v -> teamMenu());
         for (int id : new int[]{R.id.chat_browser_open, R.id.chat_browser_stop, R.id.chat_team_office}) {
             TextView chip = findViewById(id);
             chip.setBackgroundTintList(null);
@@ -500,6 +507,7 @@ public final class ChatActivity extends BaseActivity {
         String prefill = getIntent().getStringExtra(EXTRA_PREFILL);
         if (prefill != null) input.setText(prefill + "\n");
         handleShare(getIntent());
+        if (getIntent().getIntExtra(EXTRA_TEAM_JOB, -1) >= 0) shownJobs.add(getIntent().getIntExtra(EXTRA_TEAM_JOB, -1));
     }
 
     /** Text or an image shared from another app lands in the input box; nothing is sent automatically. */
@@ -1070,6 +1078,11 @@ public final class ChatActivity extends BaseActivity {
             input.setSelection(input.getText().length());
         }
         handleShare(intent);
+        int job = intent.getIntExtra(EXTRA_TEAM_JOB, -1);
+        if (job >= 0) {
+            shownJobs.add(job);
+            reload();
+        }
     }
 
     /** The agent's browser (web connectors) shows above the messages while it is used. */
@@ -1078,7 +1091,10 @@ public final class ChatActivity extends BaseActivity {
     /** "Open browser window" / "Close browser" above the composer while the browser has tabs. */
     private final com.suvo.agent.connectors.WebSession.TabsListener browserBarWatch = this::updateBrowserBar;
     /** Team members start and finish on their own threads. */
-    private final com.suvo.agent.agent.Team.Listener teamWatch = () -> runOnUiThread(this::updateBrowserBar);
+    private final com.suvo.agent.agent.Team.Listener teamWatch = () -> runOnUiThread(() -> {
+        updateBrowserBar();
+        if (!shownJobs.isEmpty()) reloadSoon(); // the shown member's steps grow while it works
+    });
 
     private void updateBrowserBar() {
         View bar = findViewById(R.id.chat_browser_bar);
@@ -1114,13 +1130,27 @@ public final class ChatActivity extends BaseActivity {
             textScale = k;
             listBox.removeAllViews();
         }
-        reload();
+        // The messages are read and parsed off the main thread (the screen shows at once); after
+        // that they are kept parsed, so later rebuilds are quick.
+        final long warm = conversationId;
+        g.io.execute(() -> {
+            try {
+                g.conversations.messages(warm, true);
+            } catch (RuntimeException ignored) {
+                // reload() reports it
+            }
+            runOnUiThread(() -> {
+                if (!isFinishing() && !isDestroyed()) reload();
+            });
+        });
         TaskState t = g.agent.current();
         updateRunState(g.agent.isRunning() && t != null ? statusText(t) : null);
     }
 
     @Override
     protected void onStop() {
+        if (autoListen != null) autoListen.cancel();
+        uiHandler.removeCallbacks(autoListenQuiet);
         g.agent.removeListener(agentListener);
         browserPanel.stop();
         com.suvo.agent.connectors.WebSession.removeTabsListener(browserBarWatch);
@@ -1328,6 +1358,23 @@ public final class ChatActivity extends BaseActivity {
                     it.time = sm.createdAt;
                     it.dim = sm.compacted;
                     items.add(it);
+                    if (teamReport) {
+                        // Tap the line to see what the member did, right here in the chat.
+                        List<Integer> jobs = com.suvo.agent.agent.Team.reportJobs(c0);
+                        if (!jobs.isEmpty()) {
+                            it.jobId = jobs.get(0);
+                            it.key = "team:" + it.jobId;
+                            boolean open = false;
+                            for (int jid : jobs) {
+                                if (shownJobs.contains(jid)) {
+                                    open = true;
+                                    addJobSteps(jid, sm.createdAt);
+                                    placedJobs.add(jid);
+                                }
+                            }
+                            it.text += open ? "  ·  " + getString(R.string.team_steps_hide) : "  ·  " + getString(R.string.team_steps_show);
+                        }
+                    }
                     break;
                 }
                 case ASSISTANT: {
@@ -1374,6 +1421,24 @@ public final class ChatActivity extends BaseActivity {
                     break;
             }
         }
+        // Shown jobs that have no report here yet (still working): their steps at the end.
+        for (int jid : new ArrayList<>(shownJobs)) {
+            if (placedJobs.contains(jid)) continue;
+            com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.get(jid);
+            if (j == null) {
+                shownJobs.remove(jid);
+                continue;
+            }
+            Item h = new Item();
+            h.type = NOTICE;
+            h.jobId = jid;
+            h.key = "teamlive:" + jid;
+            h.time = j.startedAt;
+            h.text = getString(R.string.team_steps_of, j.employee) + "  ·  " + getString(R.string.team_steps_hide);
+            items.add(h);
+            addJobSteps(jid, j.startedAt);
+        }
+        placedJobs.clear();
         groupTools();
         if (lastError != null && lastErrorConversation == conversationId) {
             Item e = new Item();
@@ -1394,6 +1459,119 @@ public final class ChatActivity extends BaseActivity {
         }
         adapter.notifyDataSetChanged();
         if (follow) scrollToEnd();
+    }
+
+    private final java.util.Set<Integer> placedJobs = new java.util.HashSet<>();
+
+    /**
+     * A team job's steps as chat rows: the boss's brief, every tool call with its result (grouped
+     * like the boss's own), and the member's messages as cards with its name.
+     */
+    private void addJobSteps(int jobId, long time) {
+        com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.get(jobId);
+        if (j == null) return;
+        List<ChatMessage> steps;
+        synchronized (j.transcript) {
+            steps = new ArrayList<>(j.transcript);
+        }
+        Map<String, Item> tools = new HashMap<>();
+        String prefix = "j" + jobId + ":";
+        int n = 0;
+        for (ChatMessage m : steps) {
+            n++;
+            switch (m.role) {
+                case USER: {
+                    Item it = new Item();
+                    it.type = SUMMARY;
+                    it.key = prefix + "u" + n;
+                    it.title = n == 1 ? getString(R.string.team_steps_brief, j.employee) : getString(R.string.team_steps_from_boss);
+                    String c = m.contentOrEmpty().trim();
+                    it.text = c.length() > 160 ? c.substring(0, 160) + "…" : c;
+                    it.detail = c;
+                    it.time = time;
+                    it.expanded = openKeys.contains(it.key);
+                    items.add(it);
+                    break;
+                }
+                case ASSISTANT: {
+                    String c = m.contentOrEmpty().trim();
+                    if (!c.isEmpty()) {
+                        Item it = new Item();
+                        it.type = SUMMARY;
+                        it.key = prefix + "a" + n;
+                        it.title = "\u2726  " + j.employee;
+                        it.text = c.length() > 300 ? c.substring(0, 300) + "…" : c;
+                        it.detail = c;
+                        it.time = time;
+                        it.expanded = openKeys.contains(it.key);
+                        items.add(it);
+                    }
+                    for (ToolCall c2 : m.toolCalls) {
+                        Item t = new Item();
+                        t.type = TOOL;
+                        t.key = prefix + c2.id;
+                        t.title = c2.name;
+                        t.status = "…";
+                        t.text = getString(R.string.chat_tool_running);
+                        t.detail = getString(R.string.chat_tool_arguments) + "\n" + pretty(com.suvo.agent.core.tools.ToolExecutor.redact(c2.argumentsJson));
+                        t.time = time;
+                        tools.put(c2.id, t);
+                        items.add(t);
+                    }
+                    break;
+                }
+                case TOOL: {
+                    Item t = tools.get(m.toolCallId);
+                    if (t == null) break;
+                    try {
+                        JSONObject r = new JSONObject(m.contentOrEmpty());
+                        t.status = r.optString("status", "");
+                        t.text = r.optString("message", t.status);
+                    } catch (JSONException e) {
+                        t.status = "";
+                        t.text = m.contentOrEmpty();
+                    }
+                    t.detail += "\n\n" + getString(R.string.chat_tool_result) + "\n" + pretty(m.contentOrEmpty());
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+        if (j.running()) {
+            Item w = new Item();
+            w.type = NOTICE;
+            w.key = prefix + "now";
+            w.time = time;
+            w.text = getString(R.string.team_steps_working, j.employee, OfficeActivity.readable(j.action));
+            items.add(w);
+        }
+    }
+
+    /** The "N team members working" chip: show a member's steps here, or open the office. */
+    private void teamMenu() {
+        List<com.suvo.agent.agent.Team.Job> running = new ArrayList<>();
+        for (com.suvo.agent.agent.Team.Job j : com.suvo.agent.agent.Team.jobs()) if (j.running()) running.add(j);
+        String[] labels = new String[running.size() + 1];
+        for (int i = 0; i < running.size(); i++) {
+            com.suvo.agent.agent.Team.Job j = running.get(i);
+            labels[i] = (shownJobs.contains(j.id) ? getString(R.string.team_steps_hide_of, j.employee) : getString(R.string.team_steps_show_of, j.employee))
+                    + "\n" + j.briefShort(70);
+        }
+        labels[running.size()] = getString(R.string.office_title);
+        Ui.show(Ui.dialog(this).setItems(labels, (d, which) -> {
+            if (which == running.size()) startActivity(new Intent(this, OfficeActivity.class));
+            else {
+                toggleJob(running.get(which).id);
+                if (shownJobs.contains(running.get(which).id)) scrollToEnd();
+            }
+        }));
+    }
+
+    /** Shows or hides a team job's steps in the chat. */
+    private void toggleJob(int jobId) {
+        if (!shownJobs.remove(jobId)) shownJobs.add(jobId);
+        reload();
     }
 
     /** Stable ids from what each row is, and the companion's name on the first answer of each turn. */
@@ -1994,26 +2172,57 @@ public final class ChatActivity extends BaseActivity {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
             return;
         }
+        listen(false);
+    }
+
+    private com.suvo.agent.voice.AutoListen.Pending autoListen;
+    private final Runnable autoListenQuiet = () -> {
+        if (speechInput.isListening() && input.getText().toString().trim().isEmpty()) speechInput.cancel();
+        ((ImageButton) findViewById(R.id.chat_mic)).setImageResource(R.drawable.ic_mic);
+    };
+
+    /** The answer is done: open the microphone for the reply (setting "Listen after the answer"). */
+    private void maybeAutoListen() {
+        if (!com.suvo.agent.voice.AutoListen.on(g) || speechInput.isListening()) return;
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return;
+        if (autoListen != null) autoListen.cancel();
+        autoListen = com.suvo.agent.voice.AutoListen.afterSpeech(g, () -> {
+            // Only while this chat is in front, nothing is typed and the agent is not working again.
+            if (isFinishing() || !hasWindowFocus() || g.agent.isRunning() || speechInput.isListening()) return;
+            if (!input.getText().toString().trim().isEmpty()) return;
+            listen(true);
+        });
+    }
+
+    /** @param auto opened by itself after an answer: closes quietly when nothing is said */
+    private void listen(boolean auto) {
         ImageButton mic = findViewById(R.id.chat_mic);
         mic.setImageResource(R.drawable.ic_stop);
-        g.speech.stop();
+        if (!auto) g.speech.stop();
+        uiHandler.removeCallbacks(autoListenQuiet);
+        if (auto) uiHandler.postDelayed(autoListenQuiet, com.suvo.agent.voice.AutoListen.QUIET_MS);
         speechInput.start(g.settings.str(Settings.STT_LANGUAGE, ""), new SpeechInput.Callback() {
             @Override
             public void onPartial(String text) {
+                uiHandler.removeCallbacks(autoListenQuiet); // the user is speaking
                 input.setText(text);
                 input.setSelection(text.length());
             }
 
             @Override
             public void onFinal(String text) {
+                uiHandler.removeCallbacks(autoListenQuiet);
                 mic.setImageResource(R.drawable.ic_mic);
                 if (!text.trim().isEmpty()) submit(text);
             }
 
             @Override
             public void onError(int code, String message) {
+                uiHandler.removeCallbacks(autoListenQuiet);
                 mic.setImageResource(R.drawable.ic_mic);
-                Ui.toast(ChatActivity.this, message);
+                // Nothing said after an automatic start is not an error worth a message.
+                boolean silence = code == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT || code == android.speech.SpeechRecognizer.ERROR_NO_MATCH;
+                if (!(auto && silence)) Ui.toast(ChatActivity.this, message);
             }
         });
     }
@@ -2325,6 +2534,14 @@ public final class ChatActivity extends BaseActivity {
             // Taps and long-presses on the bubble (outside its text, which selects): look the item up
             // by id, since a kept row outlives the Item objects of a rebuild.
             final long itemId = it.id;
+            if (it.type == NOTICE && it.jobId >= 0) {
+                final int jid = it.jobId;
+                bubble.setClickable(true);
+                bubble.setOnClickListener(x -> toggleJob(jid));
+            } else if (it.type == NOTICE) {
+                bubble.setOnClickListener(null);
+                bubble.setClickable(false);
+            }
             if (it.type == SUMMARY || it.type == ERROR) {
                 bubble.setClickable(true);
                 bubble.setOnClickListener(x -> {
@@ -2332,6 +2549,10 @@ public final class ChatActivity extends BaseActivity {
                     if (cur == null) return;
                     if (cur.type == SUMMARY) {
                         cur.expanded = !cur.expanded;
+                        if (!cur.key.isEmpty()) {
+                            if (cur.expanded) openKeys.add(cur.key);
+                            else openKeys.remove(cur.key);
+                        }
                         adapter.notifyDataSetChanged();
                     } else {
                         retry();

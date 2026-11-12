@@ -85,6 +85,7 @@ public final class AppAlertActivity extends BaseActivity implements AppAlerts.Li
         });
         if (g.settings.bool(AppAlerts.ENABLED, true)) {
             r.switchRow(R.drawable.ic_refresh, R.string.appalert_updates, R.string.appalert_updates_desc, AppAlerts.UPDATES, true, null);
+            r.switchRow(R.drawable.ic_shield, R.string.apkscan_auto, R.string.apkscan_auto_desc, com.suvo.agent.apkscan.ApkScanner.AUTO, true, null);
         }
         android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
         if (nm != null && !nm.areNotificationsEnabled()) {
@@ -141,6 +142,79 @@ public final class AppAlertActivity extends BaseActivity implements AppAlerts.Li
         AppAlerts.markSeen(this);
     }
 
+    // ------------------------------------------------------------------ AI security scan
+
+    /** Running scans (package → progress text), kept across page rebuilds. */
+    private static final java.util.Map<String, String> SCANNING = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private int riskColor(String risk) {
+        Palette pal = Palette.of(this);
+        switch (risk) {
+            case "safe":
+            case "low":
+                return 0xFF3FB56B;
+            case "medium":
+                return 0xFFE8A93A;
+            case "high":
+            case "critical":
+                return pal.error;
+            default:
+                return pal.onSurfaceVariant;
+        }
+    }
+
+    private void scanSection(Rows r, String pkg) {
+        r.section(R.string.apkscan_title);
+        String running = SCANNING.get(pkg);
+        com.suvo.agent.apkscan.ApkScanner.Report rep = com.suvo.agent.apkscan.ApkScanner.last(this, pkg);
+        if (running != null) {
+            r.note(running + "…");
+        } else if (rep != null) {
+            String risk = rep.risk.toUpperCase(Locale.ROOT);
+            r.row(R.drawable.ic_shield, getString(R.string.apkscan_risk, risk) + ("quick".equals(rep.mode) ? " · " + getString(R.string.apkscan_quick) : ""),
+                    rep.summary.isEmpty() ? rep.error : rep.summary, r.chip(rep.verdict.isEmpty() ? risk : rep.verdict, riskColor(rep.risk)), null);
+            if (!rep.reasons.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (String x : rep.reasons) sb.append(sb.length() == 0 ? "" : "\n").append("• ").append(x);
+                r.row(0, getString(R.string.apkscan_reasons), sb.toString(), null, null);
+            }
+            if (!rep.permissions.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (String[] x : rep.permissions) sb.append(sb.length() == 0 ? "" : "\n").append("• ").append(x[0]).append(": ").append(x[1]);
+                r.row(0, getString(R.string.apkscan_perm_use), sb.toString(), null, null);
+            }
+            if (!rep.facts.isEmpty()) r.row(0, getString(R.string.apkscan_found), "• " + String.join("\n• ", rep.facts), null, null);
+            if (!rep.addresses.isEmpty()) r.row(0, getString(R.string.apkscan_servers), String.join("\n", rep.addresses), null, null);
+            if (!rep.classesRead.isEmpty()) r.row(0, getString(R.string.apkscan_classes), String.join("\n", rep.classesRead), null, null);
+            if (!rep.error.isEmpty() && !rep.summary.isEmpty()) r.note(rep.error);
+            r.button(R.string.copy, false, v -> {
+                Ui.copy(this, rep.text());
+                Ui.toast(this, R.string.copied);
+            });
+        } else {
+            r.note(getString(R.string.apkscan_intro));
+        }
+        if (running == null) {
+            r.button(rep == null ? R.string.apkscan_run : R.string.apkscan_again, rep == null, v -> {
+                SCANNING.put(pkg, getString(R.string.apkscan_starting));
+                build();
+                new Thread(() -> {
+                    com.suvo.agent.apkscan.ApkScanner.Report res = com.suvo.agent.apkscan.ApkScanner.scan(g, pkg, step -> {
+                        SCANNING.put(pkg, step);
+                        main.post(() -> {
+                            if (!isFinishing()) build();
+                        });
+                    }, new com.suvo.agent.core.util.CancellationToken());
+                    SCANNING.remove(pkg);
+                    main.post(() -> {
+                        if (!isFinishing()) build();
+                        else com.suvo.agent.apkscan.ApkScanner.notifyResult(getApplicationContext(), res);
+                    });
+                }, "yf-apkscan-manual").start();
+            });
+        }
+    }
+
     // ------------------------------------------------------------------ one app
 
     private void details(Rows r, String pkg) {
@@ -170,6 +244,7 @@ public final class AppAlertActivity extends BaseActivity implements AppAlerts.Li
             Ui.toast(this, R.string.copied);
         });
         if (!in.installed) return;
+        scanSection(r, pkg);
 
         SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
         r.section(R.string.appalert_sec_source);

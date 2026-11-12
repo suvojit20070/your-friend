@@ -42,6 +42,11 @@ jobs:
           yes | "$SDKM" --licenses > /dev/null || true
           "$SDKM" "$ANDROID_PLATFORM" "$ANDROID_BUILD_TOOLS" "$ANDROID_NDK" "$ANDROID_CMAKE"
 
+      - name: Set up Python 3.11 (Chaquopy builds the app's Python with the same version)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Set up Gradle (with caching)
         uses: gradle/actions/setup-gradle@v4
 

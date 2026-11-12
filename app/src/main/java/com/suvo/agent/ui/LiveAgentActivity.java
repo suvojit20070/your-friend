@@ -104,8 +104,9 @@ public final class LiveAgentActivity extends BaseActivity {
                 View v = cv != null ? cv : getLayoutInflater().inflate(R.layout.item_message, parent, false);
                 AgentRuntime.LogLine l = lines.get(p);
                 LinearLayout bubble = v.findViewById(R.id.msg_bubble);
-                bubble.setBackgroundResource(R.drawable.bubble_tool);
+                // The theme's own surface (a drawable resource set here would keep its fixed colour).
                 bubble.setBackgroundTintList(null);
+                bubble.setBackground(new TonalDrawable(Palette.of(LiveAgentActivity.this).surfaceLow, Ui.dp(LiveAgentActivity.this, 20)));
                 TextView title = v.findViewById(R.id.msg_title);
                 title.setVisibility(View.VISIBLE);
                 title.setText(kindLabel(l.kind));
@@ -124,6 +125,27 @@ public final class LiveAgentActivity extends BaseActivity {
             }
         };
         lv.setAdapter(adapter);
+        // The team tree scrolls inside a box of at most a third of the screen, so a big team never
+        // pushes the live log off the screen.
+        LinearLayout tree = findViewById(R.id.agent_tree);
+        ViewGroup treeParent = (ViewGroup) tree.getParent();
+        int treeAt = treeParent.indexOfChild(tree);
+        ViewGroup.LayoutParams treeLp = tree.getLayoutParams();
+        treeParent.removeView(tree);
+        android.widget.ScrollView treeScroll = new android.widget.ScrollView(this);
+        treeScroll.setVerticalScrollBarEnabled(false);
+        treeScroll.setFadingEdgeLength(Ui.dp(this, 18));
+        treeScroll.setVerticalFadingEdgeEnabled(true);
+        treeScroll.addView(tree, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        treeBox = new GlassDialog.MaxHeightFrame(this, Math.round(getResources().getDisplayMetrics().heightPixels * 0.32f), treeScroll);
+        treeBox.setVisibility(View.GONE);
+        treeParent.addView(treeBox, treeAt, treeLp);
+        tree.setVisibility(View.VISIBLE);
+        // The status chip in the theme's colours.
+        TextView chip = findViewById(R.id.agent_status);
+        chip.setBackgroundTintList(null);
+        chip.setBackground(new TonalDrawable(Palette.alpha(Palette.of(this).primary, 0.16f), -1));
+        chip.setTextColor(Palette.of(this).primary);
         Button stop = findViewById(R.id.agent_stop);
         stop.setOnClickListener(v -> g.agent.cancel());
         Button pause = findViewById(R.id.agent_pause);
@@ -164,29 +186,20 @@ public final class LiveAgentActivity extends BaseActivity {
 
     // ------------------------------------------------------------------ live tree (boss → employees)
 
-    private static final int MAX_TREE_ROWS = 9;
+    private View treeBox;
 
     private void renderTree() {
         LinearLayout box = findViewById(R.id.agent_tree);
         View title = findViewById(R.id.agent_tree_title);
         com.suvo.agent.agent.AgentTree.Node root = com.suvo.agent.agent.AgentTree.root();
         boolean show = root != null && (!g.employees.list().isEmpty() || !com.suvo.agent.agent.AgentTree.childrenOf(root.id).isEmpty());
-        box.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (treeBox != null) treeBox.setVisibility(show ? View.VISIBLE : View.GONE);
         title.setVisibility(show ? View.VISIBLE : View.GONE);
         if (!show) return;
         box.removeAllViews();
         List<Object[]> rows = new ArrayList<>();
         collect(root, 0, rows);
-        int n = 0;
-        for (Object[] row : rows) {
-            if (n++ >= MAX_TREE_ROWS) {
-                TextView more = new TextView(this, null, 0, R.style.YF_Caption);
-                more.setText(getString(R.string.tree_more, rows.size() - MAX_TREE_ROWS));
-                box.addView(more);
-                break;
-            }
-            box.addView(treeRow((com.suvo.agent.agent.AgentTree.Node) row[0], (Integer) row[1]));
-        }
+        for (Object[] row : rows) box.addView(treeRow((com.suvo.agent.agent.AgentTree.Node) row[0], (Integer) row[1]));
     }
 
     private void collect(com.suvo.agent.agent.AgentTree.Node node, int depth, List<Object[]> out) {
@@ -194,47 +207,96 @@ public final class LiveAgentActivity extends BaseActivity {
         for (com.suvo.agent.agent.AgentTree.Node c : com.suvo.agent.agent.AgentTree.childrenOf(node.id)) collect(c, depth + 1, out);
     }
 
+    /** What a task is, in words: a team report is not shown as its raw text. */
+    private String taskLabel(String task) {
+        if (task != null && task.startsWith(com.suvo.agent.agent.Team.REPORT_MARKER)) {
+            return getString(R.string.tree_reading_report, com.suvo.agent.agent.Team.reportSender(task));
+        }
+        return Com.clip(task, 70);
+    }
+
+    /** One compact line per agent: dot, name · role, time; what it does under it. Tap = details. */
     private View treeRow(com.suvo.agent.agent.AgentTree.Node node, int depth) {
+        Palette pal = Palette.of(this);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(Ui.dp(this, 22 * depth), Ui.dp(this, 6), 0, Ui.dp(this, 6));
-        if (depth > 0) {
-            TextView branch = new TextView(this, null, 0, R.style.YF_Caption);
-            branch.setText("└ ");
-            row.addView(branch);
-        }
         View dot = new View(this);
         android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
         d.setShape(android.graphics.drawable.GradientDrawable.OVAL);
         d.setColor(stateColor(node.state));
         dot.setBackground(d);
-        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Ui.dp(this, 10), Ui.dp(this, 10));
-        dlp.topMargin = Ui.dp(this, 6);
-        dlp.setMarginEnd(Ui.dp(this, 10));
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Ui.dp(this, 9), Ui.dp(this, 9));
+        dlp.setMargins(Ui.dp(this, 4 + 18 * depth), Ui.dp(this, 7), Ui.dp(this, 10), 0);
         row.addView(dot, dlp);
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
         TextView name = new TextView(this, null, 0, R.style.YF_Body);
         name.setText(node.agent + " · " + (depth == 0 ? getString(R.string.tree_boss) : node.role));
-        android.graphics.Typeface customFont = androidx.core.content.res.ResourcesCompat.getFont(this, R.font.anthropic_serif);
-        name.setTypeface(customFont, android.graphics.Typeface.BOLD);
-        texts.addView(name);
-        TextView what = new TextView(this, null, 0, R.style.YF_Caption);
-        String line;
-        if (node.state == com.suvo.agent.agent.AgentTree.State.RUNNING || node.state == com.suvo.agent.agent.AgentTree.State.WAITING) {
-            String act = node.action.isEmpty() ? getString(R.string.tree_thinking) : node.action;
-            line = (node.state == com.suvo.agent.agent.AgentTree.State.WAITING ? getString(R.string.tree_waiting) + " · " : "") + act;
-        } else {
-            line = treeStateLabel(node.state) + (node.result.isEmpty() ? "" : " — " + node.result);
-        }
+        name.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(this, R.font.anthropic_serif), android.graphics.Typeface.BOLD);
+        name.setTextSize(14.5f);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        head.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         long end = node.finishedAt > 0 ? node.finishedAt : System.currentTimeMillis();
         long secs = (end - node.startedAt) / 1000;
-        what.setText(Com.clip(node.task, 90) + "\n" + line + "  ·  " + getString(R.string.tree_stats, node.toolCalls, secs / 60, secs % 60));
-        what.setMaxLines(4);
+        TextView stats = new TextView(this, null, 0, R.style.YF_Caption);
+        stats.setText(getString(R.string.tree_stats, node.toolCalls, secs / 60, secs % 60));
+        LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        sl.setMarginStart(Ui.dp(this, 8));
+        head.addView(stats, sl);
+        texts.addView(head);
+        TextView what = new TextView(this, null, 0, R.style.YF_Caption);
+        String line;
+        boolean live = node.state == com.suvo.agent.agent.AgentTree.State.RUNNING || node.state == com.suvo.agent.agent.AgentTree.State.WAITING;
+        if (live) {
+            String act = node.action.isEmpty() ? getString(R.string.tree_thinking) : OfficeActivity.readable(node.action.split(" · ")[0]);
+            line = (node.state == com.suvo.agent.agent.AgentTree.State.WAITING ? getString(R.string.tree_waiting) + " · " : "") + act;
+        } else {
+            line = treeStateLabel(node.state);
+        }
+        what.setText(line + "  ·  " + taskLabel(node.task));
+        what.setTextColor(live ? pal.primary : pal.onSurfaceVariant);
+        what.setSingleLine(true);
         what.setEllipsize(android.text.TextUtils.TruncateAt.END);
         texts.addView(what);
-        row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tl.setMargins(0, Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6));
+        row.addView(texts, tl);
+        row.setOnClickListener(v -> showNode(node, depth));
+        LiquidPress.attach(row, LiquidPress.LARGE);
         return row;
+    }
+
+    /** A row's details: the task, what it did, its result, and (members) its steps in the chat. */
+    private void showNode(com.suvo.agent.agent.AgentTree.Node node, int depth) {
+        StringBuilder sb = new StringBuilder();
+        String task = node.task == null ? "" : node.task.trim();
+        sb.append(task.startsWith(com.suvo.agent.agent.Team.REPORT_MARKER) ? taskLabel(task)
+                : task.length() > 1500 ? task.substring(0, 1500) + "…" : task);
+        if (!node.result.isEmpty()) sb.append("\n\n").append(node.result);
+        GlassDialog.Builder b = Ui.dialog(this).setTitle(node.agent + " · " + (depth == 0 ? getString(R.string.tree_boss) : node.role))
+                .setMessage(sb.toString());
+        if (depth > 0) {
+            com.suvo.agent.agent.Team.Job j = jobFor(node);
+            if (j != null) {
+                final int jobId = j.id;
+                b.setPositiveButton(getString(R.string.team_steps_show), (dd, w) -> startActivity(new android.content.Intent(this, ChatActivity.class)
+                        .putExtra(ChatActivity.EXTRA_TEAM_JOB, jobId).addFlags(android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)));
+                if (j.running()) b.setNeutralButton(getString(R.string.office_stop_job), (dd, w) -> com.suvo.agent.agent.Team.stop(jobId));
+            }
+        }
+        b.setNegativeButton(getString(android.R.string.ok), null);
+        Ui.show(b);
+    }
+
+    private static com.suvo.agent.agent.Team.Job jobFor(com.suvo.agent.agent.AgentTree.Node node) {
+        com.suvo.agent.agent.Team.Job best = null;
+        for (com.suvo.agent.agent.Team.Job j : com.suvo.agent.agent.Team.jobs()) {
+            if (j.employee.equals(node.agent) && node.task.startsWith(j.brief.length() > 40 ? j.brief.substring(0, 40) : j.brief)) best = j;
+        }
+        return best;
     }
 
     private static final class Com {
@@ -291,7 +353,7 @@ public final class LiveAgentActivity extends BaseActivity {
             return;
         }
         status.setText(statusLabel(t.status));
-        goal.setText(t.goal);
+        goal.setText(t.goal.startsWith(com.suvo.agent.agent.Team.REPORT_MARKER) ? taskLabel(t.goal) : t.goal);
         long end = t.finishedAt > 0 ? t.finishedAt : System.currentTimeMillis();
         long secs = t.startedAt > 0 ? (end - t.startedAt) / 1000 : 0;
         counters.setText(getString(R.string.agent_counters, t.llmTurns, t.toolCalls, secs / 60, secs % 60)

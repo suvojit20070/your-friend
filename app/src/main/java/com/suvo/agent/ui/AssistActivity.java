@@ -75,6 +75,7 @@ public final class AssistActivity extends BaseActivity {
     private TextView answer;
     private TextView status;
     private EditText input;
+    private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
     private ImageButton mic;
     private ScrollView answerScroll;
     private SpeechInput speech;
@@ -541,7 +542,33 @@ public final class AssistActivity extends BaseActivity {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
             return;
         }
-        g.speech.stop();
+        listen(false);
+    }
+
+    private com.suvo.agent.voice.AutoListen.Pending autoListen;
+    private final Runnable autoQuiet = () -> {
+        if (speech.isListening()) speech.cancel();
+        mic.setImageResource(R.drawable.ic_mic);
+        say(getString(R.string.assist_done));
+        glowState(AssistGlow.IDLE);
+    };
+
+    /** The answer is done: listen for the reply (setting "Listen after the answer"). */
+    private void maybeAutoListen() {
+        if (!com.suvo.agent.voice.AutoListen.on(g) || speech.isListening()) return;
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return;
+        if (autoListen != null) autoListen.cancel();
+        autoListen = com.suvo.agent.voice.AutoListen.afterSpeech(g, () -> {
+            if (isFinishing() || g.agent.isRunning() || speech.isListening()) return;
+            if (input != null && !input.getText().toString().trim().isEmpty()) return;
+            listen(true);
+        });
+    }
+
+    private void listen(boolean auto) {
+        if (!auto) g.speech.stop();
+        main.removeCallbacks(autoQuiet);
+        if (auto) main.postDelayed(autoQuiet, com.suvo.agent.voice.AutoListen.QUIET_MS);
         mic.setImageResource(R.drawable.ic_stop);
         say(getString(R.string.assist_listening));
         glowState(AssistGlow.LISTENING);
@@ -553,11 +580,13 @@ public final class AssistActivity extends BaseActivity {
 
             @Override
             public void onPartial(String text) {
+                main.removeCallbacks(autoQuiet);
                 say("“" + text + "”");
             }
 
             @Override
             public void onFinal(String text) {
+                main.removeCallbacks(autoQuiet);
                 mic.setImageResource(R.drawable.ic_mic);
                 if (text.trim().isEmpty()) {
                     say(getString(R.string.assist_hint));
@@ -569,8 +598,10 @@ public final class AssistActivity extends BaseActivity {
 
             @Override
             public void onError(int code, String message) {
+                main.removeCallbacks(autoQuiet);
                 mic.setImageResource(R.drawable.ic_mic);
-                say(message);
+                boolean silence = code == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT || code == android.speech.SpeechRecognizer.ERROR_NO_MATCH;
+                say(auto && silence ? getString(R.string.assist_done) : message);
                 glowState(AssistGlow.IDLE);
             }
         });
@@ -661,6 +692,7 @@ public final class AssistActivity extends BaseActivity {
                     glowState(AssistGlow.SPEAKING);
                     glow.postDelayed(() -> glowState(AssistGlow.IDLE), 2500);
                 }
+                maybeAutoListen();
             }
             if (hiddenForTask) showAgain();
         }
@@ -748,6 +780,8 @@ public final class AssistActivity extends BaseActivity {
 
     @Override
     protected void onDestroy() {
+        if (autoListen != null) autoListen.cancel();
+        main.removeCallbacks(autoQuiet);
         if (glow != null) glow.stop();
         g.agent.removeListener(listener);
         // Hands-free waits while the card is open; it goes back to listening for the wake word now.

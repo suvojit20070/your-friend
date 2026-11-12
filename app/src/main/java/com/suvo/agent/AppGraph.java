@@ -103,6 +103,14 @@ public final class AppGraph {
         tasks = new TaskRepo(db);
         audit = new AuditLog(db);
         providers = new ProviderRepo(db, secrets);
+        // Decrypting the API keys (Android Keystore) is slow: done once, early, off the main thread.
+        io.execute(() -> {
+            try {
+                providers.list();
+            } catch (RuntimeException ignored) {
+                // read again when a screen asks
+            }
+        });
         sshHosts = new SshHostRepo(db, secrets);
         connectors = new com.suvo.agent.connectors.ConnectorRepo(
                 ctx.getSharedPreferences("connectors", Context.MODE_PRIVATE), secrets);
@@ -128,6 +136,14 @@ public final class AppGraph {
         scheduler = new com.suvo.agent.agent.Scheduler(ctx);
         agent = new AgentRuntime(this);
         BuiltinTools.registerAll(this);
+        // MCP servers the user added: their tools, from the kept lists (no network here).
+        io.execute(() -> {
+            try {
+                com.suvo.agent.mcp.Mcp.registerAll(this);
+            } catch (RuntimeException e) {
+                android.util.Log.w("YF.Mcp", "MCP tools not registered", e);
+            }
+        });
         customTools.registerEnabled(this);
         tools.setDisabledSet(settings.set(Settings.DISABLED_TOOLS));
         settings.addListener(key -> {

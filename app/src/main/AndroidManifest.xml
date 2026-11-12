@@ -94,6 +94,7 @@
     <application
         android:name=".App"
         android:allowBackup="false"
+        android:largeHeap="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:manageSpaceActivity="com.suvo.agent.ui.StorageActivity"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"
@@ -304,6 +305,7 @@
         <activity android:name=".ui.MarkdownScaleActivity" android:exported="false" />
         <activity android:name=".ui.ConnectorsActivity" android:exported="false" android:launchMode="singleTop" />
         <activity android:name=".ui.PluginsActivity" android:exported="false" />
+        <activity android:name=".ui.McpActivity" android:exported="false" />
         <activity android:name=".ui.BrowserActivity" android:exported="false" android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" android:windowSoftInputMode="adjustResize" />
         <service

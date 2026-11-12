@@ -41,6 +41,36 @@ public final class OfficeActivity extends BaseActivity {
 
     private OfficeView office;
     private TextView stopAll;
+    private FrameLayout bossClip;
+    private com.suvo.agent.character.CharacterView boss3d;
+    private int clipKey;
+    private long since3d = System.currentTimeMillis();
+
+    /** Keeps the 3D boss on its desk (the scene's size follows the screen). */
+    private void placeBoss() {
+        if (bossClip == null) return;
+        OfficeScene sc = office.scene;
+        float u = sc.unit();
+        if (u <= 0) return;
+        // No model shown after a while (it failed to load): the drawn boss comes back.
+        if (!boss3d.isShowing3d() && System.currentTimeMillis() - since3d > 8000) {
+            ((ViewGroup) bossClip.getParent()).removeView(bossClip);
+            bossClip = null;
+            boss3d = null;
+            sc.bossHidden = false;
+            return;
+        }
+        int fullH = Math.round(6.4f * u), w = Math.round(4.6f * u), visible = Math.round(sc.bossHiddenHeight * u);
+        int left = Math.round(sc.bossX() - w / 2f), top = Math.round(sc.bossDeskTop()) - visible;
+        int key = left * 31 + top * 17 + fullH;
+        if (key == clipKey) return;
+        clipKey = key;
+        FrameLayout.LayoutParams cl = new FrameLayout.LayoutParams(w, visible);
+        cl.leftMargin = left;
+        cl.topMargin = top;
+        bossClip.setLayoutParams(cl);
+        boss3d.setLayoutParams(new FrameLayout.LayoutParams(w, fullH));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,6 +111,20 @@ public final class OfficeActivity extends BaseActivity {
         }));
         stopAll.setVisibility(View.GONE);
 
+        // The boss as the user's own 3D model (when there is one), standing behind its desk: a
+        // frame that ends at the desk's top edge cuts the model off there.
+        if (com.suvo.agent.character.CharacterView.modelSource(this) != null) {
+            bossClip = new FrameLayout(this);
+            bossClip.setClipChildren(true);
+            boss3d = new com.suvo.agent.character.CharacterView(this);
+            boss3d.setDraggable(false);
+            boss3d.setCharacter(g.characters.active());
+            boss3d.refreshStyle();
+            boss3d.setOnClickListener(v -> startActivity(new Intent(this, ChatActivity.class).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)));
+            bossClip.addView(boss3d, new FrameLayout.LayoutParams(1, 1));
+            root.addView(bossClip, 1, new FrameLayout.LayoutParams(1, 1));
+            office.scene.bossHidden = true;
+        }
         super.setContentView(root);
         Fx.attachAll(root);
         // A game screen: the system bars step aside (swipe from an edge to see them).
@@ -320,6 +364,11 @@ public final class OfficeActivity extends BaseActivity {
             }
             scene.bossName = g.characters.active().name;
             scene.update(out, g.agent.isRunning(), "");
+            post(OfficeActivity.this::placeBoss); // layout changes are not made while drawing
+            if (boss3d != null) {
+                boss3d.setActivity(g.agent.isRunning() ? com.suvo.agent.core.character.CharacterAnimator.Activity.THINKING
+                        : com.suvo.agent.core.character.CharacterAnimator.Activity.IDLE);
+            }
             int vis = working > 0 ? View.VISIBLE : View.GONE;
             if (stopAll.getVisibility() != vis) stopAll.setVisibility(vis);
         }

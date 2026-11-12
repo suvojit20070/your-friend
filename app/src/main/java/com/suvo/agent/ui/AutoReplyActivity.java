@@ -46,6 +46,35 @@ public final class AutoReplyActivity extends BaseActivity implements AutoReplySt
     private AutoReplyStore store;
     private boolean dirty;
 
+    /** Which tools an auto reply may use (all of the agent's tools are offered). */
+    private void pickReplyTools() {
+        java.util.List<com.suvo.agent.core.tools.Tool> all = new java.util.ArrayList<>(g.tools.available(g.capabilities));
+        java.util.Collections.sort(all, (a, b) -> a.spec().name.compareTo(b.spec().name));
+        java.util.Set<String> chosen = com.suvo.agent.autoreply.ReplyListener.allowedTools(g);
+        String[] labels = new String[all.size()];
+        boolean[] on = new boolean[all.size()];
+        for (int i = 0; i < all.size(); i++) {
+            com.suvo.agent.core.tools.ToolSpec sp = all.get(i).spec();
+            String d = sp.description.replaceAll("\\s+", " ");
+            int dot = d.indexOf(". ");
+            if (dot > 0 && dot < 110) d = d.substring(0, dot + 1);
+            else if (d.length() > 110) d = d.substring(0, 110) + "…";
+            labels[i] = sp.name + "\n" + d;
+            on[i] = chosen.contains(sp.name);
+        }
+        Ui.show(Ui.dialog(this).setTitle(R.string.ar_tools)
+                .setMultiChoiceItems(labels, on, (d, which, checked) -> on[which] = checked)
+                .setPositiveButton(android.R.string.ok, (d, w) -> {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = 0; i < all.size(); i++) {
+                        if (on[i]) sb.append(sb.length() == 0 ? "" : ",").append(all.get(i).spec().name);
+                    }
+                    g.settings.put(AutoReplyStore.TOOLS, sb.toString());
+                    recreate();
+                })
+                .setNegativeButton(android.R.string.cancel, null));
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -111,6 +140,10 @@ public final class AutoReplyActivity extends BaseActivity implements AutoReplySt
         r.textRow(R.drawable.ic_edit, R.string.ar_instructions, AutoReplyStore.INSTRUCTIONS, "", true, R.string.ar_instructions_empty, null);
         r.sliderRow(R.drawable.ic_chat, R.string.ar_max_words, AutoReplyStore.MAX_WORDS, 40, 10, 120, "", null);
         r.switchRow(R.drawable.ic_memory, R.string.ar_use_memory, R.string.ar_use_memory_desc, AutoReplyStore.USE_MEMORY, true, null);
+        java.util.Set<String> chosen = com.suvo.agent.autoreply.ReplyListener.allowedTools(g);
+        r.row(R.drawable.ic_tools, getString(R.string.ar_tools), chosen.isEmpty() ? getString(R.string.ar_tools_none)
+                : getResources().getQuantityString(R.plurals.ar_tools_count, chosen.size(), chosen.size()) + " · " + String.join(", ", chosen),
+                null, v -> pickReplyTools());
         List<com.suvo.agent.core.llm.ProviderConfig> provs = g.providers.list();
         String[] pl = new String[provs.size() + 1], pv = new String[provs.size() + 1];
         pl[0] = getString(R.string.same_as_main_model);

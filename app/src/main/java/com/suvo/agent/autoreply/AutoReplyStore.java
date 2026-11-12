@@ -29,6 +29,8 @@ public final class AutoReplyStore {
     public static final String BLOCKLIST = "ar_blocklist";
     public static final String MAX_WORDS = "ar_max_words";
     public static final String USE_MEMORY = "ar_use_memory";
+    /** Tools the auto reply may use while writing a reply (comma-separated names; empty = none). */
+    public static final String TOOLS = "ar_tools";
     public static final String DEFAULT_BLOCKLIST = "otp, password, cvv, pin, verification code, code:";
 
     public static final String AUTO = "AUTO", DRAFT = "DRAFT", OFF = "OFF";

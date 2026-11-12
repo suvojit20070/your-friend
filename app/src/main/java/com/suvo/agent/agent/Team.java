@@ -48,6 +48,8 @@ public final class Team {
         /** The thing it is waiting for another member to free ("screen"), with who has it; "" = not waiting. */
         public volatile String waitingFor = "", waitingOn = "";
         public volatile boolean waitingApproval;
+        /** The member's own conversation for this job (its steps, live while it works). */
+        public volatile List<com.suvo.agent.core.llm.ChatMessage> transcript = java.util.Collections.emptyList();
         /** The agent task id of this run (the owner in the resource guard). */
         public volatile String taskId = "";
         final CancellationToken cancel = new CancellationToken();
@@ -89,6 +91,15 @@ public final class Team {
     private static final AtomicInteger IDS = new AtomicInteger();
     private static final CopyOnWriteArrayList<Job> JOBS = new CopyOnWriteArrayList<>();
     private static final CopyOnWriteArrayList<Listener> LISTENERS = new CopyOnWriteArrayList<>();
+    /** Ids of the jobs a team report message is about ("job #12"). */
+    public static List<Integer> reportJobs(String message) {
+        List<Integer> out = new ArrayList<>();
+        if (message == null || !message.startsWith(REPORT_MARKER)) return out;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("finish(?:ed)? job #(\\d+)\\.").matcher(message);
+        while (m.find()) out.add(Integer.parseInt(m.group(1)));
+        return out;
+    }
+
     /** Running agent task → the tool executor it may use (so scripts keep to the member's own tools). */
     private static final ConcurrentHashMap<String, ToolExecutor> EXECUTORS = new ConcurrentHashMap<>();
 

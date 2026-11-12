@@ -104,6 +104,8 @@ public final class VoiceActivity extends BaseActivity {
         r.section(R.string.voice_input);
         r.note(getString(SpeechInput.isAvailable(this) ? R.string.voice_stt_available : R.string.voice_stt_unavailable));
         r.textRow(R.drawable.ic_mic, R.string.voice_stt_language, Settings.STT_LANGUAGE, "", false, R.string.voice_language_auto, null);
+        r.switchRow(R.drawable.ic_mic, R.string.voice_auto_listen, R.string.voice_auto_listen_desc,
+                com.suvo.agent.voice.AutoListen.SETTING, false, null);
         r.switchRow(R.drawable.ic_mic, R.string.voice_hands_free, R.string.voice_hands_free_desc, Settings.HANDS_FREE, false, on -> {
             if (on) {
                 if (!g.settings.bool(Settings.ALLOW_BACKGROUND_LISTENING, false)) {
@@ -310,14 +312,7 @@ public final class VoiceActivity extends BaseActivity {
         r.section(R.string.voice_woof);
         r.note(getString(R.string.voice_woof_intro));
         r.choiceRow(R.drawable.ic_character, R.string.voice_woof_voice, com.suvo.agent.voice.WoofEngine.VOICE_KEY, "juno",
-                new String[]{"Juno", "Mira"}, new String[]{"juno", "mira"}, v -> g.io.execute(() -> {
-                    // The server loads the chosen voice at start: restart it if it runs.
-                    try {
-                        woof.health();
-                        woof.start(new CancellationToken());
-                    } catch (Exception ignored) {
-                    }
-                }));
+                new String[]{"Juno", "Mira"}, new String[]{"juno", "mira"}, null);
         boolean installed = g.settings.bool(com.suvo.agent.voice.WoofEngine.READY_KEY, false);
         final TextView status = r.note(woofProgress != null ? woofProgress
                 : getString(installed ? R.string.voice_woof_installed : R.string.voice_woof_not_installed));
@@ -346,7 +341,7 @@ public final class VoiceActivity extends BaseActivity {
         });
         if (installed) {
             r.button(R.string.voice_woof_stop, false, v -> g.io.execute(() -> {
-                woof.stop();
+                woof.unload();
                 runOnUiThread(() -> Ui.toast(this, R.string.done));
             }));
         }

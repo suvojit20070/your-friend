@@ -110,6 +110,9 @@ public final class ConversationRepo {
     }
 
     public void delete(long id) {
+        synchronized (parsed) {
+            parsed.remove(id);
+        }
         SQLiteDatabase w = db.getWritableDatabase();
         w.beginTransaction();
         try {
@@ -123,6 +126,9 @@ public final class ConversationRepo {
     }
 
     public void deleteAll() {
+        synchronized (parsed) {
+            parsed.clear();
+        }
         SQLiteDatabase w = db.getWritableDatabase();
         w.beginTransaction();
         try {
@@ -167,29 +173,74 @@ public final class ConversationRepo {
         return s.length() > 4000 ? s.substring(0, 4000) : s;
     }
 
-    public List<StoredMessage> messages(long conversationId, boolean includeCompacted) {
-        List<StoredMessage> out = new ArrayList<>();
-        String sql = "SELECT id, conversation_id, body, task_id, compacted, created_at FROM messages WHERE conversation_id = ?"
-                + (includeCompacted ? "" : " AND compacted = 0") + " ORDER BY id";
-        try (Cursor c = db.getReadableDatabase().rawQuery(sql, new String[]{String.valueOf(conversationId)})) {
-            while (c.moveToNext()) {
-                StoredMessage sm = new StoredMessage();
-                sm.id = c.getLong(0);
-                sm.conversationId = c.getLong(1);
-                try {
-                    sm.message = ChatMessage.fromStorageJson(new JSONObject(c.getString(2)));
-                } catch (JSONException | IllegalArgumentException e) {
-                    // A corrupted row is shown as a notice rather than crashing the conversation.
-                    sm.message = ChatMessage.assistant("[unreadable message]");
+    /**
+     * Parsed messages of the last few conversations, by message id. A message's body never
+     * changes after it is written (only its "compacted" flag), so a parsed message can be reused:
+     * opening a chat or rebuilding it while the agent works no longer reads and parses every body
+     * again (photos are stored as base64 inside them, which made long chats slow to open).
+     */
+    private final java.util.LinkedHashMap<Long, java.util.TreeMap<Long, ChatMessage>> parsed =
+            new java.util.LinkedHashMap<Long, java.util.TreeMap<Long, ChatMessage>>(4, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(java.util.Map.Entry<Long, java.util.TreeMap<Long, ChatMessage>> e) {
+                    return size() > 3;
                 }
-                sm.message.localId = sm.id;
-                sm.taskId = c.getString(3);
-                sm.compacted = c.getInt(4) != 0;
-                sm.createdAt = c.getLong(5);
-                out.add(sm);
+            };
+
+    private static ChatMessage parse(String body) {
+        try {
+            return ChatMessage.fromStorageJson(new JSONObject(body));
+        } catch (JSONException | IllegalArgumentException e) {
+            // A corrupted row is shown as a notice rather than crashing the conversation.
+            return ChatMessage.assistant("[unreadable message]");
+        }
+    }
+
+    public List<StoredMessage> messages(long conversationId, boolean includeCompacted) {
+        String conv = String.valueOf(conversationId);
+        java.util.TreeMap<Long, ChatMessage> known;
+        synchronized (parsed) {
+            known = parsed.get(conversationId);
+            if (known == null) {
+                known = new java.util.TreeMap<>();
+                parsed.put(conversationId, known);
             }
         }
-        return out;
+        synchronized (known) {
+            // Bodies only for messages not parsed yet (ids only grow).
+            long after = known.isEmpty() ? -1 : known.lastKey();
+            try (Cursor c = db.getReadableDatabase().rawQuery(
+                    "SELECT id, body FROM messages WHERE conversation_id = ? AND id > ? ORDER BY id", new String[]{conv, String.valueOf(after)})) {
+                while (c.moveToNext()) {
+                    ChatMessage m = parse(c.getString(1));
+                    m.localId = c.getLong(0);
+                    known.put(m.localId, m);
+                }
+            }
+            List<StoredMessage> out = new ArrayList<>();
+            java.util.HashSet<Long> present = new java.util.HashSet<>();
+            String sql = "SELECT id, task_id, compacted, created_at FROM messages WHERE conversation_id = ?"
+                    + (includeCompacted ? "" : " AND compacted = 0") + " ORDER BY id";
+            try (Cursor c = db.getReadableDatabase().rawQuery(sql, new String[]{conv})) {
+                while (c.moveToNext()) {
+                    long id = c.getLong(0);
+                    ChatMessage m = known.get(id);
+                    if (m == null) continue; // written between the two queries: next time
+                    StoredMessage sm = new StoredMessage();
+                    sm.id = id;
+                    sm.conversationId = conversationId;
+                    sm.message = m;
+                    sm.taskId = c.getString(1);
+                    sm.compacted = c.getInt(2) != 0;
+                    sm.createdAt = c.getLong(3);
+                    out.add(sm);
+                    present.add(id);
+                }
+            }
+            // Deleted rows leave the cache (only when the full list was read).
+            if (includeCompacted) known.keySet().retainAll(present);
+            return out;
+        }
     }
 
     public String summary(long conversationId) {

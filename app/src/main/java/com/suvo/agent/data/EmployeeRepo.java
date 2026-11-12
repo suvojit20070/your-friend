@@ -216,6 +216,35 @@ public final class EmployeeRepo {
         write(all);
     }
 
+    /** Heading of the rules the boss adds to a member's instructions after its mistakes. */
+    public static final String RULES_HEADER = "# Rules from the boss (after your mistakes — follow them strictly)";
+    private static final int MAX_RULES = 12;
+
+    /** The boss's rules in a member's instructions (newest last). */
+    public static List<String> rules(Employee e) {
+        List<String> out = new ArrayList<>();
+        int at = e.instructions.indexOf(RULES_HEADER);
+        if (at < 0) return out;
+        for (String line : e.instructions.substring(at + RULES_HEADER.length()).split("\n")) {
+            String l = line.trim();
+            if (l.startsWith("- ")) out.add(l.substring(2).trim());
+        }
+        return out;
+    }
+
+    /** The member's instructions with {@code rules} as its rules section (an empty list removes it). */
+    public static String withRules(Employee e, List<String> rules) {
+        int at = e.instructions.indexOf(RULES_HEADER);
+        String base = (at < 0 ? e.instructions : e.instructions.substring(0, at)).trim();
+        if (rules.isEmpty()) return base;
+        StringBuilder sb = new StringBuilder(base);
+        if (sb.length() > 0) sb.append("\n\n");
+        sb.append(RULES_HEADER);
+        int from = Math.max(0, rules.size() - MAX_RULES);
+        for (int i = from; i < rules.size(); i++) sb.append("\n- ").append(rules.get(i));
+        return sb.toString();
+    }
+
     public synchronized void delete(long id) {
         List<Employee> all = list();
         for (int i = all.size() - 1; i >= 0; i--) if (all.get(i).id == id) all.remove(i);

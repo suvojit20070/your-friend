@@ -284,7 +284,7 @@ public final class OfficeScene {
             if (!say.isEmpty()) bubble(p, a.x, a.y - lift * u * deskScale, say, dot);
         }
         if (bossBusy || now < bossAlertUntil) {
-            bubble(p, bossX, bossY - 3.0f * u, now < bossAlertUntil && !bossBusy ? l.reading + dots(now)
+            bubble(p, bossX, bossHidden ? bossDeskTop() - (bossHiddenHeight + 0.15f) * u : bossY - 3.0f * u, now < bossAlertUntil && !bossBusy ? l.reading + dots(now)
                     : (bossSays.isEmpty() ? l.talking : bossSays) + dots(now), c.accent);
         }
 
@@ -559,15 +559,17 @@ public final class OfficeScene {
 
     private void boss(Pen p, long now) {
         float x = bossX, y = bossY;
-        person(p, x, y, 1f, bossName, bossBusy ? WORKING : IDLE, true, 0, now, true);
+        if (!bossHidden) person(p, x, y, 1f, bossName, bossBusy ? WORKING : IDLE, true, 0, now, true);
         float k = u * 1.12f, top = y - 0.42f * k, dw = 3.5f * k;
         p.oval(x, y + 1.1f * k, dw * 0.52f, 0.22f * k, 0x1F000000);
         p.rect(x - dw / 2, top, dw, 0.86f * k, 0.16f * k, shade(c.desk, 0.94f));
         p.rect(x - dw / 2, top + 0.64f * k, dw, 0.9f * k, 0.14f * k, shade(c.deskFront, 0.92f));
         p.rect(x - dw / 2, top + 0.62f * k, dw, 0.1f * k, 0, shade(c.deskFront, 0.82f));
-        float lw = 1.05f * k, lh = 0.66f * k;
-        p.rect(x - lw / 2, top - lh + 0.2f * k, lw, lh, 0.08f * k, c.dark ? 0xFF4A5160 : 0xFF3C4350);
-        p.oval(x, top - lh / 2 + 0.2f * k, 0.1f * k, 0.1f * k, bossBusy ? c.accent : 0xFF7B8494);
+        if (!bossHidden) {
+            float lw = 1.05f * k, lh = 0.66f * k;
+            p.rect(x - lw / 2, top - lh + 0.2f * k, lw, lh, 0.08f * k, c.dark ? 0xFF4A5160 : 0xFF3C4350);
+            p.oval(x, top - lh / 2 + 0.2f * k, 0.1f * k, 0.1f * k, bossBusy ? c.accent : 0xFF7B8494);
+        }
         // A desk phone and the in-tray for reports.
         p.rect(x - dw * 0.42f, top + 0.12f * k, 0.6f * k, 0.36f * k, 0.08f * k, 0xFF2F3541);
         p.rect(x - dw * 0.40f, top + 0.06f * k, 0.56f * k, 0.14f * k, 0.07f * k, 0xFF4A5160);
@@ -581,6 +583,23 @@ public final class OfficeScene {
 
     /** The boss's (the character's) name. */
     public String bossName = "";
+    /** The boss is a 3D model drawn by another view over this one: only its desk is drawn here. */
+    public boolean bossHidden;
+    /** How tall (in units) the 3D boss stands above its desk, so its bubble goes above its head. */
+    public float bossHiddenHeight = 3.4f;
+
+    public float unit() {
+        return u;
+    }
+
+    public float bossX() {
+        return bossX;
+    }
+
+    /** The top edge of the boss's desk (where a 3D boss is cut off). */
+    public float bossDeskTop() {
+        return bossY - 0.42f * u * 1.12f;
+    }
 
     private void bubble(Pen p, float x, float y, String say, int dot) {
         float size = 0.34f * u;

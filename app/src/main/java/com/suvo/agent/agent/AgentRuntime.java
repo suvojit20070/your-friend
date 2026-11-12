@@ -246,6 +246,11 @@ public final class AgentRuntime {
     /** Set for a self check-in: a reply of exactly NOTHING is not spoken or notified. */
     private volatile boolean quietResult;
 
+    /** A line in the live log from elsewhere (team tools). */
+    public void addNotice(String text, String detail) {
+        addLog("notice", text, detail);
+    }
+
     private void addLog(String kind, String text, String detail) {
         log.add(new LogLine(kind, text, detail));
         while (log.size() > 300) log.remove(0);

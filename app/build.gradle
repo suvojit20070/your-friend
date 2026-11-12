@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'com.chaquo.python'
 }
 
 android {
@@ -22,7 +23,8 @@ android {
             }
         }
         ndk {
-            abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'
+            // 64-bit ARM phones only: Python + numpy (Woof voice) for every ABI would add ~25 MB each.
+            abiFilters 'arm64-v8a'
         }
     }
 
@@ -54,6 +56,8 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+        // jadx (APK scan) uses newer Java library APIs; desugaring brings them to older Android versions.
+        coreLibraryDesugaringEnabled true
     }
 
     externalNativeBuild {
@@ -98,11 +102,28 @@ android {
             // OSGi manifests (JSch and JSpecify — the latter comes with Material 1.13) clash and are
             // not used on Android.
             excludes += ['META-INF/versions/9/OSGI-INF/MANIFEST.MF', 'META-INF/versions/*/OSGI-INF/MANIFEST.MF']
+            // jadx and its libraries (gson, protobuf, slf4j) carry the usual licence / index files.
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/NOTICE', 'META-INF/INDEX.LIST',
+                         'META-INF/versions/9/module-info.class', 'module-info.class']
+        }
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        // The build machine needs the same Python version (CI: actions/setup-python 3.11).
+        version '3.11'
+        pip {
+            install 'numpy'
         }
     }
 }
 
 dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    // APK scan / apk_decompile: jadx turns an app's dex code back into Java (only the classes asked for).
+    implementation 'io.github.skylot:jadx-core:1.5.1'
+    implementation 'io.github.skylot:jadx-dex-input:1.5.1'
     implementation 'androidx.core:core:1.15.0'
     // Client hints (Sec-CH-UA-Mobile) for the agent browser's desktop mode.
     implementation 'androidx.webkit:webkit:1.12.1'

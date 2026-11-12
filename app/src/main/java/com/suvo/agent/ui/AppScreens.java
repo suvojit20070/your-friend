@@ -69,6 +69,9 @@ public final class AppScreens {
         add("providers", R.string.section_providers, "Providers", ProvidersActivity.class, "More → Providers, or Settings → AI → Providers",
                 "Add the AI model provider: name, base URL, API key (stored encrypted), model, vision and tools switches, Test and Fetch models. "
                         + "Pick the default provider. Needed before the agent can answer.");
+        add("mcp", R.string.mcp_title, "MCP servers", McpActivity.class, "Settings → AI → MCP servers",
+                "Add Model Context Protocol servers (URL + optional login header such as Authorization: Bearer …). Each server's "
+                        + "tools become agent tools named mcp_<server>_<tool>. Refresh, switch single tools off, edit, delete.");
         add("connectors", R.string.connectors_title, "Connectors", ConnectorsActivity.class, "Settings → AI → Connectors",
                 "Connect the user's accounts for the agent: Gmail / Outlook / Yahoo / any mailbox (app password), Google sign-in "
                         + "(YouTube, Gmail API, Drive, Calendar), website logins (Instagram, Facebook, X, YouTube, Telegram Web, "

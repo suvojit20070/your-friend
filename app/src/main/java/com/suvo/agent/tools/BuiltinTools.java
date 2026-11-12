@@ -70,6 +70,7 @@ public final class BuiltinTools {
         add(g, () -> new ConnectorTools.Browser(g));
         add(g, () -> new RunCodeTool(g));
         add(g, () -> new RunCodeTool.UseTool(g));
+        add(g, () -> new ApkDecompileTool(g));
         add(g, () -> new com.suvo.agent.plugins.SiteApis.Tool(g));
         // Native connector plugins (offered only when installed in Settings → Plugins).
         add(g, () -> new com.suvo.agent.plugins.InstagramPlugin(g));

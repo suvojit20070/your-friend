@@ -49,6 +49,21 @@
     <string name="agent_status_limit">安全上の上限で停止</string>
     <string name="agent_status_running">実行中</string>
     <string name="agent_working">タスクを実行しています…</string>
+    <string name="apkscan_again">もう一度スキャン</string>
+    <string name="apkscan_auto">新しいアプリをAIでスキャン</string>
+    <string name="apkscan_auto_desc">新しいインストールのたびに逆コンパイルし、怪しい部分だけを読み、危険度を通知します（トークンを使います）</string>
+    <string name="apkscan_classes">AIが読んだクラス</string>
+    <string name="apkscan_found">見つかったもの</string>
+    <string name="apkscan_intro">アプリを逆コンパイルし、AIが怪しい部分（特別な権限、バックグラウンドサービス、隠しコード）だけを読んで、理由とともに危険度を示します。Playストアの有名アプリは簡易チェックです。</string>
+    <string name="apkscan_notif_title">%1$s — 危険度: %2$s</string>
+    <string name="apkscan_perm_use">特別な権限の使われ方</string>
+    <string name="apkscan_quick">簡易チェック</string>
+    <string name="apkscan_reasons">理由</string>
+    <string name="apkscan_risk">危険度: %1$s</string>
+    <string name="apkscan_run">このアプリをスキャン</string>
+    <string name="apkscan_servers">コード内のサーバー</string>
+    <string name="apkscan_starting">スキャンを開始しています</string>
+    <string name="apkscan_title">AIセキュリティスキャン</string>
     <string name="app_name">Your Friend</string>
     <string name="appalert_app_info">アプリ情報</string>
     <string name="appalert_by">インストール元: %1$s</string>
@@ -173,6 +188,8 @@
     <string name="ar_st_sent">送信</string>
     <string name="ar_st_skipped">スキップ</string>
     <string name="ar_title">自動返信</string>
+    <string name="ar_tools">返信に使うツール</string>
+    <string name="ar_tools_none">なし：チャットだけを見て返信します</string>
     <string name="ar_totals">送信 %1$d · 下書き %2$d · スキップ %3$d</string>
     <string name="ar_use_memory">記憶を使う</string>
     <string name="ar_use_memory_desc">送信者や話題について覚えていることも渡します</string>
@@ -536,6 +553,27 @@
     <string name="log_status">状態</string>
     <string name="log_task_started">タスク開始</string>
     <string name="log_tool">ツール</string>
+    <string name="mcp_add">MCPサーバーを追加</string>
+    <string name="mcp_bad_url">URLは http:// または https:// で始めてください</string>
+    <string name="mcp_delete_confirm">MCPサーバー %1$s とそのツールを削除しますか？</string>
+    <string name="mcp_desc">Model Context Protocolサーバーを追加：そのツールがエージェントのツールになります</string>
+    <string name="mcp_edit">サーバーを編集</string>
+    <string name="mcp_empty">MCPサーバーはまだありません。</string>
+    <string name="mcp_enabled">このサーバーを使う</string>
+    <string name="mcp_enabled_desc">オフ：ツールはエージェントに渡されません</string>
+    <string name="mcp_error">問題: %1$s</string>
+    <string name="mcp_header_name">ヘッダー名（任意）</string>
+    <string name="mcp_header_value">ヘッダーの値（例：Bearer &lt;token&gt;、任意）</string>
+    <string name="mcp_intro">HTTP（Streamable HTTP）で接続できるMCPサーバーなら追加できます。URLと、必要ならログイン用ヘッダー（例：Authorization: Bearer …）を入力します。ツールは mcp_&lt;server&gt;_&lt;tool&gt; としてエージェントに渡ります。ヘッダーの値は暗号化して保存されます。</string>
+    <string name="mcp_name">名前（例：github）</string>
+    <string name="mcp_no_tools">ツールがまだありません：「ツールを更新」を押してください。</string>
+    <string name="mcp_problem">問題</string>
+    <string name="mcp_refresh">ツールを更新</string>
+    <string name="mcp_refresh_ok">ツールを更新しました</string>
+    <string name="mcp_refreshed">%1$s に更新</string>
+    <string name="mcp_refreshing">サーバーに問い合わせ中…</string>
+    <string name="mcp_title">MCPサーバー</string>
+    <string name="mcp_url">サーバーURL（https://…/mcp）</string>
     <string name="media_audio">Your Friend の音声</string>
     <string name="media_next">次へ</string>
     <string name="media_pause">一時停止</string>
@@ -1002,7 +1040,15 @@
     <string name="team_role_hint">例: リサーチャー、コーダー、端末操作</string>
     <string name="team_safety">メンバーは他のメンバーを作ったりタスクを予約したりできません。API キーはプロバイダー設定で暗号化されたままです。</string>
     <string name="team_steps">1タスクの最大ステップ数</string>
+    <string name="team_steps_brief">%1$s への仕事</string>
+    <string name="team_steps_from_boss">ボスから</string>
+    <string name="team_steps_hide">手順を隠す</string>
+    <string name="team_steps_hide_of">%1$s の手順を隠す</string>
+    <string name="team_steps_of">%1$s の手順</string>
+    <string name="team_steps_show">手順を表示</string>
+    <string name="team_steps_show_of">%1$s の手順をここに表示</string>
     <string name="team_steps_unlimited">上限なし（ボスの設定に従う）</string>
+    <string name="team_steps_working">%1$s が作業中: %2$s</string>
     <string name="team_title">あなたのチーム</string>
     <string name="team_tools">許可するツール</string>
     <string name="team_tools_all">すべてのツール</string>
@@ -1104,6 +1150,7 @@
     <string name="tree_done">完了</string>
     <string name="tree_failed">失敗</string>
     <string name="tree_more">他 %1$d 件</string>
+    <string name="tree_reading_report">%1$s の報告を読んでいます</string>
     <string name="tree_stats">ツール %1$d · %2$d:%3$02d</string>
     <string name="tree_stopped">停止</string>
     <string name="tree_thinking">考え中</string>
@@ -1125,13 +1172,15 @@
     <string name="update_now">今すぐ更新</string>
     <string name="update_please_wait">お待ちください…</string>
     <string name="update_storage_error">ストレージエラー</string>
+    <string name="voice_auto_listen">返答の後に聞き取る</string>
+    <string name="voice_auto_listen_desc">返答が終わる（読み上げ後）とマイクが自動で開き、そのまま返事ができます。数秒無音なら閉じます</string>
     <string name="voice_engine">音声エンジン</string>
     <string name="voice_engine_not_ready">未準備: %1$s</string>
     <string name="voice_engine_ready">準備完了</string>
     <string name="voice_engine_server">OmniVoice サーバー</string>
     <string name="voice_engine_space">Hugging Face Space（オンライン）</string>
     <string name="voice_engine_system">Android 音声合成</string>
-    <string name="voice_engine_woof">Underdog Woof（この端末で・英語）</string>
+    <string name="voice_engine_woof">Underdog Woof（アプリ内・英語）</string>
     <string name="voice_error">音声エラー: %1$s</string>
     <string name="voice_fallback">失敗したら端末の音声を使う</string>
     <string name="voice_fallback_desc">オフライン・上限到達・サーバー停止時も Android の音声で読み上げます</string>
@@ -1202,16 +1251,16 @@
     <string name="voice_wake_words_none">なし — すべての発話が命令</string>
     <string name="voice_wake_words_note">カンマ区切りで入力（例: tanu, hey tanu, hi alex）。いずれかを含む発話だけが送られ、その後の言葉が命令になります。ウェイクワードだけを言うと 8 秒以内に続きを話せます。認識結果の表記（তনু や तनु など）も追加してください。</string>
     <string name="voice_woof">Underdog Woof</string>
-    <string name="voice_woof_done">Woof をインストールして起動しました。「音声テスト」で聞けます。</string>
+    <string name="voice_woof_done">Woof をインストールして読み込みました。「音声テスト」で聞けます。</string>
     <string name="voice_woof_failed">完了できませんでした: %1$s</string>
     <string name="voice_woof_install">Woof をインストール</string>
-    <string name="voice_woof_installed">インストール済み。返答を読み上げるときに自動で起動します。</string>
-    <string name="voice_woof_intro">この端末のTermuxで動く小さな英語音声（約41 MB）。インストール後はネット不要。ワンタップでPython・numpy・モデルを入れます。</string>
+    <string name="voice_woof_installed">インストール済み。最初の返答でモデルを読み込みます（数秒）。</string>
+    <string name="voice_woof_intro">アプリ内で動く小さな英語音声（約41 MB）。Termux不要、ダウンロード後はネット不要。ワンタップでモデルをダウンロードします。</string>
     <string name="voice_woof_license">Voice by Underdog Woof（ConwayResearch）。Underdog Non-Commercial License 1.0：個人・非商用は無料、商用にはUnderdogのライセンスが必要です。</string>
-    <string name="voice_woof_not_installed">未インストール。Termuxが必要です。</string>
+    <string name="voice_woof_not_installed">未インストールです。</string>
     <string name="voice_woof_reinstall">再インストール</string>
     <string name="voice_woof_starting">開始しています…</string>
-    <string name="voice_woof_stop">音声サーバーを停止（メモリ解放）</string>
+    <string name="voice_woof_stop">音声を解放（メモリを空ける）</string>
     <string name="voice_woof_voice">声</string>
     <string name="vrm_full_body">全身</string>
     <string name="vrm_upper_body">上半身</string>
@@ -1221,6 +1270,9 @@
     <string name="widget_hint_default">何でも聞いて…</string>
     <string name="widget_new_chat">新しいチャット</string>
     <string name="widget_reply_empty">最後の回答がここに表示されます。</string>
+    <plurals name="ar_tools_count">
+        <item quantity="other">%d 個のツール</item>
+    </plurals>
     <plurals name="browser_service_tabs">
         <item quantity="other">%d 個のタブ</item>
     </plurals>
@@ -1229,6 +1281,9 @@
     </plurals>
     <plurals name="chat_tools_count">
         <item quantity="other">ツール %d 個</item>
+    </plurals>
+    <plurals name="mcp_tools">
+        <item quantity="other">%d 個のツール</item>
     </plurals>
     <plurals name="memories_imported">
         <item quantity="other">記憶を %d 件インポートしました</item>

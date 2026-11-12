@@ -240,6 +240,8 @@ public final class AppAlerts {
         e.notified = notify(ctx, info, late);
         add(ctx, e);
         rememberVersion(ctx, pkg, info);
+        // Then an AI security scan (only the suspicious parts are read), its result as a second notification.
+        if (!info.system && !late) com.suvo.agent.apkscan.ApkScanner.autoScan(ctx, pkg);
     }
 
     /** An installed app got a new version: log it (always) and notify, with the old version when known. */

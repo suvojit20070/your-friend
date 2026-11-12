@@ -197,6 +197,7 @@ public final class SettingsActivity extends BaseActivity {
         r.link(R.drawable.ic_edit, R.string.sysprompt_title, R.string.sysprompt_settings_desc, SystemPromptActivity.class);
         r.link(R.drawable.ic_link, R.string.connectors_title, R.string.connectors_desc, ConnectorsActivity.class);
         r.link(R.drawable.ic_tools, R.string.plugins_title, R.string.plugins_desc, PluginsActivity.class);
+        r.link(R.drawable.ic_plug, R.string.mcp_title, R.string.mcp_desc, McpActivity.class);
         r.switchRow(R.drawable.ic_terminal, R.string.settings_code_mode, R.string.settings_code_mode_desc,
                 com.suvo.agent.tools.RunCodeTool.SETTING, true, null);
         r.switchRow(R.drawable.ic_terminal, R.string.settings_code_compact, R.string.settings_code_compact_desc,

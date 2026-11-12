@@ -258,10 +258,42 @@ public final class ReplyListener extends NotificationListenerService {
         req.messages.add(ChatMessage.system(ReplyPrompt.system(in)));
         req.messages.add(ChatMessage.user(ReplyPrompt.user(in)));
 
+        // Tools the user allowed for replies: the model may use them (a few rounds) before it writes.
+        java.util.Set<String> allowed = allowedTools(g);
+        if (!allowed.isEmpty()) {
+            for (com.suvo.agent.core.tools.Tool t : g.tools.available(g.capabilities)) {
+                if (allowed.contains(t.spec().name)) req.tools.put(t.spec().toOpenAiTool());
+            }
+            if (req.tools.length() > 0) {
+                req.messages.set(0, ChatMessage.system(ReplyPrompt.system(in) + "\n\nYou may use the tools you are given to look "
+                        + "something up or do what the message needs before you answer (only when it helps). Then answer in the "
+                        + "format above."));
+            } else {
+                req.tools = new JSONArray();
+            }
+        }
+
         ReplyPrompt.Result res;
         String raw;
         try {
-            ChatResponse r = llm.chat(req, StreamListener.NONE, new CancellationToken());
+            CancellationToken cancel = new CancellationToken();
+            ChatResponse r = llm.chat(req, StreamListener.NONE, cancel);
+            for (int round = 0; r != null && !r.toolCalls.isEmpty() && round < 4; round++) {
+                req.messages.add(ChatMessage.assistant(r.content, new ArrayList<>(r.toolCalls)));
+                for (com.suvo.agent.core.llm.ToolCall call : r.toolCalls) {
+                    String content;
+                    if (!allowed.contains(call.name)) {
+                        content = "{\"status\":\"DENIED\",\"message\":\"This tool is not allowed for replies\"}";
+                    } else {
+                        com.suvo.agent.core.tools.ToolResult tr = g.executor.execute(call, "autoreply", cancel,
+                                com.suvo.agent.core.tools.ToolInvocation.Progress.NONE);
+                        content = tr.toModelContent(6000);
+                    }
+                    req.messages.add(ChatMessage.tool(call.id, call.name, content));
+                }
+                if (round == 3) req.tools = new JSONArray(); // the last round must answer
+                r = llm.chat(req, StreamListener.NONE, cancel);
+            }
             raw = r == null ? null : r.content;
             res = ReplyPrompt.parse(raw, in.maxWords);
         } catch (Exception e) {
@@ -302,6 +334,13 @@ public final class ReplyListener extends NotificationListenerService {
                 log(store, p, app, AutoReplyStore.S_ERROR, text, err, message);
             }
         }), delay);
+    }
+
+    /** The tools the user switched on for auto replies. */
+    public static java.util.Set<String> allowedTools(AppGraph g) {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        for (String n : g.settings.str(AutoReplyStore.TOOLS, "").split(",")) if (!n.trim().isEmpty()) out.add(n.trim());
+        return out;
     }
 
     private static List<String> memories(AppGraph g, String query) {

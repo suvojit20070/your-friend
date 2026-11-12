@@ -52,13 +52,19 @@ public final class TeamTools {
                             + "inputs, constraints, what to send back): the member cannot see your chat. A member takes one job "
                             + "at a time; several members can work at once. action=status shows every job (what each member is "
                             + "doing right now, or its result), action=tell sends a working member more instructions, action=stop "
-                            + "stops a job (job id, or all=true), action=list shows the team.")
+                            + "stops a job (job id, or all=true), action=list shows the team. When a member made a mistake (a "
+                            + "wrong or made-up result, ignored the brief, broke a rule, wasted many steps), correct it for good: "
+                            + "action=coach with employee, mistake (what it did wrong) and rule (one clear instruction it must "
+                            + "follow from now on) adds the rule to that member's own instructions (its system prompt); "
+                            + "action=rules shows a member's rules, action=unrule removes one (job = the rule's number).")
                     .schema("{\"type\":\"object\",\"properties\":{"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"assign\",\"status\",\"tell\",\"stop\",\"list\",\"delegate\"],\"default\":\"assign\"},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"assign\",\"status\",\"tell\",\"stop\",\"list\",\"coach\",\"rules\",\"unrule\",\"delegate\"],\"default\":\"assign\"},"
                             + "\"employee\":{\"type\":\"string\",\"description\":\"Member name or id (assign, tell)\"},"
                             + "\"task\":{\"type\":\"string\",\"maxLength\":8000,\"description\":\"assign: the brief. tell: the message\"},"
                             + "\"context\":{\"type\":\"string\",\"maxLength\":8000,\"description\":\"Facts the member needs (it cannot see your chat)\"},"
-                            + "\"job\":{\"type\":\"integer\",\"description\":\"job id (status of one job, tell, stop)\"},"
+                            + "\"job\":{\"type\":\"integer\",\"description\":\"job id (status of one job, tell, stop); unrule: the rule's number\"},"
+                            + "\"mistake\":{\"type\":\"string\",\"maxLength\":400,\"description\":\"coach: what the member did wrong\"},"
+                            + "\"rule\":{\"type\":\"string\",\"maxLength\":300,\"description\":\"coach: the instruction it must follow from now on\"},"
                             + "\"all\":{\"type\":\"boolean\",\"default\":false,\"description\":\"stop: every running job\"}"
                             + "},\"additionalProperties\":false}")
                     .risk(RiskLevel.LOW).timeoutMs(60_000L).build());
@@ -74,6 +80,8 @@ public final class TeamTools {
         public String describeCall(JSONObject args) {
             String a = args.optString("action", "assign");
             if ("stop".equals(a)) return "Stop team job " + (args.optBoolean("all") ? "(all)" : "#" + args.optInt("job"));
+            if ("coach".equals(a)) return "New rule for " + args.optString("employee") + ": " + args.optString("rule");
+            if ("unrule".equals(a)) return "Remove rule " + args.optInt("job") + " of " + args.optString("employee");
             if ("tell".equals(a)) return "Tell " + args.optString("employee", "job #" + args.optInt("job")) + ": " + args.optString("task");
             return "Ask " + args.optString("employee") + " to: " + args.optString("task");
         }
@@ -133,6 +141,41 @@ public final class TeamTools {
                 }
                 return com.suvo.agent.agent.Team.stop(id) ? ToolResult.ok("Job #" + id + " is being stopped")
                         : ToolResult.fail("No running job " + (id < 0 ? "for that member" : "#" + id) + " — see action=status");
+            }
+            if ("coach".equals(action) || "rules".equals(action) || "unrule".equals(action)) {
+                EmployeeRepo.Employee e = g.employees.find(inv.str("employee"));
+                if (e == null) return ToolResult.fail("No employee \"" + inv.str("employee") + "\" — see action=list");
+                List<String> rules = new java.util.ArrayList<>(EmployeeRepo.rules(e));
+                if ("rules".equals(action)) {
+                    JSONArray arr = new JSONArray();
+                    for (int i = 0; i < rules.size(); i++) arr.put((i + 1) + ". " + rules.get(i));
+                    return ToolResult.ok(e.name + " has " + rules.size() + " rule(s)", J.obj("rules", arr));
+                }
+                if ("unrule".equals(action)) {
+                    int n = (int) inv.num("job", -1);
+                    if (n < 1 || n > rules.size()) return ToolResult.fail("No rule " + n + " — see action=rules");
+                    String gone = rules.remove(n - 1);
+                    e.instructions = EmployeeRepo.withRules(e, rules);
+                    g.employees.save(e);
+                    return ToolResult.ok("Removed from " + e.name + "'s rules: " + gone);
+                }
+                String rule = inv.str("rule").trim().replace('\n', ' ');
+                String mistake = inv.str("mistake").trim().replace('\n', ' ');
+                if (rule.isEmpty()) return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, "rule is required");
+                for (String r : rules) {
+                    if (r.toLowerCase(java.util.Locale.ROOT).startsWith(rule.toLowerCase(java.util.Locale.ROOT))) {
+                        return ToolResult.ok(e.name + " already has this rule");
+                    }
+                }
+                rules.add(rule + (mistake.isEmpty() ? "" : " (you once: " + (mistake.length() > 160 ? mistake.substring(0, 160) + "…" : mistake) + ")"));
+                e.instructions = EmployeeRepo.withRules(e, rules);
+                g.employees.save(e);
+                com.suvo.agent.agent.Team.Job running = com.suvo.agent.agent.Team.runningFor(e.id);
+                if (running != null) com.suvo.agent.agent.Team.tell(running, "New rule from the boss, follow it from now on: " + rule);
+                g.agent.addNotice(e.name + " — new rule from the boss", rule);
+                return ToolResult.ok(e.name + "'s instructions now include the rule (" + Math.min(rules.size(), 12) + " rule(s)). "
+                        + "It applies to every future job" + (running != null ? " and was also sent to the running job #" + running.id : "")
+                        + ". Assign the job again if it still has to be done.");
             }
             if (team.isEmpty()) return ToolResult.fail("You have no employees. Do the task yourself.");
             if ("tell".equals(action)) {

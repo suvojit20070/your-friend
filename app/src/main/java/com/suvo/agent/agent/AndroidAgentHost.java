@@ -169,7 +169,12 @@ public final class AndroidAgentHost implements AgentHost {
             + "result in your own words, or assign the next step. The user can talk to you at any time meanwhile: answer, and "
             + "use action=status (what everyone is doing), action=tell (more instructions for a working member) or action=stop.\n"
             + "5. The phone's screen, the camera and the browser can be used by one member at a time: give jobs that need the "
-            + "same one to one member, or assign them one after the other.";
+            + "same one to one member, or assign them one after the other.\n"
+            + "6. You are responsible for your team's quality. Read every report critically. When a member got something wrong "
+            + "(made-up or unchecked results, ignored the brief, broke a rule, wasted steps), correct it so it never happens "
+            + "again: delegate_task action=coach with the mistake and ONE clear rule — it is written into that member's own "
+            + "instructions. Then assign the job again if it still has to be done. Do not coach for problems that were not "
+            + "the member's fault (a site was down, the user denied something).";
 
     /** Code mode with the compact tool list (both switches on). */
     private boolean compactTools() {

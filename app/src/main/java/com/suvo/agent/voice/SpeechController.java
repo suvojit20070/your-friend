@@ -65,7 +65,7 @@ public final class SpeechController {
         omniServer = new OmniVoiceServerEngine(settings);
         hfSpace = new HfSpaceEngine(settings);
         system = new SystemTtsEngine(ctx, settings);
-        woof = new WoofEngine(ctx, settings, new com.suvo.agent.terminal.TermuxBackend(ctx).forUser());
+        woof = new WoofEngine(ctx, settings);
     }
 
     private final WoofEngine woof;

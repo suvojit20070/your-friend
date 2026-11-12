@@ -114,6 +114,7 @@ public final class ChildAgent {
         if (e.maxSteps > 0) cfg.maxSteps = Math.max(3, Math.min(cfg.maxSteps, e.maxSteps));
         ChildHost host = new ChildHost(g, e, reg, llm.config().supportsVision);
         host.job = job;
+        if (job != null) job.transcript = host.history;
         AgentListener listener = new AgentListener() {
             @Override
             public void onToolExecuting(TaskState t, ToolCall call) {
