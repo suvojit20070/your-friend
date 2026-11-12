@@ -100,6 +100,10 @@ public final class MainActivity extends BaseActivity {
         input = findViewById(R.id.home_input);
         mic = findViewById(R.id.home_mic);
         binder = new CompanionBinder(g, character);
+        // The speech bubble in the theme's own surface colour, set here so it can never be missed.
+        Palette homePal = Palette.of(this);
+        bubble.setBackground(new TonalDrawable(homePal.surfaceHigh, Ui.dp(this, 24)));
+        bubble.setTextColor(homePal.onSurface);
         speechInput = new SpeechInput(this);
         Nav.build(this, findViewById(R.id.nav), 0);
         // Zafiro chrome: tonal glass composer (Field-36) and a round glass settings button.
@@ -218,6 +222,11 @@ public final class MainActivity extends BaseActivity {
                 0, v -> open(VoiceActivity.class)));
         if (g.agent.isRunning()) {
             chips.addView(Nav.chip(this, getString(R.string.action_stop), getColor(R.color.danger), v -> g.agent.cancel()));
+        }
+        int teamWorking = com.suvo.agent.agent.Team.runningCount();
+        if (teamWorking > 0) {
+            chips.addView(Nav.chip(this, getResources().getQuantityString(R.plurals.team_working, teamWorking, teamWorking), 0,
+                    v -> open(OfficeActivity.class)));
         }
         if (!g.approvals.pending().isEmpty()) {
             chips.addView(Nav.chip(this, getString(R.string.chip_approval_needed), getColor(R.color.danger), v -> open(LiveAgentActivity.class)));

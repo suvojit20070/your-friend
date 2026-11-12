@@ -25,7 +25,7 @@ public final class Settings {
     }
 
     // Appearance
-    public static final String THEME = "theme";                       // system | dark | light
+    public static final String THEME = "theme";                       // system | dark | light | dim
     public static final String ACCENT = "accent";                     // dynamic | #RRGGBB
     public static final String UI_LANGUAGE = "ui_language";           // "" (system) | en | hi-Latn | bn | hi | ja
     public static final String REDUCED_MOTION = "reduced_motion";

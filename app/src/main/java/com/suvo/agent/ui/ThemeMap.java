@@ -37,9 +37,13 @@ final class ThemeMap {
         final Map<Drawable.ConstantState, Factory> bgs = new HashMap<>();
         final Map<Integer, Integer> colors = new HashMap<>();
         final Palette pal;
+        /** The chip drawable's state when this was built: another one = the resources were reloaded. */
+        final Drawable.ConstantState probe;
 
         Cache(Context c, Palette p) {
             pal = p;
+            Drawable pr = c.getDrawable(R.drawable.chip);
+            probe = pr == null ? null : pr.getConstantState();
             float d = c.getResources().getDisplayMetrics().density;
             put(c, R.drawable.glass_card, (v, q) -> v.setBackground(new TonalDrawable(q.surfaceLow, 28 * d)));
             put(c, R.drawable.group_card, (v, q) -> v.setBackground(new TonalDrawable(q.surfaceLow, 28 * d)));
@@ -90,16 +94,28 @@ final class ThemeMap {
         }
     }
 
-    private static Cache cache;
-    private static Palette cachedFor;
+    /**
+     * One cache per Resources object. Backgrounds are recognised by the drawable's constant state,
+     * and those belong to one Resources: a screen, the application and a service each have their
+     * own, so a cache built for one never matched the views of another (chips kept the default
+     * colours "sometimes" — whenever something else had built the cache first).
+     */
+    private static final java.util.WeakHashMap<android.content.res.Resources, Cache> CACHES = new java.util.WeakHashMap<>();
 
     private static Cache cache(Context c) {
         Palette p = Palette.of(c);
-        if (cache == null || cachedFor != p) {
-            cache = new Cache(c, p);
-            cachedFor = p;
+        android.content.res.Resources res = c.getResources();
+        synchronized (CACHES) {
+            Cache k = CACHES.get(res);
+            if (k != null && k.pal == p) {
+                // After a configuration change the resources load new drawables: build again.
+                Drawable pr = c.getDrawable(R.drawable.chip);
+                if (pr != null && pr.getConstantState() == k.probe) return k;
+            }
+            k = new Cache(c, p);
+            CACHES.put(res, k);
+            return k;
         }
-        return cache;
     }
 
     static void apply(View root) {

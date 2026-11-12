@@ -472,4 +472,3 @@ Third-party components and their licenses are listed in
 `app/src/main/assets/THIRD_PARTY_NOTICES.txt` and on the in-app About screen: Shizuku API
 (Apache-2.0), JSch (BSD-3-Clause), omnivoice-server (MIT,
 not bundled), OmniVoice weights (CC BY-NC 4.0, not bundled).
-# userbot

@@ -118,6 +118,7 @@ public final class AppGraph {
         approvals = new ApprovalCenter(ctx);
         executor = new ToolExecutor(tools, capabilities, policy, approvals, audit);
         executor.decorator = new com.suvo.agent.device.accessibility.ToastAttach(ctx.getPackageName());
+        executor.guard = com.suvo.agent.core.tools.ResourceGuard.SHARED;
         skills = new SkillRepo(ctx);
         customTools = new CustomToolRepo(db, secrets);
         characters = new CharacterRepo(ctx);

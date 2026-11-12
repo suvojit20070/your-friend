@@ -19,7 +19,7 @@ public final class AgentTree {
 
     public static final class Node {
         public final long id;
-        public final long parentId;
+        public volatile long parentId;
         public final String agent;   // display name
         public final String role;    // "Boss" or the employee's role
         public final String task;
@@ -70,10 +70,19 @@ public final class AgentTree {
 
     /** A new boss task replaces the previous tree. */
     public static Node startRoot(String agent, String task) {
+        // Team members still at work (they run in the background across the boss's turns) stay.
+        List<Node> keep = new ArrayList<>();
+        for (Node x : NODES) {
+            if (x.parentId != -1 && (x.state == State.RUNNING || x.state == State.WAITING)) keep.add(x);
+        }
         NODES.clear();
         Node n = new Node(IDS.incrementAndGet(), -1, agent, "Boss", task);
         rootId = n.id;
         NODES.add(n);
+        for (Node x : keep) {
+            x.parentId = n.id;
+            NODES.add(x);
+        }
         changed();
         return n;
     }

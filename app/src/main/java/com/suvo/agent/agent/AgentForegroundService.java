@@ -83,7 +83,7 @@ public final class AgentForegroundService extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		if (intent != null && ACTION_STOP_TASK.equals(intent.getAction())) {
-			AppGraph.get().agent.cancel();
+			AppGraph.get().agent.cancelAll();
 			stopSelf();
 			return START_NOT_STICKY;
 		}

@@ -570,7 +570,7 @@ public final class ConnectorTools {
                             + "Tab, Backspace, Escape, ArrowUp, ArrowDown), scroll (dy pixels, page or the scrollable element around "
                             + "selector/text; negative = up), back, screenshot (picture of the page), url, js (JavaScript: a function "
                             + "body that returns a value, or an expression; prefer tap/type/key for clicking and typing), fetch "
-                            + "(request from inside the page with its cookies). After tap/type/key/scroll call text to see the result. Tabs: tabs (list: tab number, title, url, which is current, who opened it), new_tab (optional url), switch_tab (tab), close_tab (tab); every other action works on the current tab. "
+                            + "(request from inside the page with its cookies). After tap/type/key/scroll call text to see the result. Tabs: tabs (list: tab number, title, url, which is current, who opened it), new_tab (optional url), switch_tab (tab), close_tab (tab), close (closes the whole browser: all tabs and its window — do it when you are finished with the browser and nothing has to keep playing or loading); every other action works on the current tab. "
                             + "BEST WAY: elements = numbered list of every button, link, field, icon button, checkbox, dropdown… (like "
                             + "the phone's screen tree; (covered) = something is over it, (in dialog) = inside an open pop-up); then "
                             + "tap / type / select / upload with index. type: clear=true replaces the text. select: pick a dropdown "
@@ -583,7 +583,7 @@ public final class ConnectorTools {
                             + "to downloads/, new windows opened as tabs, refused camera/location requests).")
                     .schema("{\"type\":\"object\",\"properties\":{"
                             + "\"connector\":{\"type\":\"string\"},"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\",\"elements\",\"select\",\"upload\",\"dialog\",\"network\",\"mode\"]},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\",\"close\",\"elements\",\"select\",\"upload\",\"dialog\",\"network\",\"mode\"]},"
                             + "\"index\":{\"type\":\"integer\",\"description\":\"element number from elements (tap / type / select / upload)\"},"
                             + "\"files\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"upload: workspace paths (or ext:…)\"},"
                             + "\"answer\":{\"type\":\"string\",\"enum\":[\"accept\",\"dismiss\"],\"description\":\"dialog: OK / Cancel (prompt text in value)\"},"
@@ -650,7 +650,7 @@ public final class ConnectorTools {
                             + "key (Enter, Tab, Backspace, Escape, ArrowUp, ArrowDown), scroll (dy, negative = up), back, screenshot, url, "
                             + "js (function body returning a value), fetch (request with the page's cookies). After tap/type/key/scroll "
                             + "call text to see the result. Tabs: tabs (list: tab number, title, url, current, opened by), new_tab (optional url), "
-                            + "switch_tab (tab), close_tab (tab); the user sees the same tabs in the Browser screen. Never enter "
+                            + "switch_tab (tab), close_tab (tab), close (closes the whole browser: all tabs and its window — when you are finished with it); the user sees the same tabs in the Browser screen. Never enter "
                             + "passwords or payment details unless the user asked for that site. "
                             + "BEST WAY: elements = numbered list of every button, link, field, icon button, checkbox, dropdown… (like "
                             + "the phone's screen tree; (covered) = something is over it, (in dialog) = inside an open pop-up); then "
@@ -663,7 +663,7 @@ public final class ConnectorTools {
                             + "desktop or mobile site. Every answer also lists page events (file pickers, dialogs, downloads saved "
                             + "to downloads/, new windows opened as tabs, refused camera/location requests).")
                     .schema("{\"type\":\"object\",\"properties\":{"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\",\"elements\",\"select\",\"upload\",\"dialog\",\"network\",\"mode\"]},"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"open\",\"text\",\"tap\",\"type\",\"key\",\"scroll\",\"back\",\"screenshot\",\"url\",\"js\",\"fetch\",\"tabs\",\"new_tab\",\"switch_tab\",\"close_tab\",\"close\",\"elements\",\"select\",\"upload\",\"dialog\",\"network\",\"mode\"]},"
                             + "\"index\":{\"type\":\"integer\",\"description\":\"element number from elements (tap / type / select / upload)\"},"
                             + "\"files\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"upload: workspace paths (or ext:…)\"},"
                             + "\"answer\":{\"type\":\"string\",\"enum\":[\"accept\",\"dismiss\"],\"description\":\"dialog: OK / Cancel (prompt text in value)\"},"
@@ -899,6 +899,11 @@ public final class ConnectorTools {
                     int id = (int) inv.num("tab", -1);
                     if (!WebSession.closeTabFor(id)) return ToolResult.fail("No tab " + id + " — call tabs to see them");
                     return ToolResult.ok("Closed tab " + id, J.obj("tabs", WebSession.tabsJson(g.ctx)));
+                }
+                case "close": {
+                    // The whole browser: every tab, its window and its background service.
+                    int n = WebSession.closeAllFor();
+                    return ToolResult.ok(n == 0 ? "The browser was already closed" : "Browser closed (" + n + " tab(s))");
                 }
                 case "screenshot": {
                     Bitmap b = WebSession.screenshot(g.ctx, c);

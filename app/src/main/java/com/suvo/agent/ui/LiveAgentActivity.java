@@ -81,6 +81,7 @@ public final class LiveAgentActivity extends BaseActivity {
         setContentView(R.layout.activity_live_agent);
         setTopBar(R.string.section_agent);
         topAction(R.drawable.ic_history, R.string.agent_history, v -> showHistory());
+        topAction(R.drawable.ic_team, R.string.office_title, v -> startActivity(new android.content.Intent(this, OfficeActivity.class)));
         ListView lv = findViewById(R.id.agent_log);
         adapter = new BaseAdapter() {
             @Override

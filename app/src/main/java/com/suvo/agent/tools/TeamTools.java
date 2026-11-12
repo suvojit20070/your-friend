@@ -45,42 +45,108 @@ public final class TeamTools {
     public static final class DelegateTask extends BaseTool {
         public DelegateTask(AppGraph g) {
             super(g, ToolSpec.builder("delegate_task")
-                    .description("Hand a task to one of your employees (child agents the user created, listed under \"Your team\"). "
-                            + "The employee works with its own model and its allowed tools, then returns a report. Give a complete, "
-                            + "self-contained brief: goal, inputs, constraints and what to return. Each of the employee's actions still "
-                            + "goes through the app's permissions and approvals. Use action=list to see the team.")
+                    .description("Your team (the members listed under \"Your team\"). action=assign hands a task to a member and "
+                            + "returns AT ONCE: the member works in the background with its own model and tools, and its report "
+                            + "reaches you later as a message that starts with [Team report] — so after assigning, tell the user "
+                            + "who is doing what and end your turn; do not wait. Give a complete, self-contained brief (goal, "
+                            + "inputs, constraints, what to send back): the member cannot see your chat. A member takes one job "
+                            + "at a time; several members can work at once. action=status shows every job (what each member is "
+                            + "doing right now, or its result), action=tell sends a working member more instructions, action=stop "
+                            + "stops a job (job id, or all=true), action=list shows the team.")
                     .schema("{\"type\":\"object\",\"properties\":{"
-                            + "\"action\":{\"type\":\"string\",\"enum\":[\"delegate\",\"list\"],\"default\":\"delegate\"},"
-                            + "\"employee\":{\"type\":\"string\",\"description\":\"Employee name or id\"},"
-                            + "\"task\":{\"type\":\"string\",\"maxLength\":8000},"
-                            + "\"context\":{\"type\":\"string\",\"maxLength\":8000,\"description\":\"Facts the employee needs (it cannot see your chat)\"}"
+                            + "\"action\":{\"type\":\"string\",\"enum\":[\"assign\",\"status\",\"tell\",\"stop\",\"list\",\"delegate\"],\"default\":\"assign\"},"
+                            + "\"employee\":{\"type\":\"string\",\"description\":\"Member name or id (assign, tell)\"},"
+                            + "\"task\":{\"type\":\"string\",\"maxLength\":8000,\"description\":\"assign: the brief. tell: the message\"},"
+                            + "\"context\":{\"type\":\"string\",\"maxLength\":8000,\"description\":\"Facts the member needs (it cannot see your chat)\"},"
+                            + "\"job\":{\"type\":\"integer\",\"description\":\"job id (status of one job, tell, stop)\"},"
+                            + "\"all\":{\"type\":\"boolean\",\"default\":false,\"description\":\"stop: every running job\"}"
                             + "},\"additionalProperties\":false}")
-                    .risk(RiskLevel.LOW).timeoutMs(45 * 60_000L).build());
+                    .risk(RiskLevel.LOW).timeoutMs(60_000L).build());
         }
 
         @Override
         public RiskLevel riskFor(JSONObject args) {
-            return "list".equals(args.optString("action")) ? RiskLevel.READ_ONLY : RiskLevel.LOW;
+            String a = args.optString("action", "assign");
+            return "list".equals(a) || "status".equals(a) ? RiskLevel.READ_ONLY : RiskLevel.LOW;
         }
 
         @Override
         public String describeCall(JSONObject args) {
+            String a = args.optString("action", "assign");
+            if ("stop".equals(a)) return "Stop team job " + (args.optBoolean("all") ? "(all)" : "#" + args.optInt("job"));
+            if ("tell".equals(a)) return "Tell " + args.optString("employee", "job #" + args.optInt("job")) + ": " + args.optString("task");
             return "Ask " + args.optString("employee") + " to: " + args.optString("task");
+        }
+
+        private static JSONObject jobJson(com.suvo.agent.agent.Team.Job j, boolean full) {
+            long end = j.finishedAt > 0 ? j.finishedAt : System.currentTimeMillis();
+            JSONObject o = J.obj("job", j.id, "employee", j.employee, "status", j.status, "task", j.briefShort(full ? 600 : 160),
+                    "seconds", (end - j.startedAt) / 1000, "tool_calls", j.toolCalls);
+            if (j.running()) {
+                J.put(o, "doing", j.waitingApproval ? "waiting for the user's approval"
+                        : !j.waitingFor.isEmpty() ? "waiting for the " + j.waitingFor + " (" + j.waitingOn + " is using it)" : j.action);
+            } else if (com.suvo.agent.agent.Team.DONE.equals(j.status)) {
+                String r = j.report.trim();
+                J.put(o, "report", full || r.length() <= 400 ? r : r.substring(0, 400) + "…");
+            } else {
+                J.put(o, "problem", j.error);
+            }
+            return o;
         }
 
         @Override
         public ToolResult execute(ToolInvocation inv) {
             List<EmployeeRepo.Employee> team = g.employees.enabled();
-            if ("list".equals(inv.str("action", "delegate"))) {
+            String action = inv.str("action", "assign");
+            if ("delegate".equals(action)) action = "assign";
+            if ("list".equals(action)) {
                 JSONArray arr = new JSONArray();
                 for (EmployeeRepo.Employee e : team) {
                     com.suvo.agent.core.llm.ProviderConfig p = ChildAgent.providerFor(g, e);
+                    com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.runningFor(e.id);
                     arr.put(J.obj("id", e.id, "name", e.name, "role", e.role, "provider", p == null ? "" : p.name,
-                            "model", p == null ? "" : p.model, "tools", e.tools.isEmpty() ? "all" : String.join(",", e.tools)));
+                            "model", p == null ? "" : p.model, "tools", e.tools.isEmpty() ? "all" : String.join(",", e.tools),
+                            "busy", j == null ? "no" : "job #" + j.id));
                 }
                 return ToolResult.ok(arr.length() + " employees", J.obj("team", arr));
             }
+            if ("status".equals(action)) {
+                int id = (int) inv.num("job", -1);
+                if (id >= 0) {
+                    com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.get(id);
+                    return j == null ? ToolResult.fail("No job #" + id) : ToolResult.ok("Job #" + id + ": " + j.status, jobJson(j, true));
+                }
+                JSONArray arr = new JSONArray();
+                List<com.suvo.agent.agent.Team.Job> jobs = com.suvo.agent.agent.Team.jobs();
+                for (int i = Math.max(0, jobs.size() - 12); i < jobs.size(); i++) arr.put(jobJson(jobs.get(i), false));
+                int running = com.suvo.agent.agent.Team.runningCount();
+                return ToolResult.ok(running + " job(s) running", J.obj("jobs", arr,
+                        "in_use", new JSONObject(com.suvo.agent.core.tools.ResourceGuard.SHARED.holders())));
+            }
+            if ("stop".equals(action)) {
+                if (inv.bool("all", false)) return ToolResult.ok("Stopped " + com.suvo.agent.agent.Team.stopAll() + " job(s)");
+                int id = (int) inv.num("job", -1);
+                if (id < 0 && !inv.str("employee").isEmpty()) {
+                    EmployeeRepo.Employee e = g.employees.find(inv.str("employee"));
+                    com.suvo.agent.agent.Team.Job j = e == null ? null : com.suvo.agent.agent.Team.runningFor(e.id);
+                    if (j != null) id = j.id;
+                }
+                return com.suvo.agent.agent.Team.stop(id) ? ToolResult.ok("Job #" + id + " is being stopped")
+                        : ToolResult.fail("No running job " + (id < 0 ? "for that member" : "#" + id) + " — see action=status");
+            }
             if (team.isEmpty()) return ToolResult.fail("You have no employees. Do the task yourself.");
+            if ("tell".equals(action)) {
+                com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.get((int) inv.num("job", -1));
+                if (j == null) {
+                    EmployeeRepo.Employee e = g.employees.find(inv.str("employee"));
+                    j = e == null ? null : com.suvo.agent.agent.Team.runningFor(e.id);
+                }
+                if (inv.str("task").trim().isEmpty()) return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, "task (the message) is required");
+                if (!com.suvo.agent.agent.Team.tell(j, inv.str("task").trim())) {
+                    return ToolResult.fail("That member is not working on a job now — assign a new task instead");
+                }
+                return ToolResult.ok(j.employee + " gets the message before its next step (job #" + j.id + ")");
+            }
             if (inv.str("task").trim().isEmpty()) return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, "task is required");
             EmployeeRepo.Employee e = g.employees.find(inv.str("employee"));
             if (e == null) {
@@ -88,23 +154,26 @@ public final class TeamTools {
                 for (EmployeeRepo.Employee x : team) names.append(names.length() == 0 ? "" : ", ").append(x.name);
                 return ToolResult.fail("No employee \"" + inv.str("employee") + "\". Team: " + names);
             }
+            com.suvo.agent.agent.Team.Job busy = com.suvo.agent.agent.Team.runningFor(e.id);
+            if (busy != null) {
+                StringBuilder free = new StringBuilder();
+                for (EmployeeRepo.Employee x : team) {
+                    if (com.suvo.agent.agent.Team.runningFor(x.id) == null) free.append(free.length() == 0 ? "" : ", ").append(x.label());
+                }
+                return ToolResult.fail(e.name + " is still working on job #" + busy.id + " (" + busy.briefShort(100) + "). A member takes one "
+                        + "job at a time: assign a free member (" + (free.length() == 0 ? "none is free right now" : free) + "), add this "
+                        + "to the running job with action=tell, or wait for the report.");
+            }
+            com.suvo.agent.core.llm.ProviderConfig p = ChildAgent.providerFor(g, e);
+            if (p == null) return ToolResult.fail("No LLM provider is set up for " + e.name + " (and no default provider).");
+            String invalid = p.validate();
+            if (invalid != null) return ToolResult.fail(e.name + "'s provider \"" + p.name + "\" is not usable: " + invalid);
             String brief = inv.str("task").trim();
             if (!inv.str("context").trim().isEmpty()) brief += "\n\nContext from the boss:\n" + inv.str("context").trim();
-            AgentTree.Node root = AgentTree.root();
-            inv.progress.update(e.name + " is working");
-            ChildAgent.Outcome o = ChildAgent.run(g, e, brief, root == null ? -1 : root.id, inv.cancel, inv.progress::update);
-            if (o.task == null) return ToolResult.fail(o.error);
-            TaskState t = o.task;
-            JSONObject data = J.obj("employee", e.name, "role", e.role, "provider", o.providerName,
-                    "status", t.status.name().toLowerCase(Locale.ROOT), "tool_calls", t.toolCalls,
-                    "steps", t.progressSummary(15));
-            if (t.status == TaskState.Status.COMPLETED) {
-                J.put(data, "report", t.finalText);
-                return ToolResult.ok(e.name + " finished", data);
-            }
-            if (t.status == TaskState.Status.CANCELLED) return ToolResult.of(ToolResult.Status.CANCELLED, e.name + " was stopped");
-            J.put(data, "error", t.error);
-            return ToolResult.fail(e.name + " could not finish: " + t.error, data);
+            com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.assign(g, e, brief, g.agent.activeConversation());
+            return ToolResult.ok(e.name + " started job #" + j.id + " and works in the background. The report will reach you as a "
+                    + "[Team report] message. Now tell the user in a sentence or two who is doing what, and end your turn.",
+                    J.obj("job", j.id, "employee", e.name, "role", e.role, "status", "running"));
         }
     }
 

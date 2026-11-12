@@ -37,6 +37,9 @@ public final class ToolExecutor {
 
     public volatile ResultDecorator decorator;
 
+    /** Keeps team members from using the screen / camera / browser at the same time (null = no guard). */
+    public volatile ResourceGuard guard;
+
     public ToolExecutor(ToolRegistry registry, CapabilityProvider capabilities, ApprovalPolicy policy,
                         Approver approver, ToolEvent.Sink sink) {
         this.registry = registry;
@@ -123,6 +126,17 @@ public final class ToolExecutor {
         if (cancel.isCancelled()) {
             return finish(taskId, call, ToolResult.of(ToolResult.Status.CANCELLED, "Cancelled before execution"));
         }
+        // Only one agent at a time on the screen / camera / browser: wait for it, or be told who has it.
+        final ResourceGuard gd = guard;
+        final String resource = gd == null ? null : gd.resourceOf(name);
+        if (resource != null) {
+            String busy = gd.acquire(resource, taskId, cancel);
+            if (cancel.isCancelled()) {
+                if (busy == null) gd.done(resource, taskId);
+                return finish(taskId, call, ToolResult.of(ToolResult.Status.CANCELLED, "Cancelled before execution"));
+            }
+            if (busy != null) return finish(taskId, call, ToolResult.of(ToolResult.Status.UNAVAILABLE, busy));
+        }
         emit(taskId, call.id, name, ToolEvent.Phase.EXECUTING, "", "");
         CancellationToken child = cancel.child();
         final ToolInvocation inv = new ToolInvocation(call.id, taskId, args, child, progress);
@@ -149,6 +163,8 @@ public final class ToolExecutor {
             child.cancel("interrupted");
             future.cancel(true);
             result = ToolResult.of(ToolResult.Status.CANCELLED, "Interrupted");
+        } finally {
+            if (resource != null) gd.done(resource, taskId);
         }
         ResultDecorator d = decorator;
         if (d != null && result.status != ToolResult.Status.CANCELLED) {

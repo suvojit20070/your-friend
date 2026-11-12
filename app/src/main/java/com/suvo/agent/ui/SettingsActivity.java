@@ -68,6 +68,37 @@ public final class SettingsActivity extends BaseActivity {
         });
         screensBox = new LinearLayout(this);
         screensBox.setOrientation(LinearLayout.VERTICAL);
+        // Once the search field has scrolled away, a search button takes its place in the top bar.
+        final android.widget.ScrollView scroll = findViewById(R.id.rows_scroll);
+        final android.widget.ImageButton find = topAction(R.drawable.ic_search, R.string.settings_search_hint, v -> {
+            scroll.smoothScrollTo(0, 0);
+            search.requestFocus();
+            search.postDelayed(() -> {
+                android.view.inputmethod.InputMethodManager imm = getSystemService(android.view.inputmethod.InputMethodManager.class);
+                if (imm != null) imm.showSoftInput(search, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+            }, 260);
+        });
+        if (find != null) {
+            find.setVisibility(View.INVISIBLE);
+            find.setAlpha(0f);
+            final boolean[] shown = {false};
+            scroll.getViewTreeObserver().addOnScrollChangedListener(() -> {
+                // Gone = its lower edge is above the visible part of the page.
+                boolean away = search.getHeight() > 0 && scroll.getScrollY() > search.getBottom() - Ui.dp(this, 8);
+                if (away == shown[0]) return;
+                shown[0] = away;
+                find.animate().cancel();
+                if (away) {
+                    find.setVisibility(View.VISIBLE);
+                    find.setScaleX(0.7f);
+                    find.setScaleY(0.7f);
+                    find.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(200).start();
+                } else {
+                    find.animate().alpha(0f).scaleX(0.7f).scaleY(0.7f).setDuration(160)
+                            .withEndAction(() -> find.setVisibility(View.INVISIBLE)).start();
+                }
+            });
+        }
     }
 
     @Override
@@ -228,6 +259,12 @@ public final class SettingsActivity extends BaseActivity {
                 getString(isAssist ? R.string.assist_default_on : R.string.assist_default_off),
                 r.chip(isAssist ? "✓" : "Set", isAssist ? getColor(R.color.success) : Ui.accent(this)),
                 v -> AssistActivity.openDefaultSettings(this));
+        r.choiceRow(R.drawable.ic_character, R.string.assist_style, AssistActivity.STYLE, "card",
+                new String[]{getString(R.string.assist_style_card), getString(R.string.assist_style_bar), getString(R.string.assist_style_top),
+                        getString(R.string.assist_style_glow)},
+                new String[]{"card", "bar", "top", "glow"}, null);
+        r.row(R.drawable.ic_play, getString(R.string.assist_style_try), null, null,
+                v -> startActivity(new Intent(this, AssistActivity.class).putExtra(AssistActivity.EXTRA_LISTEN, false)));
         r.link(R.drawable.ic_screen, R.string.section_screen, R.string.settings_screen_desc, ScreenControlActivity.class);
         r.link(R.drawable.ic_shield, R.string.section_permissions, R.string.settings_permissions_desc, PermissionsActivity.class);
         r.row(R.drawable.ic_bell, getString(R.string.settings_notif_tone), NotificationTone.label(this), null,
@@ -241,8 +278,9 @@ public final class SettingsActivity extends BaseActivity {
 
         r.section(R.string.settings_appearance);
         r.choiceRow(R.drawable.ic_eye, R.string.settings_theme, Settings.THEME, "dark",
-                new String[]{getString(R.string.theme_system), getString(R.string.theme_dark), getString(R.string.theme_light)},
-                new String[]{"system", "dark", "light"}, v -> restartApp());
+                new String[]{getString(R.string.theme_system), getString(R.string.theme_dark), getString(R.string.theme_light),
+                        getString(R.string.theme_dim)},
+                new String[]{"system", "dark", "light", "dim"}, v -> restartApp());
         seedRow(r);
         // Chat text size, with a live Markdown preview.
         r.row(R.drawable.ic_chat, getString(R.string.md_scale), MarkdownScaleActivity.scalePercent(this) + "%", null,
@@ -432,6 +470,19 @@ public final class SettingsActivity extends BaseActivity {
         if (!err.isEmpty()) sub += "\n" + getString(R.string.settings_vrm_error, err);
         r.row(R.drawable.ic_character, getString(R.string.settings_vrm_model), sub, null, v -> pickVrm());
         r.row(R.drawable.ic_download, getString(R.string.settings_vrm_import), getString(R.string.settings_vrm_import_desc), null, v -> pickVrm());
+        // A model we suggest, downloaded and put on in one tap.
+        boolean usingRecommended = custom && g.settings.bool(VRM_RECOMMENDED_IN_USE, false);
+        TextView rec = r.row(R.drawable.ic_star, getString(R.string.settings_vrm_recommended),
+                vrmDownload != null ? vrmDownload : getString(usingRecommended ? R.string.settings_vrm_recommended_in_use : R.string.settings_vrm_recommended_desc),
+                null, v -> {
+                    if (vrmDownload != null) return;
+                    if (usingRecommended) {
+                        Ui.toast(this, R.string.settings_vrm_recommended_in_use);
+                        return;
+                    }
+                    Ui.confirm(this, R.string.settings_vrm_recommended, getString(R.string.settings_vrm_recommended_confirm), this::downloadRecommendedVrm);
+                });
+        vrmRecRow = rec;
         if (custom || bundled != null) {
             r.choiceRow(R.drawable.ic_eye, R.string.settings_vrm_framing, Settings.VRM_FRAMING, "full",
                     new String[]{getString(R.string.vrm_full_body), getString(R.string.vrm_upper_body)}, new String[]{"full", "upper"}, null);
@@ -442,11 +493,91 @@ public final class SettingsActivity extends BaseActivity {
                         //noinspection ResultOfMethodCallIgnored
                         new java.io.File(path).delete();
                         g.settings.put(Settings.VRM_PATH, "");
+                        g.settings.put(VRM_RECOMMENDED_IN_USE, false);
                         vrmInfo = "";
                         build();
                     }));
         }
         r.note(getString(R.string.settings_vrm_note));
+    }
+
+    /** A 3D model we suggest (one tap: download + apply). */
+    static final String VRM_RECOMMENDED_URL = "https://storage.devs.li/get?key=CQ3cWTdmp2A_m1Af0jzk8lGs&id=366";
+    private static final String VRM_RECOMMENDED_IN_USE = "vrm_recommended_in_use";
+    /** Progress text while the suggested model downloads (kept across page rebuilds). */
+    private static volatile String vrmDownload;
+    /** The suggested model row's subtitle. */
+    private TextView vrmRecRow;
+
+    private void setVrmProgress(String text) {
+        vrmDownload = text;
+        runOnUiThread(() -> {
+            // row() returns the row's subtitle: the progress goes there.
+            if (vrmRecRow != null) vrmRecRow.setText(text);
+        });
+    }
+
+    private void downloadRecommendedVrm() {
+        setVrmProgress(getString(R.string.settings_vrm_downloading, ""));
+        g.io.execute(() -> {
+            java.io.File tmp = new java.io.File(getCacheDir(), "avatar_download.vrm");
+            String result;
+            boolean ok = false;
+            try {
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(VRM_RECOMMENDED_URL).openConnection();
+                c.setInstanceFollowRedirects(true);
+                c.setConnectTimeout(20_000);
+                c.setReadTimeout(60_000);
+                int code = c.getResponseCode();
+                if (code >= 400) throw new java.io.IOException("HTTP " + code);
+                long size = c.getContentLengthLong();
+                try (InputStream in = c.getInputStream(); OutputStream out = new java.io.FileOutputStream(tmp)) {
+                    byte[] buf = new byte[1 << 16];
+                    long total = 0, shown = 0;
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        total += n;
+                        if (total > 200L * 1024 * 1024) throw new java.io.IOException("The model is larger than 200 MB");
+                        out.write(buf, 0, n);
+                        if (total - shown > 256 * 1024) {
+                            shown = total;
+                            setVrmProgress(getString(R.string.settings_vrm_downloading, size > 0
+                                    ? (total * 100 / size) + "% · " + Ui.size(total) + " / " + Ui.size(size) : Ui.size(total)));
+                        }
+                    }
+                } finally {
+                    c.disconnect();
+                }
+                result = applyVrm(tmp);
+                g.settings.put(VRM_RECOMMENDED_IN_USE, true);
+                ok = true;
+            } catch (Exception | OutOfMemoryError e) {
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+                result = getString(R.string.settings_vrm_invalid, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            }
+            vrmDownload = null;
+            final String msg = result;
+            final boolean success = ok;
+            runOnUiThread(() -> {
+                if (isFinishing()) return;
+                Ui.show(Ui.dialog(this).setTitle(success ? R.string.settings_vrm_recommended : R.string.error_title).setMessage(msg)
+                        .setPositiveButton(android.R.string.ok, null));
+                build();
+            });
+        });
+    }
+
+    /** Checks the downloaded / picked model and makes it the character's. @return the message to show */
+    private String applyVrm(java.io.File tmp) throws java.io.IOException {
+        String info = com.suvo.agent.character.vrm.VrmModel.probe(tmp);
+        java.io.File dest = vrmFile();
+        //noinspection ResultOfMethodCallIgnored
+        dest.delete();
+        if (!tmp.renameTo(dest)) throw new java.io.IOException("Could not save the model");
+        vrmInfo = info;
+        g.settings.put(Settings.VRM_PATH, dest.getAbsolutePath());
+        return getString(R.string.settings_vrm_imported, info);
     }
 
     private void pickVrm() {
@@ -474,14 +605,8 @@ public final class SettingsActivity extends BaseActivity {
                         out.write(buf, 0, n);
                     }
                 }
-                String info = com.suvo.agent.character.vrm.VrmModel.probe(tmp);
-                java.io.File dest = vrmFile();
-                //noinspection ResultOfMethodCallIgnored
-                dest.delete();
-                if (!tmp.renameTo(dest)) throw new java.io.IOException("Could not save the model");
-                vrmInfo = info;
-                g.settings.put(Settings.VRM_PATH, dest.getAbsolutePath());
-                result = getString(R.string.settings_vrm_imported, info);
+                result = applyVrm(tmp);
+                g.settings.put(VRM_RECOMMENDED_IN_USE, false);
                 ok = true;
             } catch (Exception | OutOfMemoryError e) {
                 //noinspection ResultOfMethodCallIgnored

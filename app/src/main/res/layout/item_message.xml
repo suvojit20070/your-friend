@@ -8,6 +8,26 @@
     android:paddingTop="5dp"
     android:paddingBottom="5dp">
 
+    <!-- Previews of what a message has attached (photos, videos, PDFs, files), above its bubble. -->
+    <HorizontalScrollView
+        android:id="@+id/msg_attach_scroll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:layout_marginStart="48dp"
+        android:layout_marginEnd="0dp"
+        android:layout_marginBottom="2dp"
+        android:clipToPadding="false"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/msg_attach"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
+
     <LinearLayout
         android:id="@+id/msg_bubble"
         android:layout_width="wrap_content"

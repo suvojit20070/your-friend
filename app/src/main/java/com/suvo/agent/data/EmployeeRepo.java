@@ -73,6 +73,39 @@ public final class EmployeeRepo {
     public EmployeeRepo(Context ctx) {
         prefs = ctx.getSharedPreferences("team", Context.MODE_PRIVATE);
         seedBuiltins();
+        seedAllRounder();
+    }
+
+    private static final String SEEDED_V2 = "builtin_seeded_v2";
+
+    /**
+     * The boss no longer works itself, so the team needs one member who can do anything that fits
+     * nobody else: Nova has every tool. Added once, like the others.
+     */
+    private synchronized void seedAllRounder() {
+        if (prefs.getBoolean(SEEDED_V2, false)) return;
+        List<Employee> all = list();
+        long max = 0;
+        boolean exists = false;
+        for (Employee x : all) {
+            max = Math.max(max, x.id);
+            if (x.name.equalsIgnoreCase("Nova")) exists = true;
+        }
+        if (!exists) {
+            Employee e = new Employee();
+            e.id = max + 1;
+            e.name = "Nova";
+            e.role = "All-rounder";
+            e.instructions = "You take every job that fits no other team member, and jobs that need several kinds of work at "
+                    + "once: the browser and websites, connected accounts and plugins, email, messages, files, downloads, "
+                    + "settings of the phone. Pick the most direct tool, check the result, and report what you did.";
+            e.providerId = -1;
+            e.enabled = true;
+            e.maxSteps = 40;
+            all.add(e);
+            write(all);
+        }
+        prefs.edit().putBoolean(SEEDED_V2, true).apply();
     }
 
     private static final String SEEDED = "builtin_seeded_v1";

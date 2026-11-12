@@ -130,7 +130,9 @@ public final class AndroidAgentHost implements AgentHost {
         pa.lessons = lessons(g, 12);
         pa.teamRoster = teamRoster(g);
         String built = pa.build();
-        if (compactTools()) {
+        final boolean bossOnly = Team.bossDelegatesOnly(g);
+        if (bossOnly) built += BOSS_RULES;
+        if (compactTools() && !bossOnly) {
             java.util.List<com.suvo.agent.core.tools.Tool> rest = new java.util.ArrayList<>();
             boolean off = screenOffNow();
             for (com.suvo.agent.core.tools.Tool t : g.tools.available(g.capabilities)) {
@@ -138,10 +140,7 @@ public final class AndroidAgentHost implements AgentHost {
                 if (com.suvo.agent.tools.RunCodeTool.ALWAYS_NATIVE.contains(n) || (off && SCREEN_TOOLS.contains(n))) continue;
                 rest.add(t);
             }
-            built += "\n\n# Your other tools (through run_code)\nThese tools are not sent as separate functions. Call them inside "
-                    + "run_code as `await tools.<name>({...})` — also for a single call. `?` = optional. For a tool's full "
-                    + "description and argument details run `return await tools.docs(\"name\")` first when you are not sure.\n"
-                    + com.suvo.agent.tools.RunCodeTool.signatures(rest);
+            built += com.suvo.agent.tools.RunCodeTool.compactSection(rest);
         }
         if (screenOffNow()) {
             built += "\n\n# Screen is OFF\nThis run started by itself (a schedule) and the phone's screen is off right now, so the "
@@ -151,6 +150,26 @@ public final class AndroidAgentHost implements AgentHost {
         }
         return built;
     }
+
+    /** What the boss keeps for itself while it has a team: handing out work, remembering, planning ahead. */
+    public static final java.util.Set<String> BOSS_TOOLS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "delegate_task", "memory", "record_mistake", "schedule_task"));
+
+    private static final String BOSS_RULES = "\n\n# How you work: you are the BOSS\n"
+            + "You never do the work yourself and you have no working tools. Every job — searching, files, code, the phone's "
+            + "screen, the browser, messages, anything — is done by a team member. For each request:\n"
+            + "1. Plain talk, or something you know for sure → just answer.\n"
+            + "2. Anything that has to be done, looked up or checked → delegate_task action=assign to the member whose role fits "
+            + "best, with a complete brief: they cannot see this chat, so put in every fact they need, the exact goal and what "
+            + "to send back. Independent parts can go to several members at once; one member takes one job at a time.\n"
+            + "3. assign returns at once and the member works in the background. Tell the user right away, in one or two short "
+            + "sentences, who is doing what — then END your turn. Never wait for the member, never call status again and again, "
+            + "never make up a result.\n"
+            + "4. When a member is done, the app sends you a message that starts with [Team report]. Then tell the user the "
+            + "result in your own words, or assign the next step. The user can talk to you at any time meanwhile: answer, and "
+            + "use action=status (what everyone is doing), action=tell (more instructions for a working member) or action=stop.\n"
+            + "5. The phone's screen, the camera and the browser can be used by one member at a time: give jobs that need the "
+            + "same one to one member, or assign them one after the other.";
 
     /** Code mode with the compact tool list (both switches on). */
     private boolean compactTools() {
@@ -227,7 +246,10 @@ public final class AndroidAgentHost implements AgentHost {
             if (!e.tools.isEmpty()) sb.append(" · tools: ").append(String.join(", ", e.tools));
             sb.append('\n');
         }
-        sb.append("Delegate when a member's role fits; otherwise do it yourself. You stay responsible for the final answer.");
+        if (!Team.bossDelegatesOnly(g)) {
+            sb.append("Delegate when a member's role fits (they work in the background and report back later); otherwise do it "
+                    + "yourself. You stay responsible for the final answer.");
+        }
         return sb.toString();
     }
 
@@ -288,6 +310,16 @@ public final class AndroidAgentHost implements AgentHost {
                 keep.put(t);
             }
             all = keep;
+        }
+        if (Team.bossDelegatesOnly(g)) {
+            // The boss only hands out work: nothing else is offered to it.
+            JSONArray keep = new JSONArray();
+            for (int i = 0; i < all.length(); i++) {
+                org.json.JSONObject t = all.optJSONObject(i);
+                org.json.JSONObject fn = t == null ? null : t.optJSONObject("function");
+                if (fn != null && BOSS_TOOLS.contains(fn.optString("name"))) keep.put(t);
+            }
+            return keep;
         }
         if (compactTools()) {
             // Code mode, compact: only a few tools go as full schemas; the rest are one-line

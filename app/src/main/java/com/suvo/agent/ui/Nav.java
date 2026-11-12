@@ -150,9 +150,11 @@ public final class Nav {
     public static TextView chip(Activity a, CharSequence text, int color, View.OnClickListener l) {
         TextView c = new TextView(a, null, 0, R.style.YF_Chip);
         c.setText(text);
-        if (color != 0) {
-            c.setBackgroundTintList(android.content.res.ColorStateList.valueOf(com.suvo.agent.core.character.Appearance.alpha(color, 0.22f)));
-        }
+        // Coloured right here from the theme (not left to the later theming pass, which could miss it).
+        Palette pal = Palette.of(a);
+        c.setBackgroundTintList(null);
+        c.setBackground(new TonalDrawable(color != 0 ? Palette.alpha(color, 0.22f) : Palette.alpha(pal.primary, 0.14f), -1));
+        c.setTextColor(pal.onSurface);
         if (l != null) c.setOnClickListener(l);
         return c;
     }

@@ -281,6 +281,8 @@
             android:exported="false" />
         <activity android:name=".ui.OnboardingActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.LiveAgentActivity" android:exported="false" />
+        <activity android:name=".ui.OfficeActivity" android:exported="false" android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
         <activity android:name=".ui.MemoryActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.ProvidersActivity" android:exported="false" />
         <activity android:name=".ui.ProviderEditorActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />

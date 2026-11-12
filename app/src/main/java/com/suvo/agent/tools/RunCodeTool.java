@@ -37,25 +37,25 @@ public final class RunCodeTool extends BaseTool {
     public static final String COMPACT = "code_mode_compact";
 
     /** Not callable from a script (itself; things that start their own runs or would wait on this one). */
-    private static final Set<String> NOT_IN_SCRIPTS = new HashSet<>(Arrays.asList("run_code", "delegate_task"));
+    private static final Set<String> NOT_IN_SCRIPTS = new HashSet<>(Arrays.asList("run_code", "use_tool", "delegate_task"));
 
     /** Always offered as real tools, also in compact mode. */
     public static final Set<String> ALWAYS_NATIVE = new HashSet<>(Arrays.asList("run_code", "delegate_task", "load_skill", "memory",
-            "record_mistake", "view_image", "list_tools", "wait"));
+            "record_mistake", "view_image", "list_tools", "wait", "use_tool", "schedule_task"));
 
     public RunCodeTool(AppGraph g) {
         super(g, ToolSpec.builder("run_code")
-                .description("Code mode: run a JavaScript script that calls your tools itself. Use it whenever a job needs several "
-                        + "tool calls, a loop, or handling a lot of data (read 20 chats and answer some, check many files, search "
-                        + "then open the best results…): ONE run instead of many calls, and only what you return comes back to "
-                        + "you, so it is much faster and cheaper. The code is the body of an async function. Every tool is "
+                .description("Code mode: run a JavaScript script that calls your tools itself. ONLY for a job that needs THREE OR "
+                        + "MORE tool calls, a loop, or a lot of data to filter (read 20 chats and answer some, check many files, "
+                        + "search then open the best results…): then it is ONE run instead of many calls and only what you return "
+                        + "comes back. NEVER wrap one or two calls in a script — writing the script costs more tokens than the "
+                        + "call: call the tool directly (or through use_tool). The code is the body of an async function. Every tool is "
                         + "tools.<name>({...same arguments as the tool...}) and returns a Promise: ALWAYS await it. It resolves "
                         + "to the tool's result object (its data plus message) and throws an Error when the tool fails "
                         + "(try/catch if you want to go on). Also: tools.list() (names), tools.docs(name) (description + "
                         + "schema), console.log(...) (shown to you), sleep(ms). Return a small JSON-able value: the answer, "
                         + "counts, the few items that matter — not the raw data. Modern JavaScript, no network, files or "
-                        + "imports (only tools). Actions that need the user's approval still ask. For one single simple call "
-                        + "just call the tool directly.")
+                        + "imports (only tools). Actions that need the user's approval still ask.")
                 .schema("{\"type\":\"object\",\"properties\":{"
                         + "\"code\":{\"type\":\"string\",\"minLength\":1,\"description\":\"body of an async function, e.g. "
                         + "const r = await tools.file_list({path:'.'}); return r.entries.length;\"},"
@@ -76,9 +76,9 @@ public final class RunCodeTool extends BaseTool {
     }
 
     /** The tools a script may call right now. */
-    private List<Tool> callable() {
+    private List<Tool> callable(com.suvo.agent.core.tools.ToolExecutor exec) {
         List<Tool> out = new ArrayList<>();
-        for (Tool t : g.tools.available(g.capabilities)) if (!NOT_IN_SCRIPTS.contains(t.spec().name)) out.add(t);
+        for (Tool t : exec.registry().available(g.capabilities)) if (!NOT_IN_SCRIPTS.contains(t.spec().name)) out.add(t);
         return out;
     }
 
@@ -88,7 +88,9 @@ public final class RunCodeTool extends BaseTool {
         if (code.contains("tools.") && !code.contains("await") && !code.contains(".then(")) {
             return ToolResult.fail("tools.<name>() returns a Promise: write `const r = await tools.name({...})`. Nothing was run.");
         }
-        List<Tool> tools = callable();
+        // A team member's script uses that member's own tools (and nothing more).
+        final com.suvo.agent.core.tools.ToolExecutor exec = com.suvo.agent.agent.Team.executorFor(g, inv.taskId);
+        List<Tool> tools = callable(exec);
         List<String> names = new ArrayList<>();
         for (Tool t : tools) names.add(t.spec().name);
         final JSONArray log = new JSONArray();
@@ -97,7 +99,7 @@ public final class RunCodeTool extends BaseTool {
             try {
                 if ("__list".equals(name)) return new JSONArray(names).toString();
                 if ("__docs".equals(name)) {
-                    Tool t = g.tools.get(new JSONObject(argsJson).optString("name"));
+                    Tool t = exec.registry().get(new JSONObject(argsJson).optString("name"));
                     if (t == null) {
                         ok[0] = false;
                         return JSONObject.quote("No tool with that name: see tools.list()");
@@ -114,7 +116,7 @@ public final class RunCodeTool extends BaseTool {
                 }
                 inv.progress.update(name + " (" + i + ")");
                 long t0 = System.currentTimeMillis();
-                ToolResult r = g.executor.execute(new ToolCall(inv.callId + "_c" + i, name, argsJson), inv.taskId, inv.cancel, inv.progress);
+                ToolResult r = exec.execute(new ToolCall(inv.callId + "_c" + i, name, argsJson), inv.taskId, inv.cancel, inv.progress);
                 boolean good = r.status == ToolResult.Status.SUCCEEDED;
                 synchronized (log) {
                     if (log.length() < 80) log.put(name + (good ? " ok " : " FAILED ") + (System.currentTimeMillis() - t0) + "ms");
@@ -152,7 +154,84 @@ public final class RunCodeTool extends BaseTool {
         }
         data.put("result", parsed == null ? JSONObject.NULL : parsed);
         if (cut) data.put("note", "The returned value was cut at 16,000 characters: return less (filter / summarize in the script)");
-        return ToolResult.ok("Script finished (" + log.length() + " tool call(s))", data);
+        ToolResult done = ToolResult.ok("Script finished (" + log.length() + " tool call(s))", data);
+        // A script around a single call is the expensive way: say so, so the next one goes directly.
+        if (log.length() <= 1) {
+            done = done.withNote("This script made " + log.length() + " tool call: that costs MORE tokens than calling the tool "
+                    + "directly. Next time call the tool itself (or use_tool {name, args}); keep run_code for 3+ calls, loops or "
+                    + "filtering a lot of data.");
+        }
+        return done;
+    }
+
+    // ------------------------------------------------------------------ use_tool (one call, compact mode)
+
+    /**
+     * One direct call of a tool that is only listed as a one-line signature (compact mode): the
+     * cheap way for a single call — no script to write, the tool's own result comes back as it is.
+     */
+    public static final class UseTool extends BaseTool {
+        public UseTool(AppGraph g) {
+            super(g, ToolSpec.builder("use_tool")
+                    .description("Call ONE of your listed tools directly: name + its arguments. This is the way for a single call "
+                            + "(cheaper than a script). docs=true returns the tool's full description and argument schema instead "
+                            + "of running it. For three or more calls, loops or filtering a lot of data use run_code.")
+                    .schema("{\"type\":\"object\",\"properties\":{"
+                            + "\"name\":{\"type\":\"string\",\"minLength\":1,\"description\":\"tool name from your tool list\"},"
+                            + "\"args\":{\"type\":\"object\",\"description\":\"the tool's arguments\"},"
+                            + "\"docs\":{\"type\":\"boolean\",\"default\":false}"
+                            + "},\"required\":[\"name\"],\"additionalProperties\":false}")
+                    .risk(RiskLevel.READ_ONLY).backend("code").timeoutMs(46 * 60_000L).build());
+        }
+
+        @Override
+        public String unavailableReason() {
+            return g.settings.bool(SETTING, true) && g.settings.bool(COMPACT, false) ? null : "Only with the short tool list (Settings)";
+        }
+
+        @Override
+        public String describeCall(JSONObject a) {
+            return a.optString("name") + " " + a.optJSONObject("args");
+        }
+
+        @Override
+        public ToolResult execute(ToolInvocation inv) throws Exception {
+            String name = inv.str("name").trim();
+            if (name.startsWith("tools.")) name = name.substring(6);
+            com.suvo.agent.core.tools.ToolExecutor exec = com.suvo.agent.agent.Team.executorFor(g, inv.taskId);
+            Tool t = exec.registry().get(name);
+            if (t == null || "use_tool".equals(name)) return ToolResult.fail("No tool \"" + name + "\": use a name from your tool list");
+            if (inv.bool("docs", false)) {
+                return ToolResult.ok(name, J.obj("name", name, "description", t.spec().description, "arguments", t.spec().inputSchema));
+            }
+            JSONObject args = inv.args.optJSONObject("args");
+            // The real call: validated, risk-checked and approved like any other (this wrapper itself asks nothing).
+            return exec.execute(new ToolCall(inv.callId + "_u", name, args == null ? "{}" : args.toString()), inv.taskId, inv.cancel, inv.progress);
+        }
+    }
+
+    /** The system-prompt section that lists the tools not sent as functions (compact mode). */
+    public static String compactSection(List<Tool> rest) {
+        return "\n\n# Your other tools (not sent as separate functions)\nTwo ways to use them:\n"
+                + "- ONE call → use_tool {name, args}. Never write a script for a single call: a script costs more tokens.\n"
+                + "- Three or more calls, a loop, or a lot of data to filter → ONE run_code script with `await tools.<name>({...})`.\n"
+                + "`?` = optional. When you are not sure about a tool's arguments, ask once: use_tool {name, docs:true}.\n"
+                + signatures(rest);
+    }
+
+    /** Compact mode: only the always-native tools stay as full function definitions. */
+    public static JSONArray compactFilter(JSONArray all) {
+        JSONArray keep = new JSONArray();
+        for (int i = 0; i < all.length(); i++) {
+            JSONObject t = all.optJSONObject(i);
+            JSONObject fn = t == null ? null : t.optJSONObject("function");
+            if (fn != null && ALWAYS_NATIVE.contains(fn.optString("name"))) keep.put(t);
+        }
+        return keep;
+    }
+
+    public static boolean compact(AppGraph g) {
+        return g.settings.bool(SETTING, true) && g.settings.bool(COMPACT, false);
     }
 
     /** Worker stack traces: the blob address out, line numbers as in the agent's own code. */

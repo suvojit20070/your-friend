@@ -847,6 +847,22 @@ public final class WebSession {
         }, 5000);
     }
 
+    /** Closes every tab (the window and the service go with the last one). Any thread. @return tabs closed */
+    public static int closeAllFor() throws Exception {
+        final int[] n = {0};
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            try {
+                n[0] = tabs.size();
+                closeAllTabs();
+            } finally {
+                done.countDown();
+            }
+        });
+        if (!done.await(10, java.util.concurrent.TimeUnit.SECONDS)) throw new IllegalStateException("The browser did not close in time");
+        return n[0];
+    }
+
     public static boolean closeTabFor(int id) throws Exception {
         return onMain(() -> closeTab(id), 5000);
     }

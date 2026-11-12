@@ -49,6 +49,9 @@ public final class ChildAgent {
     /** Tools a child never gets: no further delegation, no scheduling on the boss's behalf. */
     public static final Set<String> BOSS_ONLY = new HashSet<>(Arrays.asList("delegate_task", "schedule_task"));
 
+    /** Helpers every member gets, whatever its tool list says. */
+    private static final Set<String> ALWAYS_FOR_MEMBERS = new HashSet<>(Arrays.asList("list_tools", "use_tool", "run_code", "wait"));
+
     public static final class Outcome {
         public TaskState task;
         public String error = "";
@@ -66,6 +69,12 @@ public final class ChildAgent {
 
     public static Outcome run(AppGraph g, EmployeeRepo.Employee e, String brief, long parentNode,
                               CancellationToken parentCancel, java.util.function.Consumer<String> progress) {
+        return run(g, e, brief, parentNode, parentCancel, progress, null);
+    }
+
+    /** @param job the team job this run belongs to (its live state is kept up to date), or null */
+    public static Outcome run(AppGraph g, EmployeeRepo.Employee e, String brief, long parentNode,
+                              CancellationToken parentCancel, java.util.function.Consumer<String> progress, Team.Job job) {
         Outcome out = new Outcome();
         ProviderConfig p = providerFor(g, e);
         if (p == null) {
@@ -85,24 +94,35 @@ public final class ChildAgent {
         for (Tool t : g.tools.all()) {
             String n = t.spec().name;
             if (BOSS_ONLY.contains(n)) continue;
-            if (!e.tools.isEmpty() && !e.tools.contains(n) && !"list_tools".equals(n)) continue;
+            if (!e.tools.isEmpty() && !e.tools.contains(n) && !ALWAYS_FOR_MEMBERS.contains(n)) continue;
             reg.register(t);
         }
         reg.setDisabledSet(g.tools.disabledNames());
         ToolExecutor exec = new ToolExecutor(reg, g.capabilities, g.policy, g.approvals, g.audit);
         exec.decorator = g.executor.decorator;
+        exec.guard = g.executor.guard;
 
         AgentTree.Node node = AgentTree.startChild(parentNode, e.name, e.role.isEmpty() ? "Employee" : e.role, brief);
         CancellationToken cancel = parentCancel.child();
         TaskState task = new TaskState(-1, brief);
+        // This run's id owns what it holds (screen, camera, browser) and finds its own tools from scripts.
+        com.suvo.agent.core.tools.ResourceGuard.SHARED.name(task.id, e.name);
+        Team.bind(task.id, exec);
+        if (job != null) job.taskId = task.id;
         AgentConfig cfg = g.settings.agentConfig();
         // 0 = the employee follows the boss's setting (which may be "no limit").
         if (e.maxSteps > 0) cfg.maxSteps = Math.max(3, Math.min(cfg.maxSteps, e.maxSteps));
         ChildHost host = new ChildHost(g, e, reg, llm.config().supportsVision);
+        host.job = job;
         AgentListener listener = new AgentListener() {
             @Override
             public void onToolExecuting(TaskState t, ToolCall call) {
                 AgentTree.toolCall(node, call.name);
+                if (job != null) {
+                    job.toolCalls++;
+                    job.action = call.name;
+                    Team.changed();
+                }
                 ScreenGate.beforeTool(call.name); // a helper's screen tools also move the assistant card aside
                 g.agent.externalLog("tool", e.name + " → " + call.name, com.suvo.agent.core.tools.ToolExecutor.redact(call.argumentsJson));
                 progress.accept(e.name + ": " + call.name);
@@ -111,6 +131,10 @@ public final class ChildAgent {
             @Override
             public void onToolResult(TaskState t, ToolCall call, ToolResult result) {
                 AgentTree.action(node, call.name + " · " + result.status.name().toLowerCase(Locale.ROOT));
+                if (job != null) {
+                    job.action = "thinking";
+                    Team.changed();
+                }
                 g.agent.externalLog(result.succeeded() ? "result" : "error", e.name + " · " + call.name + " — "
                         + result.status.name().toLowerCase(Locale.ROOT), result.message);
             }
@@ -119,6 +143,10 @@ public final class ChildAgent {
             public void onStatusChanged(TaskState t) {
                 if (t.status == TaskState.Status.WAITING_APPROVAL) AgentTree.state(node, AgentTree.State.WAITING);
                 else if (t.status == TaskState.Status.RUNNING) AgentTree.state(node, AgentTree.State.RUNNING);
+                if (job != null) {
+                    job.waitingApproval = t.status == TaskState.Status.WAITING_APPROVAL;
+                    Team.changed();
+                }
             }
 
             @Override
@@ -131,6 +159,8 @@ public final class ChildAgent {
             new AgentLoop(llm, exec, host, cfg, listener, cancel).run(task, ChatMessage.user(brief));
         } finally {
             exec.shutdown();
+            Team.unbind(task.id);
+            com.suvo.agent.core.tools.ResourceGuard.SHARED.releaseAll(task.id);
         }
         AgentTree.State end;
         switch (task.status) {
@@ -156,6 +186,8 @@ public final class ChildAgent {
         private final ToolRegistry reg;
         private final boolean vision;
         private final List<ChatMessage> history = Collections.synchronizedList(new ArrayList<>());
+        /** The team job (the boss can send more instructions while this runs), or null. */
+        Team.Job job;
 
         ChildHost(AppGraph g, EmployeeRepo.Employee e, ToolRegistry reg, boolean vision) {
             this.g = g;
@@ -173,7 +205,10 @@ public final class ChildAgent {
             pa.assignment = "The boss agent (the user's main companion) gave you the task in the first user message. "
                     + "You do not talk to the user directly: do the work with your tools, verify it, then answer with a concise report "
                     + "for the boss — what you did, the verified results (paths, numbers, findings) and anything left open. "
-                    + "If you are missing information only the user has, stop and say exactly what you need.";
+                    + "If you are missing information only the user has, stop and say exactly what you need. "
+                    + "Other team members may be working at the same time: the phone screen, the camera and the browser can be "
+                    + "used by one member at a time. When a tool answers that another member is using it, do your other steps "
+                    + "first or wait and try again; never look for a way around it.";
             pa.responseLanguage = "Write the report in the language of the task.";
             pa.capabilitySummary = g.capabilities.summaryForPrompt();
             pa.skillIndex = g.skills.indexForPrompt();
@@ -183,7 +218,22 @@ public final class ChildAgent {
             SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd HH:mm, EEEE", Locale.US);
             pa.nowDescription = f.format(new Date()) + " (" + TimeZone.getDefault().getID() + ")";
             List<ChatMessage> out = new ArrayList<>();
-            out.add(ChatMessage.system(pa.build()));
+            String built = pa.build();
+            if (com.suvo.agent.tools.RunCodeTool.compact(g) && reg.get("use_tool") != null) {
+                // Short tool list: most tools are one-line signatures, used through use_tool / run_code.
+                List<Tool> rest = new ArrayList<>();
+                for (Tool t : reg.available(g.capabilities)) {
+                    if (!com.suvo.agent.tools.RunCodeTool.ALWAYS_NATIVE.contains(t.spec().name)) rest.add(t);
+                }
+                built += com.suvo.agent.tools.RunCodeTool.compactSection(rest);
+            }
+            out.add(ChatMessage.system(built));
+            // More instructions the boss sent while this member works.
+            if (job != null) {
+                for (String m : job.takeInbox()) {
+                    history.add(ChatMessage.user("[Message from the boss while you work] " + m));
+                }
+            }
             List<ChatMessage> copy;
             synchronized (history) {
                 copy = new ArrayList<>(history);
@@ -204,7 +254,11 @@ public final class ChildAgent {
         @Override
         public JSONArray toolDefinitions() {
             if (!g.settings.bool(Settings.TOOL_CALLING, true)) return new JSONArray();
-            return reg.openAiTools(g.capabilities);
+            JSONArray all = reg.openAiTools(g.capabilities);
+            if (com.suvo.agent.tools.RunCodeTool.compact(g) && reg.get("use_tool") != null) {
+                return com.suvo.agent.tools.RunCodeTool.compactFilter(all);
+            }
+            return all;
         }
 
         /** Keeps the brief and the most recent exchange when the provider says the context is full. */

@@ -83,6 +83,14 @@ public final class AssistActivity extends BaseActivity {
     private long conversation;
     private boolean asked;
 
+    /** Setting: how the assistant looks — card (default), bar, top, glow (no card, only an animation). */
+    public static final String STYLE = "assist_style";
+    private String style = "card";
+    private AssistGlow glow;
+    private TextView caption;
+    private View scrim;
+    private LinearLayout headRow;
+
     // ---------------------------------------------------------------- default assistant helpers
 
     /** True when Your Friend is the phone's default digital assistant. */
@@ -129,7 +137,8 @@ public final class AssistActivity extends BaseActivity {
         speech = new SpeechInput(this);
 
         FrameLayout root = new FrameLayout(this);
-        View scrim = new View(this);
+        style = g.settings.str(STYLE, "card");
+        scrim = new View(this);
         scrim.setBackgroundColor(Palette.alpha(Color.BLACK, 0.32f));
         scrim.setOnClickListener(v -> finish());
         root.addView(scrim, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -143,6 +152,7 @@ public final class AssistActivity extends BaseActivity {
 
         // Header: companion name, "open chat", close.
         LinearLayout head = new LinearLayout(this);
+        headRow = head;
         head.setOrientation(LinearLayout.HORIZONTAL);
         head.setGravity(Gravity.CENTER_VERTICAL);
         ImageView mark = new ImageView(this);
@@ -234,8 +244,9 @@ public final class AssistActivity extends BaseActivity {
         card.addView(row, rp);
 
         FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM);
+                "top".equals(style) ? Gravity.TOP : Gravity.BOTTOM);
         root.addView(card, cp);
+        applyStyle(root, pal);
         // Insets (system bars, keyboard) go into the card's own margins.
         root.setOnApplyWindowInsetsListener((v, in) -> {
             int l, r, b;
@@ -249,9 +260,16 @@ public final class AssistActivity extends BaseActivity {
                 r = in.getSystemWindowInsetRight();
                 b = in.getSystemWindowInsetBottom();
             }
+            int top = Build.VERSION.SDK_INT >= 30 ? in.getInsets(WindowInsets.Type.statusBars()).top : in.getSystemWindowInsetTop();
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) card.getLayoutParams();
-            lp.setMargins(l + Ui.dp(this, 10), 0, r + Ui.dp(this, 10), b + Ui.dp(this, 10));
+            if ("top".equals(style)) lp.setMargins(l + Ui.dp(this, 10), top + Ui.dp(this, 8), r + Ui.dp(this, 10), 0);
+            else lp.setMargins(l + Ui.dp(this, 10), 0, r + Ui.dp(this, 10), b + Ui.dp(this, 10));
             card.setLayoutParams(lp);
+            if (caption != null) {
+                FrameLayout.LayoutParams clp = (FrameLayout.LayoutParams) caption.getLayoutParams();
+                clp.setMargins(l + Ui.dp(this, 28), 0, r + Ui.dp(this, 28), b + Ui.dp(this, 96));
+                caption.setLayoutParams(clp);
+            }
             return in;
         });
         setContentView(root);
@@ -260,13 +278,99 @@ public final class AssistActivity extends BaseActivity {
         conversation = g.agent.activeConversation();
         // Kept for the card's whole life (also while it steps aside for a task).
         g.agent.addListener(listener);
-        card.setTranslationY(Ui.dp(this, 80));
-        card.setAlpha(0f);
-        card.animate().translationY(0).alpha(1f).setDuration(260)
-                .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)).start();
+        if (!"glow".equals(style)) {
+            card.setTranslationY(Ui.dp(this, "top".equals(style) ? -80 : 80));
+            card.setAlpha(0f);
+            card.animate().translationY(0).alpha(1f).setDuration(260)
+                    .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)).start();
+        }
         applyIntent(getIntent());
         // Listen right away, like any assistant; without the microphone, type instead.
         root.post(this::startOrType);
+    }
+
+    /**
+     * The look chosen in Settings → Assistant style. "card": the glass card at the bottom over a
+     * dimmed screen. "bar": a slim bar, no dimming, no header, a short answer area. "top": the card
+     * drops down from the top, no dimming. "glow": no card at all — a glow rises from the bottom
+     * edge and the answer appears as a caption; tap the glow for the card.
+     */
+    private void applyStyle(FrameLayout root, Palette pal) {
+        switch (style) {
+            case "bar": {
+                scrim.setBackgroundColor(Color.TRANSPARENT);
+                headRow.setVisibility(View.GONE);
+                card.setBackground(new GlassDrawable(this, GlassDrawable.Preset.DIALOG, Ui.dp(this, 28)));
+                for (int i = 0; i < card.getChildCount(); i++) {
+                    View c = card.getChildAt(i);
+                    if (c instanceof GlassDialog.MaxHeightFrame) {
+                        card.removeViewAt(i);
+                        LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                        ap.setMargins(Ui.dp(this, 20), Ui.dp(this, 14), Ui.dp(this, 20), 0);
+                        ((ViewGroup) answerScroll.getParent()).removeView(answerScroll);
+                        card.addView(new GlassDialog.MaxHeightFrame(this, Math.round(getResources().getDisplayMetrics().heightPixels * 0.28f),
+                                answerScroll), i, ap);
+                        break;
+                    }
+                }
+                break;
+            }
+            case "top":
+                scrim.setBackgroundColor(Color.TRANSPARENT);
+                break;
+            case "glow": {
+                scrim.setBackgroundColor(Color.TRANSPARENT);
+                card.setVisibility(View.GONE);
+                glow = new AssistGlow(this, pal);
+                int gh = Math.round(getResources().getDisplayMetrics().heightPixels * 0.34f);
+                FrameLayout.LayoutParams gl = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, gh, Gravity.BOTTOM);
+                root.addView(glow, root.indexOfChild(card), gl);
+                glow.setOnClickListener(v -> showCardFromGlow());
+                glow.setContentDescription(getString(R.string.assist_glow_open));
+                caption = new TextView(this, null, 0, R.style.YF_Body);
+                caption.setTextColor(Color.WHITE);
+                caption.setTextSize(17f);
+                caption.setGravity(Gravity.CENTER);
+                caption.setMaxLines(6);
+                caption.setEllipsize(android.text.TextUtils.TruncateAt.START);
+                caption.setShadowLayer(Ui.dp(this, 6), 0, Ui.dp(this, 1), 0xCC000000);
+                caption.setText(R.string.assist_hint);
+                FrameLayout.LayoutParams clp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
+                clp.setMargins(Ui.dp(this, 28), 0, Ui.dp(this, 28), Ui.dp(this, 96));
+                root.addView(caption, clp);
+                caption.setOnClickListener(v -> showCardFromGlow());
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    /** Glow style: the user wants to type or read more — the full card comes up. */
+    private void showCardFromGlow() {
+        if (glow == null) return;
+        glow.setState(AssistGlow.DONE);
+        glow.postDelayed(() -> {
+            if (glow != null) glow.stop();
+        }, 900);
+        caption.setVisibility(View.GONE);
+        scrim.setBackgroundColor(Palette.alpha(Color.BLACK, 0.32f));
+        card.setVisibility(View.VISIBLE);
+        card.setTranslationY(Ui.dp(this, 80));
+        card.setAlpha(0f);
+        card.animate().translationY(0).alpha(1f).setDuration(260).start();
+        glow = null;
+    }
+
+    /** Status text: on the card, and in glow style also in the caption. */
+    private void say(CharSequence text) {
+        status.setText(text);
+        if (glow != null && caption != null) caption.setText(text);
+    }
+
+    private void glowState(int s) {
+        if (glow != null) glow.setState(s);
     }
 
     /**
@@ -439,18 +543,25 @@ public final class AssistActivity extends BaseActivity {
         }
         g.speech.stop();
         mic.setImageResource(R.drawable.ic_stop);
-        status.setText(R.string.assist_listening);
+        say(getString(R.string.assist_listening));
+        glowState(AssistGlow.LISTENING);
         speech.start(g.settings.str(com.suvo.agent.data.Settings.STT_LANGUAGE, ""), new SpeechInput.Callback() {
             @Override
+            public void onLevel(float rmsDb) {
+                if (glow != null) glow.setVoice(rmsDb);
+            }
+
+            @Override
             public void onPartial(String text) {
-                status.setText("“" + text + "”");
+                say("“" + text + "”");
             }
 
             @Override
             public void onFinal(String text) {
                 mic.setImageResource(R.drawable.ic_mic);
                 if (text.trim().isEmpty()) {
-                    status.setText(R.string.assist_hint);
+                    say(getString(R.string.assist_hint));
+                    glowState(AssistGlow.IDLE);
                 } else {
                     ask(text);
                 }
@@ -459,7 +570,8 @@ public final class AssistActivity extends BaseActivity {
             @Override
             public void onError(int code, String message) {
                 mic.setImageResource(R.drawable.ic_mic);
-                status.setText(message);
+                say(message);
+                glowState(AssistGlow.IDLE);
             }
         });
     }
@@ -492,7 +604,8 @@ public final class AssistActivity extends BaseActivity {
         // reads or operates the screen (see ScreenGate), and comes back with the answer.
         input.setText("");
         stream.setLength(0);
-        status.setText("“" + text + "”  ·  " + getString(R.string.status_thinking));
+        say("“" + text + "”  ·  " + getString(R.string.status_thinking));
+        glowState(AssistGlow.THINKING);
         answer.setVisibility(View.VISIBLE);
         answer.setText("");
     }
@@ -506,27 +619,49 @@ public final class AssistActivity extends BaseActivity {
             if (!parts[1].isEmpty()) {
                 answer.setText(Markdown.render(parts[1], md));
                 answerScroll.post(() -> answerScroll.scrollTo(0, answer.getBottom()));
+                if (glow != null) {
+                    caption.setText(Markdown.render(parts[1], md).toString());
+                    glowState(AssistGlow.SPEAKING);
+                }
             }
         }
 
         @Override
         public void onToolCallPreparing(TaskState task, String toolName) {
-            if (asked && task.conversationId == conversation) status.setText(getString(R.string.status_using_tool, toolName));
+            if (asked && task.conversationId == conversation) {
+                say(getString(R.string.status_using_tool, toolName));
+                glowState(AssistGlow.THINKING);
+            }
         }
 
         @Override
         public void onAssistantMessage(TaskState task, ChatMessage message) {
             if (!asked || task.conversationId != conversation) return;
             String[] parts = com.suvo.agent.core.llm.ThinkTags.split(message.contentOrEmpty());
-            if (!parts[1].trim().isEmpty()) answer.setText(Markdown.render(parts[1].trim(), md));
+            if (!parts[1].trim().isEmpty()) {
+                answer.setText(Markdown.render(parts[1].trim(), md));
+                if (glow != null) caption.setText(answer.getText().toString());
+            }
             stream.setLength(0); // the next step streams fresh text
         }
 
         @Override
         public void onFinished(TaskState task) {
             if (!asked || task.conversationId != conversation) return;
-            if (task.status != TaskState.Status.COMPLETED && !task.error.isEmpty()) status.setText(task.error);
-            else status.setText(R.string.assist_done);
+            if (task.status != TaskState.Status.COMPLETED && !task.error.isEmpty()) {
+                status.setText(task.error);
+                if (glow != null) caption.setText(task.error);
+            } else {
+                status.setText(R.string.assist_done);
+                if (glow != null) {
+                    // No card to read: the answer is said out loud (unless replies are spoken anyway).
+                    if (!g.settings.bool(com.suvo.agent.data.Settings.VOICE_OUTPUT, false) && !task.finalText.trim().isEmpty()) {
+                        g.speech.speak(task.finalText);
+                    }
+                    glowState(AssistGlow.SPEAKING);
+                    glow.postDelayed(() -> glowState(AssistGlow.IDLE), 2500);
+                }
+            }
             if (hiddenForTask) showAgain();
         }
     };
@@ -613,6 +748,7 @@ public final class AssistActivity extends BaseActivity {
 
     @Override
     protected void onDestroy() {
+        if (glow != null) glow.stop();
         g.agent.removeListener(listener);
         // Hands-free waits while the card is open; it goes back to listening for the wake word now.
         com.suvo.agent.voice.HandsFreeService.assistClosed();

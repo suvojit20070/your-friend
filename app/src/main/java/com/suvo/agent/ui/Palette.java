@@ -65,16 +65,28 @@ public final class Palette {
     public final int background, surfaceLow, surfaceHigh, surfaceHighest, primary, onPrimary, primaryContainer,
             secondaryContainer, tertiary, onSurface, onSurfaceVariant, outlineVariant, onPrimaryContainer, surfaceContainer, error;
 
-    private static Palette cached;
-    private static String cachedKey = "";
+    /** One palette per (seed, mode): screens with different modes never push each other out. */
+    private static final java.util.HashMap<String, Palette> CACHE = new java.util.HashMap<>();
 
-    private Palette(float seedHue, boolean dark) {
+    /** Dim: the dark scheme on pure black (#000000), with darker surfaces. */
+    public final boolean dim;
+
+    private Palette(float seedHue, boolean dark, boolean dim) {
         this.dark = dark;
+        this.dim = dim && dark;
         float[][] t = dark ? DARK : LIGHT;
         int[] c = new int[t.length];
         for (int i = 0; i < t.length; i++) {
             float h = ((seedHue + t[i][0]) % 360f + 360f) % 360f;
             c[i] = Color.HSVToColor(hslToHsv(h, t[i][1], t[i][2]));
+        }
+        if (this.dim) {
+            // Same hues, pulled down toward black: the page itself is true black.
+            c[0] = 0xFF000000;
+            c[1] = shade(seedHue, t[1], 0.052f);
+            c[2] = shade(seedHue, t[2], 0.098f);
+            c[3] = shade(seedHue, t[3], 0.135f);
+            c[13] = shade(seedHue, t[13], 0.068f);
         }
         background = c[0];
         surfaceLow = c[1];
@@ -93,19 +105,41 @@ public final class Palette {
         error = dark ? 0xFFFFB4AB : 0xFFBA1A1A;
     }
 
-    /** The palette for the current seed setting and light/dark mode of {@code ctx}. */
+    private static int shade(float seedHue, float[] role, float lightness) {
+        float h = ((seedHue + role[0]) % 360f + 360f) % 360f;
+        return Color.HSVToColor(hslToHsv(h, role[1], lightness));
+    }
+
+    /**
+     * The palette for the current seed and theme. The app's own theme setting decides light / dark
+     * (not the context's configuration), so a view built from the application context — the
+     * floating browser, the companion — gets exactly the colours of the screens.
+     */
     public static Palette of(Context ctx) {
-        boolean dark = (ctx.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        String seed = Settings.get(ctx).str(Settings.ACCENT, "dynamic");
-        String key = seed + dark;
-        synchronized (Palette.class) {
-            if (cached != null && key.equals(cachedKey)) return cached;
-            int seedColor = seedColor(ctx, seed);
-            float[] hsv = new float[3];
-            Color.colorToHSV(seedColor, hsv);
-            cached = new Palette(hsv[0], dark);
-            cachedKey = key;
-            return cached;
+        Settings st = Settings.get(ctx);
+        String theme = st.str(Settings.THEME, "dark");
+        boolean dark;
+        if ("system".equals(theme)) {
+            // The system's own setting (the application's configuration is never overridden).
+            Context app = ctx.getApplicationContext() == null ? ctx : ctx.getApplicationContext();
+            dark = (app.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        } else {
+            dark = !"light".equals(theme);
+        }
+        boolean dim = "dim".equals(theme);
+        String seed = st.str(Settings.ACCENT, "dynamic");
+        int seedColor = seedColor(ctx, seed);
+        String key = seedColor + "/" + dark + "/" + dim;
+        synchronized (CACHE) {
+            Palette p = CACHE.get(key);
+            if (p == null) {
+                float[] hsv = new float[3];
+                Color.colorToHSV(seedColor, hsv);
+                if (CACHE.size() > 8) CACHE.clear();
+                p = new Palette(hsv[0], dark, dim);
+                CACHE.put(key, p);
+            }
+            return p;
         }
     }
 

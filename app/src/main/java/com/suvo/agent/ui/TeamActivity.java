@@ -72,6 +72,9 @@ public final class TeamActivity extends BaseActivity {
         LinearLayout box = box();
         Rows r = new Rows(this, box);
         r.note(getString(R.string.team_intro));
+        r.link(R.drawable.ic_team, R.string.office_title, R.string.office_desc, OfficeActivity.class);
+        r.switchRow(R.drawable.ic_agent, R.string.team_boss_only, R.string.team_boss_only_desc,
+                com.suvo.agent.agent.Team.DELEGATE_ONLY, true, null);
         List<EmployeeRepo.Employee> team = g.employees.list();
         r.section(R.string.team_members);
         if (team.isEmpty()) {

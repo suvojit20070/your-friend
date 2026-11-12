@@ -61,6 +61,9 @@ public final class ChatActivity extends BaseActivity {
         final List<ChatMessage.Image> images = new ArrayList<>();
         String note;
         int inlineChars;
+        /** A small preview for the composer (photo, first video frame, first PDF page), or null. */
+        android.graphics.Bitmap thumb;
+        boolean video;
     }
 
     private final List<Pending> pending = new ArrayList<>();
@@ -89,10 +92,13 @@ public final class ChatActivity extends BaseActivity {
         String reasoning = "";
         /** Database id of the message (ASSISTANT: its token numbers). */
         long dbId = -1;
+        /** USER: what it has attached (shown as previews above the bubble). */
+        List<com.suvo.agent.core.util.AttachmentList.Att> atts = java.util.Collections.emptyList();
+        List<ChatMessage.Image> images = java.util.Collections.emptyList();
 
         /** Everything the row shows; a row bound to an item with the same signature is left alone. */
         int signature() {
-            int h = java.util.Objects.hash(type, key, title, text, detail, status, expanded, dim, time, header, reasoning);
+            int h = java.util.Objects.hash(type, key, title, text, detail, status, expanded, dim, time, header, reasoning, atts);
             for (Item c : children) h = 31 * h + java.util.Objects.hash(c.key, c.title, c.text, c.status, c.expanded, c.detail.length());
             return h;
         }
@@ -397,6 +403,21 @@ public final class ChatActivity extends BaseActivity {
             return true;
         });
         findViewById(R.id.chat_browser_stop).setOnClickListener(v -> com.suvo.agent.connectors.WebSession.closeAllTabs());
+        // The two browser chips: theme colours set here, and room around them (never clipped, never at the edge).
+        Palette chipPal = Palette.of(this);
+        findViewById(R.id.chat_team_office).setOnClickListener(v -> startActivity(new Intent(this, OfficeActivity.class)));
+        for (int id : new int[]{R.id.chat_browser_open, R.id.chat_browser_stop, R.id.chat_team_office}) {
+            TextView chip = findViewById(id);
+            chip.setBackgroundTintList(null);
+            chip.setBackground(new TonalDrawable(id == R.id.chat_browser_stop ? chipPal.surfaceHighest : chipPal.secondaryContainer, -1));
+            chip.setTextColor(chipPal.onSurface);
+            chip.setSingleLine(true);
+            chip.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        }
+        ViewGroup chatBottom = findViewById(R.id.chat_bottom);
+        chatBottom.setClipChildren(false);
+        chatBottom.setClipToPadding(false);
+        ((ViewGroup) findViewById(R.id.chat_browser_bar)).setClipChildren(false);
         list = findViewById(R.id.chat_scroll);
         listBox = findViewById(R.id.chat_list);
         ((android.view.ViewGroup) list.getParent()).setClipChildren(true); // never draw over the top bar
@@ -605,6 +626,10 @@ public final class ChatActivity extends BaseActivity {
         if (chips == null) return;
         chips.removeAllViews();
         for (Pending p : pending) {
+            if (p.thumb != null) {
+                chips.addView(thumbChip(p));
+                continue;
+            }
             TextView c = new TextView(this);
             c.setText(p.label + "  ✕");
             c.setTextColor(getColor(R.color.text_primary));
@@ -626,6 +651,56 @@ public final class ChatActivity extends BaseActivity {
             chips.addView(c, lp);
         }
         ((View) chips.getParent()).setVisibility(pending.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    /** A pending photo / video / PDF in the composer: its picture, with a small remove button. */
+    private View thumbChip(Pending p) {
+        android.widget.FrameLayout f = new android.widget.FrameLayout(this);
+        int size = Ui.dp(this, 64);
+        ImageView img = new ImageView(this);
+        img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        img.setImageBitmap(p.thumb);
+        img.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, android.graphics.Outline o) {
+                o.setRoundRect(0, 0, view.getWidth(), view.getHeight(), Ui.dp(ChatActivity.this, 14));
+            }
+        });
+        img.setClipToOutline(true);
+        android.widget.FrameLayout.LayoutParams il = new android.widget.FrameLayout.LayoutParams(size, size);
+        il.setMargins(0, Ui.dp(this, 6), Ui.dp(this, 6), 0);
+        f.addView(img, il);
+        if (p.video) {
+            TextView play = new TextView(this);
+            play.setText("▶");
+            play.setTextColor(android.graphics.Color.WHITE);
+            play.setTextSize(12f);
+            play.setGravity(Gravity.CENTER);
+            play.setBackground(new TonalDrawable(0x88000000, -1));
+            android.widget.FrameLayout.LayoutParams pl = new android.widget.FrameLayout.LayoutParams(Ui.dp(this, 26), Ui.dp(this, 26));
+            pl.setMargins(size / 2 - Ui.dp(this, 13), Ui.dp(this, 6) + size / 2 - Ui.dp(this, 13), 0, 0);
+            f.addView(play, pl);
+        }
+        ImageView x = new ImageView(this);
+        x.setImageResource(R.drawable.ic_close);
+        x.setImageTintList(android.content.res.ColorStateList.valueOf(Palette.of(this).onSurface));
+        int xp = Ui.dp(this, 3);
+        x.setPadding(xp, xp, xp, xp);
+        x.setBackground(new TonalDrawable(Palette.of(this).surfaceHighest, -1));
+        android.widget.FrameLayout.LayoutParams xl = new android.widget.FrameLayout.LayoutParams(Ui.dp(this, 22), Ui.dp(this, 22), Gravity.TOP | Gravity.END);
+        xl.setMargins(0, 0, 0, 0);
+        f.addView(x, xl);
+        f.setContentDescription(getString(R.string.chat_remove_attachment, p.label));
+        f.setOnClickListener(v -> {
+            pending.remove(p);
+            updateAttachmentHint();
+        });
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMarginEnd(Ui.dp(this, 4));
+        lp.gravity = Gravity.CENTER_VERTICAL;
+        f.setLayoutParams(lp);
+        return f;
     }
 
     private void setUpChips() {
@@ -792,6 +867,13 @@ public final class ChatActivity extends BaseActivity {
                 } else {
                     p.label = "📎 " + name;
                     p.note = com.suvo.agent.core.util.Attachments.workspaceFile(name, rel, dest.length(), m);
+                    if (m.startsWith("image/")) {
+                        try {
+                            p.thumb = com.suvo.agent.device.ImageUtil.decodeFile(dest, 240);
+                        } catch (Exception ignored) {
+                            // shown as a file chip
+                        }
+                    }
                 }
                 addPending(p);
             } catch (Exception e) {
@@ -812,6 +894,7 @@ public final class ChatActivity extends BaseActivity {
             Pending p = new Pending();
             p.label = "🖼 " + name;
             p.images.add(com.suvo.agent.device.ImageUtil.toImage(com.suvo.agent.device.ImageUtil.jpeg(b, 85), "auto"));
+            p.thumb = com.suvo.agent.device.ImageUtil.scaleToMax(b, 240);
             addPending(p);
         }
     }
@@ -835,9 +918,17 @@ public final class ChatActivity extends BaseActivity {
                         : r.getFrameAtTime(us, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
                 if (b == null) continue;
                 b = com.suvo.agent.device.ImageUtil.scaleToMax(b, 1024);
+                if (p.thumb == null) p.thumb = com.suvo.agent.device.ImageUtil.scaleToMax(b, 240);
                 p.images.add(com.suvo.agent.device.ImageUtil.toImage(com.suvo.agent.device.ImageUtil.jpeg(b, 80), "low"));
                 times.add(t);
             }
+            if (p.thumb == null) {
+                // The model sees no images: the composer still shows the first frame.
+                android.graphics.Bitmap b = android.os.Build.VERSION.SDK_INT >= 27
+                        ? r.getScaledFrameAtTime(0, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 240, 240) : r.getFrameAtTime(0);
+                if (b != null) p.thumb = com.suvo.agent.device.ImageUtil.scaleToMax(b, 240);
+            }
+            p.video = true;
         } catch (RuntimeException e) {
             // Unknown codec: the agent still gets the file in the workspace.
         } finally {
@@ -865,6 +956,7 @@ public final class ChatActivity extends BaseActivity {
                             Math.max(1, (int) (page.getHeight() * scale)), android.graphics.Bitmap.Config.ARGB_8888);
                     b.eraseColor(android.graphics.Color.WHITE);
                     page.render(b, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                    if (p.thumb == null) p.thumb = com.suvo.agent.device.ImageUtil.scaleToMax(b, 240);
                     p.images.add(com.suvo.agent.device.ImageUtil.toImage(com.suvo.agent.device.ImageUtil.jpeg(b, 85), "high"));
                     shown++;
                 }
@@ -985,11 +1077,20 @@ public final class ChatActivity extends BaseActivity {
 
     /** "Open browser window" / "Close browser" above the composer while the browser has tabs. */
     private final com.suvo.agent.connectors.WebSession.TabsListener browserBarWatch = this::updateBrowserBar;
+    /** Team members start and finish on their own threads. */
+    private final com.suvo.agent.agent.Team.Listener teamWatch = () -> runOnUiThread(this::updateBrowserBar);
 
     private void updateBrowserBar() {
         View bar = findViewById(R.id.chat_browser_bar);
         if (bar == null || isFinishing()) return;
-        boolean on = com.suvo.agent.connectors.WebSession.tabCount() > 0;
+        boolean browser = com.suvo.agent.connectors.WebSession.tabCount() > 0;
+        int team = com.suvo.agent.agent.Team.runningCount();
+        findViewById(R.id.chat_browser_open).setVisibility(browser ? View.VISIBLE : View.GONE);
+        findViewById(R.id.chat_browser_stop).setVisibility(browser ? View.VISIBLE : View.GONE);
+        TextView office = findViewById(R.id.chat_team_office);
+        office.setVisibility(team > 0 ? View.VISIBLE : View.GONE);
+        if (team > 0) office.setText(getResources().getQuantityString(R.plurals.team_working, team, team));
+        boolean on = browser || team > 0;
         if (on == (bar.getVisibility() == View.VISIBLE)) return;
         bar.setVisibility(on ? View.VISIBLE : View.GONE);
         if (on) {
@@ -1004,6 +1105,7 @@ public final class ChatActivity extends BaseActivity {
         g.agent.addListener(agentListener);
         browserPanel.start();
         com.suvo.agent.connectors.WebSession.addTabsListener(browserBarWatch);
+        com.suvo.agent.agent.Team.addListener(teamWatch);
         updateBrowserBar();
         ChatBlocks.actions = blockActions;
         // Markdown scale changed in settings: rebuild every row at the new size.
@@ -1022,6 +1124,7 @@ public final class ChatActivity extends BaseActivity {
         g.agent.removeListener(agentListener);
         browserPanel.stop();
         com.suvo.agent.connectors.WebSession.removeTabsListener(browserBarWatch);
+        com.suvo.agent.agent.Team.removeListener(teamWatch);
         if (ChatBlocks.actions == blockActions) ChatBlocks.actions = null;
         ChatMedia.stopVideo(); // audio keeps playing with its notification
         if (speechInput.isListening()) speechInput.cancel();
@@ -1208,13 +1311,20 @@ public final class ChatActivity extends BaseActivity {
                     Item it = new Item();
                     boolean toolImage = m.contentOrEmpty().startsWith("[Image output from");
                     boolean appCheck = m.contentOrEmpty().startsWith(com.suvo.agent.core.agent.FollowThrough.MARKER);
-                    it.type = toolImage || appCheck ? NOTICE : USER;
                     String c0 = m.contentOrEmpty();
-                    it.text = appCheck ? getString(c0.startsWith(com.suvo.agent.core.agent.FollowThrough.CHECK_FIRST.substring(0, 40))
+                    // A team member's report to the boss: one short line, not a message of yours.
+                    boolean teamReport = c0.startsWith(com.suvo.agent.agent.Team.REPORT_MARKER);
+                    it.type = toolImage || appCheck || teamReport ? NOTICE : USER;
+                    it.text = teamReport ? getString(com.suvo.agent.agent.Team.reportFailed(c0) ? R.string.chat_team_report_failed
+                            : R.string.chat_team_report, com.suvo.agent.agent.Team.reportSender(c0)) : appCheck ? getString(c0.startsWith(com.suvo.agent.core.agent.FollowThrough.CHECK_FIRST.substring(0, 40))
                             ? R.string.chat_check_first : c0.startsWith(com.suvo.agent.core.agent.FollowThrough.REMINDER.substring(0, 40))
                             ? R.string.chat_follow_through : R.string.chat_completion_check) : toolImage ? getString(R.string.chat_tool_image, m.images.size())
-                            : com.suvo.agent.core.util.Attachments.forDisplay(m.contentOrEmpty(), getString(R.string.chat_file_attached), getString(R.string.chat_folder_attached))
-                            + (m.images.isEmpty() ? "" : "\n" + getString(R.string.chat_images_attached, m.images.size()));
+                            // Files and photos are shown as previews above the bubble; folders keep their line.
+                            : com.suvo.agent.core.util.Attachments.forDisplay(m.contentOrEmpty(), "%.0s", getString(R.string.chat_folder_attached));
+                    if (it.type == USER) {
+                        it.atts = com.suvo.agent.core.util.AttachmentList.of(c0, m.images.size());
+                        it.images = m.images;
+                    }
                     it.time = sm.createdAt;
                     it.dim = sm.compacted;
                     items.add(it);
@@ -2082,6 +2192,17 @@ public final class ChatActivity extends BaseActivity {
             text.setTextSize(16f);
             text.setLineSpacing(Ui.dp(ChatActivity.this, 5), 1f);
             row.setGravity(Gravity.START);
+            View attachScroll = v.findViewById(R.id.msg_attach_scroll);
+            if (it.type == USER && !it.atts.isEmpty()) {
+                attachScroll.setVisibility(View.VISIBLE);
+                AttachmentViews.fill(ChatActivity.this, v.findViewById(R.id.msg_attach), it.atts, it.images, true);
+                // A message that is only an attachment has no bubble under it.
+                if (it.text.trim().isEmpty()) bubble.setVisibility(View.GONE);
+                else bubble.setVisibility(View.VISIBLE);
+            } else {
+                attachScroll.setVisibility(View.GONE);
+                bubble.setVisibility(View.VISIBLE);
+            }
             // Spacing: 24dp between turns (before your message), 12dp between blocks.
             row.setPadding(0, Ui.dp(ChatActivity.this, it.type == USER ? 18 : 6), 0, Ui.dp(ChatActivity.this, 6));
             int padH = Ui.dp(ChatActivity.this, 16), padV = Ui.dp(ChatActivity.this, 11);

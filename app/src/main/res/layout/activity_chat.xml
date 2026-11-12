@@ -220,20 +220,37 @@
                 android:id="@+id/chat_browser_bar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:clipChildren="false"
                 android:gravity="end|center_vertical"
                 android:orientation="horizontal"
                 android:visibility="gone">
+
+                <!-- Takes the free room on the left, so the chips keep their margins on the right. -->
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/chat_team_office"
+                    style="@style/YF.Chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginEnd="0dp"
+                    android:layout_marginBottom="8dp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/chat_browser_open"
                     style="@style/YF.Chip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:layout_marginTop="0dp"
-                    android:layout_marginEnd="6dp"
-                    android:layout_marginBottom="6dp"
-                    android:drawablePadding="6dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginBottom="8dp"
                     android:text="@string/chat_browser_open" />
 
                 <TextView
@@ -242,9 +259,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="0dp"
-                    android:layout_marginTop="0dp"
-                    android:layout_marginEnd="16dp"
-                    android:layout_marginBottom="6dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginEnd="20dp"
+                    android:layout_marginBottom="8dp"
                     android:text="@string/browser_service_close" />
             </LinearLayout>
 

@@ -34,7 +34,7 @@ public final class LocaleHelper {
             changed = true;
         }
         if (!"system".equals(theme)) {
-            int night = "dark".equals(theme) ? Configuration.UI_MODE_NIGHT_YES : Configuration.UI_MODE_NIGHT_NO;
+            int night = "light".equals(theme) ? Configuration.UI_MODE_NIGHT_NO : Configuration.UI_MODE_NIGHT_YES; // dark and dim
             cfg.uiMode = (cfg.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | night;
             changed = true;
         }
