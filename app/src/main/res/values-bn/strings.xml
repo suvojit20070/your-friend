@@ -272,7 +272,7 @@
     <string name="cap_detail_install">Your Friend-এর জন্য \"অজানা অ্যাপ ইনস্টল\" অনুমতি দিন। প্রতিটি ইনস্টলের আগে Android তবুও জিজ্ঞেস করবে।</string>
     <string name="cap_detail_microphone">মাইক্রোফোনের অনুমতি দিন।</string>
     <string name="cap_detail_notifications">নোটিফিকেশনের অনুমতি দিন।</string>
-    <string name="cap_detail_overlay">ফ্লোটিং সঙ্গীর জন্য \"অন্য অ্যাপের উপরে দেখানো\" অনুমতি দিন।</string>
+    <string name="cap_detail_overlay">ফ্লোটিং উইন্ডোর জন্য অ্যাক্সেসিবিলিটি চালু করুন, অথবা \"অন্য অ্যাপের উপরে দেখানো\" অনুমতি দিন।</string>
     <string name="cap_detail_screen_capture">স্ক্রিনশটের জন্য Android-এর স্ক্রিন-ক্যাপচার সম্মতি লাগে (অথবা Android 11+-এ Accessibility)।</string>
     <string name="cap_disabled_by_user">বন্ধ</string>
     <string name="cap_external_files">আপনার ফোল্ডার</string>
@@ -673,11 +673,28 @@
     <string name="perm_approval">অনুমোদন</string>
     <string name="perm_audit">সাম্প্রতিক টুল কার্যকলাপ</string>
     <string name="perm_audit_empty">এখনো কোনো টুল কার্যকলাপ নেই।</string>
+    <string name="perm_auto_body">Shizuku চলছে, তাই Your Friend নিজেই তার দরকারি সব অনুমতি চালু করতে পারে (অ্যাক্সেসিবিলিটি, নোটিফিকেশন, মাইক্রোফোন, ফ্লোটিং উইন্ডো, স্ক্রিন ক্যাপচার…)। কোনো সেটিংস খুলতে হবে না। এখনই করব?</string>
+    <string name="perm_auto_done">অনুমতি চালু হয়েছে</string>
+    <string name="perm_auto_failed">Shizuku দিয়ে চালু করা গেল না</string>
+    <string name="perm_auto_no">এখন না</string>
+    <string name="perm_auto_row">Shizuku দিয়ে সব চালু করুন</string>
+    <string name="perm_auto_row_ask">আগে Shizuku-তে Your Friend-কে অনুমতি দিন</string>
+    <string name="perm_auto_row_desc">এক ট্যাপে, কোনো সেটিংস স্ক্রিন ছাড়া</string>
+    <string name="perm_auto_title">Shizuku দিয়ে সব চালু করব?</string>
+    <string name="perm_auto_working">অনুমতি চালু হচ্ছে…</string>
+    <string name="perm_auto_yes">হ্যাঁ, সব চালু করুন</string>
     <string name="perm_capabilities">সক্ষমতা</string>
     <string name="perm_capabilities_note">অনুমতি দিতে বা ঠিক করতে আইটেমে ট্যাপ করুন।</string>
     <string name="perm_clear_audit">কার্যকলাপ লগ মুছুন</string>
     <string name="perm_data">আপনার ডেটা</string>
     <string name="perm_enable_in_privacy">এটি Permissions &amp; privacy-তে বন্ধ আছে।</string>
+    <string name="perm_float_accessibility">অ্যাক্সেসিবিলিটি ব্যবহার করুন</string>
+    <string name="perm_float_body">ফ্লোটিং উইন্ডো (সঙ্গী, অ্যাসিস্ট্যান্ট কার্ড, ফ্লোটিং ব্রাউজার) অ্যাক্সেসিবিলিটি দিয়ে চলে, যা দিয়ে এজেন্ট স্ক্রিনও চালায়। অথবা শুধু \"অন্য অ্যাপের উপরে দেখানো\" অনুমতি দিন।</string>
+    <string name="perm_float_overlay">অন্য অ্যাপের উপরে দেখানো</string>
+    <string name="perm_float_title">ফ্লোটিং উইন্ডো</string>
+    <string name="perm_one_body">Your Friend-এর জন্য অ্যাক্সেসিবিলিটি চালু করুন: এতে এজেন্ট স্ক্রিন দেখতে ও চালাতে পারে আর ফ্লোটিং উইন্ডো দেখাতে পারে। এর জন্য আর কিছু লাগবে না।</string>
+    <string name="perm_one_note">একটিই যথেষ্ট: Shizuku থাকলে অ্যাপ নিজেই সব চালু করে; না থাকলে অ্যাক্সেসিবিলিটি দিয়েই স্ক্রিন নিয়ন্ত্রণ ও ফ্লোটিং উইন্ডো চলে। \"অন্য অ্যাপের উপরে দেখানো\" শুধু তখনই লাগে যখন অ্যাক্সেসিবিলিটি বন্ধ।</string>
+    <string name="perm_one_title">শুধু একটি অনুমতি দরকার</string>
     <string name="perm_per_tool">প্রতিটি টুলের নিয়ম</string>
     <string name="perm_per_tool_desc">নির্দিষ্ট টুলের জন্য সবসময় জিজ্ঞেস, ব্লক বা বন্ধ করুন</string>
     <string name="perm_privacy">গোপনীয়তা</string>
@@ -1300,6 +1317,10 @@
     <plurals name="office_steps">
         <item quantity="one">%d ধাপ</item>
         <item quantity="other">%d ধাপ</item>
+    </plurals>
+    <plurals name="perm_auto_partial">
+        <item quantity="one">হয়েছে; %dটি জিনিস চালু করা যায়নি</item>
+        <item quantity="other">হয়েছে; %dটি জিনিস চালু করা যায়নি</item>
     </plurals>
     <plurals name="team_working">
         <item quantity="one">%dজন সদস্য কাজ করছে</item>

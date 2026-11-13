@@ -333,10 +333,10 @@ public final class HandsFreeService extends Service {
         Intent i = new Intent(this, com.suvo.agent.ui.AssistActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(com.suvo.agent.ui.AssistActivity.EXTRA_FROM_WAKE, true);
-        boolean canOpen = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || android.provider.Settings.canDrawOverlays(this);
+        boolean canOpen = com.suvo.agent.device.OverlayWindow.canStartFromBackground(this);
         try {
             if (!canOpen) throw new SecurityException("background start");
-            startActivity(i);
+            com.suvo.agent.device.OverlayWindow.starter(this).startActivity(i);
         } catch (RuntimeException e) {
             // Android blocks opening screens from the background without "display over other apps":
             // a heads-up notification that opens the card instead.

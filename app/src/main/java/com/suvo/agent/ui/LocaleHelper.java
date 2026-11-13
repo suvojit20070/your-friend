@@ -41,6 +41,30 @@ public final class LocaleHelper {
         return changed ? base.createConfigurationContext(cfg) : base;
     }
 
+    /**
+     * After the theme or language changed: the application's own context (used by floating
+     * windows, notifications, services) gets the new mode too, without restarting the process.
+     * Its configuration is rebuilt from the system's, so "System" really follows the phone again.
+     */
+    @SuppressWarnings("deprecation")
+    public static void applyToApp(Context app) {
+        Settings s = Settings.get(app);
+        Configuration cfg = new Configuration(android.content.res.Resources.getSystem().getConfiguration());
+        String tag = s.str(Settings.UI_LANGUAGE, "");
+        if (!tag.isEmpty()) cfg.setLocales(new LocaleList(Locale.forLanguageTag(tag)));
+        String theme = s.str(Settings.THEME, "dark");
+        if (!"system".equals(theme)) {
+            int night = "light".equals(theme) ? Configuration.UI_MODE_NIGHT_NO : Configuration.UI_MODE_NIGHT_YES;
+            cfg.uiMode = (cfg.uiMode & ~Configuration.UI_MODE_NIGHT_MASK) | night;
+        }
+        try {
+            app.getResources().updateConfiguration(cfg, app.getResources().getDisplayMetrics());
+        } catch (RuntimeException ignored) {
+            // the screens are right anyway; the rest follows at the next start
+        }
+        Splash.apply(app);
+    }
+
     /** Stores the choice and, on Android 13+, also registers it as the system per-app language. */
     public static void setLanguage(Context ctx, String tag) {
         Settings.get(ctx).put(Settings.UI_LANGUAGE, tag);

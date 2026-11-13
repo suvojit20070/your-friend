@@ -56,6 +56,11 @@ public final class PermissionsActivity extends BaseActivity {
 
         r.section(R.string.perm_capabilities);
         r.note(getString(R.string.perm_capabilities_note));
+        r.note(getString(R.string.perm_one_note));
+        if (PermissionSetup.shizukuReady()) {
+            r.row(0, getString(R.string.perm_auto_row), getString(R.string.perm_auto_row_desc), null,
+                    v -> PermissionSetup.offerAutoGrant(this));
+        }
         for (Capability c : Capability.values()) {
             CapabilityState s = g.capabilities.state(c);
             String detail = s == CapabilityState.AVAILABLE ? null : g.capabilities.detail(c);

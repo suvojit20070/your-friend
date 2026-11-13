@@ -34,6 +34,13 @@ public abstract class BaseActivity extends Activity {
         super.onCreate(savedInstanceState);
         g = AppGraph.get();
         Ui.edgeToEdge(getWindow());
+        // The window's first frame in the theme's own page colour (Dim: black) — not the fixed
+        // colour of the resources — so opening a screen never flashes another colour.
+        android.content.res.TypedArray ta = obtainStyledAttributes(new int[]{android.R.attr.windowIsTranslucent});
+        boolean translucent = ta.getBoolean(0, false);
+        ta.recycle();
+        if (!translucent) getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Palette.of(this).background));
+        Splash.apply(this);
     }
 
     /** Sets the content and pads the root for status/navigation bars and the keyboard. */
@@ -177,6 +184,7 @@ public abstract class BaseActivity extends Activity {
 
     /** Re-creates the screen after a language or theme change. */
     protected void restartApp() {
+        LocaleHelper.applyToApp(getApplicationContext());
         Intent i = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(i);
         finish();

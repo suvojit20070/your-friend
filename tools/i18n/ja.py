@@ -74,7 +74,7 @@ S = {
 "cap_detail_install": "Your Friend に「不明なアプリのインストール」を許可してください。インストールの前には必ず Android が確認します。",
 "cap_detail_microphone": "マイクの権限を許可してください。",
 "cap_detail_notifications": "通知の権限を許可してください。",
-"cap_detail_overlay": "フローティングコンパニオンのために「他のアプリの上に重ねて表示」を許可してください。",
+"cap_detail_overlay": "フローティングウィンドウには、ユーザー補助をオンにするか「他のアプリの上に重ねて表示」を許可してください。",
 "cap_detail_screen_capture": "スクリーンショットには Android の画面キャプチャ同意（または Android 11 以降のユーザー補助）が必要です。",
 "cap_disabled_by_user": "オフ",
 "cap_external_files": "あなたのフォルダ",
@@ -1256,6 +1256,23 @@ S = {
 "tree_reading_report": "%1$s の報告を読んでいます",
 "voice_auto_listen": "返答の後に聞き取る",
 "voice_auto_listen_desc": "返答が終わる（読み上げ後）とマイクが自動で開き、そのまま返事ができます。数秒無音なら閉じます",
+"perm_auto_title": "Shizukuですべて有効にしますか？",
+"perm_auto_body": "Shizukuが動いているので、Your Friendが使う権限（ユーザー補助、通知、マイク、フローティングウィンドウ、画面キャプチャ…）を自動で有効にできます。設定画面を開く必要はありません。今すぐ行いますか？",
+"perm_auto_yes": "はい、すべて有効に",
+"perm_auto_no": "今はしない",
+"perm_auto_working": "権限を有効にしています…",
+"perm_auto_done": "権限を有効にしました",
+"perm_auto_failed": "Shizukuで有効にできませんでした",
+"perm_one_title": "必要な権限は1つだけ",
+"perm_one_body": "Your Friendのユーザー補助をオンにしてください。これだけでエージェントが画面を見て操作し、フローティングウィンドウも表示できます。ほかの権限は不要です。",
+"perm_one_note": "1つで十分です。Shizukuがあればアプリがすべて自動で有効にし、なければユーザー補助だけで画面操作とフローティングウィンドウが使えます。「他のアプリの上に重ねて表示」はユーザー補助がオフのときだけ必要です。",
+"perm_auto_row": "Shizukuですべて有効にする",
+"perm_auto_row_desc": "ワンタップ、設定画面なし",
+"perm_auto_row_ask": "まずShizukuでYour Friendを許可してください",
+"perm_float_title": "フローティングウィンドウ",
+"perm_float_body": "フローティングウィンドウ（コンパニオン、アシスタントカード、フローティングブラウザ）はユーザー補助で動きます。エージェントの画面操作にも使われます。または「他のアプリの上に重ねて表示」だけを許可することもできます。",
+"perm_float_accessibility": "ユーザー補助を使う",
+"perm_float_overlay": "他のアプリの上に重ねて表示",
 }
 
 P = {
@@ -1272,4 +1289,5 @@ P = {
 "tile_auto_reply_apps": ("%d 個のアプリ",),
 "ar_tools_count": ("%d 個のツール",),
 "mcp_tools": ("%d 個のツール",),
+"perm_auto_partial": ("完了。%d 件は有効にできませんでした",),
 }

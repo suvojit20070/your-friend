@@ -165,6 +165,10 @@ public final class MainActivity extends BaseActivity {
         if (getIntent().getBooleanExtra(EXTRA_LISTEN, false)) area.post(this::toggleListening);
         UpdateChecker.cleanupAfterSuccessfulInstall(this);
         UpdateChecker.check(this, g.shizuku);
+        // Shizuku → everything in one go; otherwise Accessibility alone (asked once, never nagging).
+        area.postDelayed(() -> {
+            if (!isFinishing()) PermissionSetup.maybeOffer(this);
+        }, 1200);
     }
 
     @Override

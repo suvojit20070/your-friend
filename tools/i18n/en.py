@@ -74,7 +74,7 @@ S = {
 "cap_detail_install": "Allow \"Install unknown apps\" for Your Friend. Android still asks you before every install.",
 "cap_detail_microphone": "Grant the microphone permission.",
 "cap_detail_notifications": "Grant the notification permission.",
-"cap_detail_overlay": "Allow \"Display over other apps\" for the floating companion.",
+"cap_detail_overlay": "Turn on Accessibility, or allow \"Display over other apps\", for floating windows.",
 "cap_detail_screen_capture": "Screenshots need Android's screen-capture consent (or Accessibility on Android 11+).",
 "cap_disabled_by_user": "Off",
 "cap_external_files": "Your folders",
@@ -1339,6 +1339,23 @@ S = {
 "tree_reading_report": "Reading the report from %1$s",
 "voice_auto_listen": "Listen after the answer",
 "voice_auto_listen_desc": "When an answer is finished (and spoken), the microphone opens by itself so you can reply; it closes again after a few quiet seconds",
+"perm_auto_title": "Turn everything on with Shizuku?",
+"perm_auto_body": "Shizuku is running, so Your Friend can turn on all the permissions it uses by itself (Accessibility, notifications, microphone, floating windows, screen capture…). You won't need to open any settings. Do it now?",
+"perm_auto_yes": "Yes, turn all on",
+"perm_auto_no": "Not now",
+"perm_auto_working": "Turning permissions on…",
+"perm_auto_done": "Permissions are on",
+"perm_auto_failed": "Couldn't turn it on through Shizuku",
+"perm_one_title": "Only one permission needed",
+"perm_one_body": "Turn on Accessibility for Your Friend: with it the agent can see and control the screen and show floating windows. Nothing else is needed for that.",
+"perm_one_note": "One is enough: with Shizuku the app turns everything on by itself; without it, Accessibility covers screen control and floating windows. \"Display over other apps\" is only needed when Accessibility is off.",
+"perm_auto_row": "Turn everything on with Shizuku",
+"perm_auto_row_desc": "One tap, no settings screens",
+"perm_auto_row_ask": "First allow Your Friend in Shizuku",
+"perm_float_title": "Floating windows",
+"perm_float_body": "Floating windows (the companion, the assistant card, the floating browser) work with Accessibility, which the agent also uses to control the screen. Or allow only \"Display over other apps\".",
+"perm_float_accessibility": "Use Accessibility",
+"perm_float_overlay": "Display over other apps",
 }
 
 P = {
@@ -1355,4 +1372,5 @@ P = {
 "tile_auto_reply_apps": ("%d app", "%d apps"),
 "ar_tools_count": ("%d tool", "%d tools"),
 "mcp_tools": ("%d tool", "%d tools"),
+"perm_auto_partial": ("Done; %d item couldn't be turned on", "Done; %d items couldn't be turned on"),
 }

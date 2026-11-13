@@ -118,6 +118,8 @@ public final class WebSession {
     private static Host host;
     @SuppressLint("StaticFieldLeak")
     private static FrameLayout overlay;
+    /** The window manager the floating browser was added with (the accessibility service's, or the app's). */
+    private static WindowManager overlayWm;
     private static boolean overlayClosed;
 
     /** The full browser screen (BrowserActivity): while it is open the browser shows there. */
@@ -272,7 +274,7 @@ public final class WebSession {
         // The agent's browser pops up on its own only with "Open the browser window automatically"
         // on; otherwise it keeps working in the background until the user opens it.
         boolean show = manualOpen || autoFloat(ctx);
-        if (show && !overlayClosed && android.provider.Settings.canDrawOverlays(ctx)) {
+        if (show && !overlayClosed && com.suvo.agent.device.OverlayWindow.available(ctx)) {
             if (overlay == null) showOverlay(ctx);
             if (overlay != null) {
                 if (view.getParent() != overlay.findViewById(android.R.id.content)) {
@@ -309,7 +311,8 @@ public final class WebSession {
         final Context ctx = from.getApplicationContext();
         try {
             float d = ctx.getResources().getDisplayMetrics().density;
-            WindowManager wm = (WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
+            WindowManager wm = com.suvo.agent.device.OverlayWindow.manager(ctx);
+            overlayWm = wm;
             android.widget.LinearLayout box = new android.widget.LinearLayout(ctx);
             box.setOrientation(android.widget.LinearLayout.VERTICAL);
             android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
@@ -371,7 +374,7 @@ public final class WebSession {
 
             int sw = ctx.getResources().getDisplayMetrics().widthPixels, sh = ctx.getResources().getDisplayMetrics().heightPixels;
             WindowManager.LayoutParams lp = new WindowManager.LayoutParams(Math.round(sw * 0.94f), Math.round(sh * 0.5f),
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    com.suvo.agent.device.OverlayWindow.type(ctx),
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                     PixelFormat.TRANSLUCENT);
             lp.gravity = Gravity.TOP | Gravity.START;
@@ -434,10 +437,11 @@ public final class WebSession {
         FrameLayout content = overlay.findViewById(android.R.id.content);
         if (content != null && view != null && view.getParent() == content) content.removeView(view);
         try {
-            ((WindowManager) overlay.getContext().getSystemService(Context.WINDOW_SERVICE)).removeView(overlay);
+            (overlayWm != null ? overlayWm : (WindowManager) overlay.getContext().getSystemService(Context.WINDOW_SERVICE)).removeView(overlay);
         } catch (RuntimeException ignored) {
         }
         overlay = null;
+        overlayWm = null;
     }
 
     // ------------------------------------------------------------------ setup

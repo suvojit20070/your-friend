@@ -722,10 +722,11 @@ public final class AssistActivity extends BaseActivity {
         Intent i = new Intent(this, AssistActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(EXTRA_SHOW_RESULT, true);
-        boolean canOpen = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || Settings.canDrawOverlays(this);
+        // The overlay permission, or the Accessibility service (Android lets it open screens), is enough.
+        boolean canOpen = com.suvo.agent.device.OverlayWindow.canStartFromBackground(this);
         if (canOpen) {
             try {
-                startActivity(i);
+                com.suvo.agent.device.OverlayWindow.starter(this).startActivity(i);
                 return;
             } catch (RuntimeException ignored) {
             }

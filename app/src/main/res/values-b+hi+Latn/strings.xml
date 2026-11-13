@@ -280,7 +280,7 @@
     <string name="cap_detail_install">Your Friend ke liye \"Install unknown apps\" allow karo. Har install se pehle Android phir bhi poochega.</string>
     <string name="cap_detail_microphone">Microphone permission do.</string>
     <string name="cap_detail_notifications">Notification permission do.</string>
-    <string name="cap_detail_overlay">Floating companion ke liye \"Display over other apps\" allow karo.</string>
+    <string name="cap_detail_overlay">Floating windows ke liye Accessibility on karo, ya \"Display over other apps\" allow karo.</string>
     <string name="cap_detail_screen_capture">Screenshots ke liye Android ki screen-capture consent chahiye (ya Android 11+ par Accessibility).</string>
     <string name="cap_disabled_by_user">Off</string>
     <string name="cap_external_files">Aapke folders</string>
@@ -691,11 +691,28 @@
     <string name="perm_approval">Approvals</string>
     <string name="perm_audit">Haal ki tool activity</string>
     <string name="perm_audit_empty">Abhi tak koi tool activity nahi.</string>
+    <string name="perm_auto_body">Shizuku chal raha hai, isliye Your Friend apne saare permissions khud on kar sakta hai (Accessibility, notifications, mic, floating windows, screen capture…). Koi settings kholni nahi padegi. Abhi kar doon?</string>
+    <string name="perm_auto_done">Permissions on ho gaye</string>
+    <string name="perm_auto_failed">Shizuku se on nahi ho paaya</string>
+    <string name="perm_auto_no">Abhi nahi</string>
+    <string name="perm_auto_row">Shizuku se sab on karo</string>
+    <string name="perm_auto_row_ask">Pehle Shizuku me Your Friend ko allow karo</string>
+    <string name="perm_auto_row_desc">Ek tap, koi settings screen nahi</string>
+    <string name="perm_auto_title">Shizuku se sab on kar doon?</string>
+    <string name="perm_auto_working">Permissions on ho rahe hain…</string>
+    <string name="perm_auto_yes">Haan, sab on karo</string>
     <string name="perm_capabilities">Capabilities</string>
     <string name="perm_capabilities_note">Grant ya fix karne ke liye item par tap karo.</string>
     <string name="perm_clear_audit">Activity log saaf karo</string>
     <string name="perm_data">Aapka data</string>
     <string name="perm_enable_in_privacy">Ye Permissions &amp; privacy mein band hai.</string>
+    <string name="perm_float_accessibility">Accessibility use karo</string>
+    <string name="perm_float_body">Floating windows (companion, assistant card, floating browser) Accessibility se chalte hain, jisse agent screen bhi chalata hai. Ya sirf \"Display over other apps\" allow karo.</string>
+    <string name="perm_float_overlay">Display over other apps</string>
+    <string name="perm_float_title">Floating windows</string>
+    <string name="perm_one_body">Your Friend ke liye Accessibility on karo: isse agent screen dekh aur chala sakta hai aur floating windows dikha sakta hai. Iske liye aur kuch nahi chahiye.</string>
+    <string name="perm_one_note">Ek hi kaafi hai: Shizuku ho to app sab khud on kar leta hai; na ho to Accessibility se screen control aur floating windows dono chalte hain. \"Display over other apps\" sirf tab chahiye jab Accessibility off ho.</string>
+    <string name="perm_one_title">Sirf ek permission chahiye</string>
     <string name="perm_per_tool">Har tool ke rules</string>
     <string name="perm_per_tool_desc">Kisi tool ke liye hamesha poocho, block ya disable karo</string>
     <string name="perm_privacy">Privacy</string>
@@ -1341,6 +1358,10 @@
     <plurals name="office_steps">
         <item quantity="one">%d step</item>
         <item quantity="other">%d steps</item>
+    </plurals>
+    <plurals name="perm_auto_partial">
+        <item quantity="one">Ho gaya; %d cheez on nahi hui</item>
+        <item quantity="other">Ho gaya; %d cheezein on nahi hui</item>
     </plurals>
     <plurals name="team_working">
         <item quantity="one">%d team member kaam par</item>

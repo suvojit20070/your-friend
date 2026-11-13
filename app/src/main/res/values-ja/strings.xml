@@ -272,7 +272,7 @@
     <string name="cap_detail_install">Your Friend に「不明なアプリのインストール」を許可してください。インストールの前には必ず Android が確認します。</string>
     <string name="cap_detail_microphone">マイクの権限を許可してください。</string>
     <string name="cap_detail_notifications">通知の権限を許可してください。</string>
-    <string name="cap_detail_overlay">フローティングコンパニオンのために「他のアプリの上に重ねて表示」を許可してください。</string>
+    <string name="cap_detail_overlay">フローティングウィンドウには、ユーザー補助をオンにするか「他のアプリの上に重ねて表示」を許可してください。</string>
     <string name="cap_detail_screen_capture">スクリーンショットには Android の画面キャプチャ同意（または Android 11 以降のユーザー補助）が必要です。</string>
     <string name="cap_disabled_by_user">オフ</string>
     <string name="cap_external_files">あなたのフォルダ</string>
@@ -673,11 +673,28 @@
     <string name="perm_approval">承認</string>
     <string name="perm_audit">最近のツール操作</string>
     <string name="perm_audit_empty">ツール操作はまだありません。</string>
+    <string name="perm_auto_body">Shizukuが動いているので、Your Friendが使う権限（ユーザー補助、通知、マイク、フローティングウィンドウ、画面キャプチャ…）を自動で有効にできます。設定画面を開く必要はありません。今すぐ行いますか？</string>
+    <string name="perm_auto_done">権限を有効にしました</string>
+    <string name="perm_auto_failed">Shizukuで有効にできませんでした</string>
+    <string name="perm_auto_no">今はしない</string>
+    <string name="perm_auto_row">Shizukuですべて有効にする</string>
+    <string name="perm_auto_row_ask">まずShizukuでYour Friendを許可してください</string>
+    <string name="perm_auto_row_desc">ワンタップ、設定画面なし</string>
+    <string name="perm_auto_title">Shizukuですべて有効にしますか？</string>
+    <string name="perm_auto_working">権限を有効にしています…</string>
+    <string name="perm_auto_yes">はい、すべて有効に</string>
     <string name="perm_capabilities">機能</string>
     <string name="perm_capabilities_note">項目をタップして許可または修正します。</string>
     <string name="perm_clear_audit">操作ログを消去</string>
     <string name="perm_data">あなたのデータ</string>
     <string name="perm_enable_in_privacy">「権限とプライバシー」でオフになっています。</string>
+    <string name="perm_float_accessibility">ユーザー補助を使う</string>
+    <string name="perm_float_body">フローティングウィンドウ（コンパニオン、アシスタントカード、フローティングブラウザ）はユーザー補助で動きます。エージェントの画面操作にも使われます。または「他のアプリの上に重ねて表示」だけを許可することもできます。</string>
+    <string name="perm_float_overlay">他のアプリの上に重ねて表示</string>
+    <string name="perm_float_title">フローティングウィンドウ</string>
+    <string name="perm_one_body">Your Friendのユーザー補助をオンにしてください。これだけでエージェントが画面を見て操作し、フローティングウィンドウも表示できます。ほかの権限は不要です。</string>
+    <string name="perm_one_note">1つで十分です。Shizukuがあればアプリがすべて自動で有効にし、なければユーザー補助だけで画面操作とフローティングウィンドウが使えます。「他のアプリの上に重ねて表示」はユーザー補助がオフのときだけ必要です。</string>
+    <string name="perm_one_title">必要な権限は1つだけ</string>
     <string name="perm_per_tool">ツールごとのルール</string>
     <string name="perm_per_tool_desc">ツールごとに常に確認・ブロック・無効化</string>
     <string name="perm_privacy">プライバシー</string>
@@ -1289,6 +1306,9 @@
     </plurals>
     <plurals name="office_steps">
         <item quantity="other">%d ステップ</item>
+    </plurals>
+    <plurals name="perm_auto_partial">
+        <item quantity="other">完了。%d 件は有効にできませんでした</item>
     </plurals>
     <plurals name="team_working">
         <item quantity="other">メンバー %d 人が作業中</item>

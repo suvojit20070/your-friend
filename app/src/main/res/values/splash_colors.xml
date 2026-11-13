@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch screen backgrounds, light. Generated from Palette (background role) for each accent. -->
+    <color name="splash_s0">#FFF2F4</color>
+    <color name="splash_s1">#FFF2F8</color>
+    <color name="splash_s2">#FBF2FF</color>
+    <color name="splash_s3">#F2F8FF</color>
+    <color name="splash_s4">#F2FFFF</color>
+    <color name="splash_s5">#F2FFFD</color>
+    <color name="splash_s6">#F2FFFA</color>
+    <color name="splash_s7">#F6FFF2</color>
+    <color name="splash_s8">#FDFFF2</color>
+    <color name="splash_s9">#FFFCF2</color>
+    <color name="splash_s10">#FFF8F2</color>
+    <color name="splash_s11">#FFF5F2</color>
+</resources>

@@ -74,7 +74,7 @@ S = {
 "cap_detail_install": "Your Friend ke liye \"Install unknown apps\" allow karo. Har install se pehle Android phir bhi poochega.",
 "cap_detail_microphone": "Microphone permission do.",
 "cap_detail_notifications": "Notification permission do.",
-"cap_detail_overlay": "Floating companion ke liye \"Display over other apps\" allow karo.",
+"cap_detail_overlay": "Floating windows ke liye Accessibility on karo, ya \"Display over other apps\" allow karo.",
 "cap_detail_screen_capture": "Screenshots ke liye Android ki screen-capture consent chahiye (ya Android 11+ par Accessibility).",
 "cap_disabled_by_user": "Off",
 "cap_external_files": "Aapke folders",
@@ -1297,6 +1297,23 @@ S = {
 "tree_reading_report": "%1$s ki report padh raha hai",
 "voice_auto_listen": "Jawab ke baad sunna",
 "voice_auto_listen_desc": "Jawab poora hote hi (aur bol dene ke baad) mic khud on hota hai taaki tum jawab de sako; kuch second chup rehne par band ho jaata hai",
+"perm_auto_title": "Shizuku se sab on kar doon?",
+"perm_auto_body": "Shizuku chal raha hai, isliye Your Friend apne saare permissions khud on kar sakta hai (Accessibility, notifications, mic, floating windows, screen capture…). Koi settings kholni nahi padegi. Abhi kar doon?",
+"perm_auto_yes": "Haan, sab on karo",
+"perm_auto_no": "Abhi nahi",
+"perm_auto_working": "Permissions on ho rahe hain…",
+"perm_auto_done": "Permissions on ho gaye",
+"perm_auto_failed": "Shizuku se on nahi ho paaya",
+"perm_one_title": "Sirf ek permission chahiye",
+"perm_one_body": "Your Friend ke liye Accessibility on karo: isse agent screen dekh aur chala sakta hai aur floating windows dikha sakta hai. Iske liye aur kuch nahi chahiye.",
+"perm_one_note": "Ek hi kaafi hai: Shizuku ho to app sab khud on kar leta hai; na ho to Accessibility se screen control aur floating windows dono chalte hain. \"Display over other apps\" sirf tab chahiye jab Accessibility off ho.",
+"perm_auto_row": "Shizuku se sab on karo",
+"perm_auto_row_desc": "Ek tap, koi settings screen nahi",
+"perm_auto_row_ask": "Pehle Shizuku me Your Friend ko allow karo",
+"perm_float_title": "Floating windows",
+"perm_float_body": "Floating windows (companion, assistant card, floating browser) Accessibility se chalte hain, jisse agent screen bhi chalata hai. Ya sirf \"Display over other apps\" allow karo.",
+"perm_float_accessibility": "Accessibility use karo",
+"perm_float_overlay": "Display over other apps",
 }
 
 P = {
@@ -1313,4 +1330,5 @@ P = {
 "tile_auto_reply_apps": ("%d app", "%d apps"),
 "ar_tools_count": ("%d tool", "%d tools"),
 "mcp_tools": ("%d tool", "%d tools"),
+"perm_auto_partial": ("Ho gaya; %d cheez on nahi hui", "Ho gaya; %d cheezein on nahi hui"),
 }

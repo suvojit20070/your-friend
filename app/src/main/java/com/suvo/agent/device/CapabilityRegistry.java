@@ -75,7 +75,8 @@ public final class CapabilityRegistry implements CapabilityProvider {
                 // MediaProjection consent can be requested while the app is visible.
                 return App.isInForeground() ? CapabilityState.AVAILABLE : CapabilityState.AUTHORIZATION_REQUIRED;
             case OVERLAY:
-                return Settings.canDrawOverlays(ctx) ? CapabilityState.AVAILABLE : CapabilityState.AUTHORIZATION_REQUIRED;
+                // The overlay permission, or Accessibility (it draws its own overlay windows): one is enough.
+                return com.suvo.agent.device.OverlayWindow.available(ctx) ? CapabilityState.AVAILABLE : CapabilityState.AUTHORIZATION_REQUIRED;
             case WORKSPACE_FILES:
                 return CapabilityState.AVAILABLE;
             case EXTERNAL_FILES:

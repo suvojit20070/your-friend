@@ -120,9 +120,10 @@ public final class Palette {
         String theme = st.str(Settings.THEME, "dark");
         boolean dark;
         if ("system".equals(theme)) {
-            // The system's own setting (the application's configuration is never overridden).
-            Context app = ctx.getApplicationContext() == null ? ctx : ctx.getApplicationContext();
-            dark = (app.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+            // The phone's own dark / light setting, read from the system itself: the app's contexts
+            // can still carry the mode chosen before (the app process keeps running after a change).
+            dark = (android.content.res.Resources.getSystem().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                    == Configuration.UI_MODE_NIGHT_YES;
         } else {
             dark = !"light".equals(theme);
         }

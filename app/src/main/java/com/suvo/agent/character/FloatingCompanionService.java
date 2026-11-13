@@ -118,7 +118,7 @@ public final class FloatingCompanionService extends Service {
     }
 
     public static boolean canRun(Context ctx) {
-        return Settings.canDrawOverlays(ctx);
+        return com.suvo.agent.device.OverlayWindow.available(ctx);
     }
 
     /** On by default; the user can switch it off in Settings. */
@@ -183,7 +183,7 @@ public final class FloatingCompanionService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        if (!Settings.canDrawOverlays(this)) {
+        if (!com.suvo.agent.device.OverlayWindow.available(this)) {
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -222,7 +222,7 @@ public final class FloatingCompanionService extends Service {
     private void show() {
         running = true;
         instance = this;
-        wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+        wm = com.suvo.agent.device.OverlayWindow.manager(this);
         AppGraph g = AppGraph.get();
         density = getResources().getDisplayMetrics().density;
         int size = g.settings.integer(com.suvo.agent.data.Settings.CHARACTER_SIZE, 100);
@@ -254,7 +254,7 @@ public final class FloatingCompanionService extends Service {
         cx = dm.widthPixels - bodyW / 2f;
         bodyTop = dm.heightPixels / 2;
         lp = new WindowManager.LayoutParams(viewW, viewH,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                com.suvo.agent.device.OverlayWindow.type(this),
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                         | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 PixelFormat.TRANSLUCENT);
@@ -515,7 +515,7 @@ public final class FloatingCompanionService extends Service {
         bubble.setBackgroundResource(R.drawable.speech_bubble);
         bubble.setPadding(dp(10), dp(6), dp(10), dp(6));
         bubbleLp = new WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                com.suvo.agent.device.OverlayWindow.type(this),
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 PixelFormat.TRANSLUCENT);

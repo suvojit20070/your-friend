@@ -280,7 +280,7 @@
     <string name="cap_detail_install">Allow \"Install unknown apps\" for Your Friend. Android still asks you before every install.</string>
     <string name="cap_detail_microphone">Grant the microphone permission.</string>
     <string name="cap_detail_notifications">Grant the notification permission.</string>
-    <string name="cap_detail_overlay">Allow \"Display over other apps\" for the floating companion.</string>
+    <string name="cap_detail_overlay">Turn on Accessibility, or allow \"Display over other apps\", for floating windows.</string>
     <string name="cap_detail_screen_capture">Screenshots need Android\'s screen-capture consent (or Accessibility on Android 11+).</string>
     <string name="cap_disabled_by_user">Off</string>
     <string name="cap_external_files">Your folders</string>
@@ -716,11 +716,28 @@
     <string name="perm_approval">Approvals</string>
     <string name="perm_audit">Recent tool activity</string>
     <string name="perm_audit_empty">No tool activity yet.</string>
+    <string name="perm_auto_body">Shizuku is running, so Your Friend can turn on all the permissions it uses by itself (Accessibility, notifications, microphone, floating windows, screen capture…). You won\'t need to open any settings. Do it now?</string>
+    <string name="perm_auto_done">Permissions are on</string>
+    <string name="perm_auto_failed">Couldn\'t turn it on through Shizuku</string>
+    <string name="perm_auto_no">Not now</string>
+    <string name="perm_auto_row">Turn everything on with Shizuku</string>
+    <string name="perm_auto_row_ask">First allow Your Friend in Shizuku</string>
+    <string name="perm_auto_row_desc">One tap, no settings screens</string>
+    <string name="perm_auto_title">Turn everything on with Shizuku?</string>
+    <string name="perm_auto_working">Turning permissions on…</string>
+    <string name="perm_auto_yes">Yes, turn all on</string>
     <string name="perm_capabilities">Capabilities</string>
     <string name="perm_capabilities_note">Tap an item to grant or fix it.</string>
     <string name="perm_clear_audit">Clear activity log</string>
     <string name="perm_data">Your data</string>
     <string name="perm_enable_in_privacy">This is turned off in Permissions &amp; privacy.</string>
+    <string name="perm_float_accessibility">Use Accessibility</string>
+    <string name="perm_float_body">Floating windows (the companion, the assistant card, the floating browser) work with Accessibility, which the agent also uses to control the screen. Or allow only \"Display over other apps\".</string>
+    <string name="perm_float_overlay">Display over other apps</string>
+    <string name="perm_float_title">Floating windows</string>
+    <string name="perm_one_body">Turn on Accessibility for Your Friend: with it the agent can see and control the screen and show floating windows. Nothing else is needed for that.</string>
+    <string name="perm_one_note">One is enough: with Shizuku the app turns everything on by itself; without it, Accessibility covers screen control and floating windows. \"Display over other apps\" is only needed when Accessibility is off.</string>
+    <string name="perm_one_title">Only one permission needed</string>
     <string name="perm_per_tool">Per-tool rules</string>
     <string name="perm_per_tool_desc">Always ask, block or disable individual tools</string>
     <string name="perm_privacy">Privacy</string>
@@ -1383,6 +1400,10 @@
     <plurals name="office_steps">
         <item quantity="one">%d step</item>
         <item quantity="other">%d steps</item>
+    </plurals>
+    <plurals name="perm_auto_partial">
+        <item quantity="one">Done; %d item couldn\'t be turned on</item>
+        <item quantity="other">Done; %d items couldn\'t be turned on</item>
     </plurals>
     <plurals name="team_working">
         <item quantity="one">%d team member working</item>

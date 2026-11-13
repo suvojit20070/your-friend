@@ -171,6 +171,16 @@ public final class OnboardingActivity extends BaseActivity {
     private void permissions(Rows r) {
         r.section(R.string.onboarding_permissions);
         r.note(getString(R.string.onboarding_permissions_body));
+        // One is enough: Shizuku (turns everything on in one go) or Accessibility (screen + floating windows).
+        r.note(getString(R.string.perm_one_note));
+        com.suvo.agent.device.shizuku.ShizukuManager.State ss = g.shizuku.state();
+        if (ss == com.suvo.agent.device.shizuku.ShizukuManager.State.READY) {
+            r.row(R.drawable.ic_shield, getString(R.string.perm_auto_row), getString(R.string.perm_auto_row_desc), null,
+                    v -> PermissionSetup.offerAutoGrant(this));
+        } else if (ss == com.suvo.agent.device.shizuku.ShizukuManager.State.PERMISSION_REQUIRED) {
+            r.row(R.drawable.ic_shield, getString(R.string.perm_auto_row), getString(R.string.perm_auto_row_ask), null,
+                    v -> PermissionFlows.fix(this, Capability.SHIZUKU));
+        }
         Capability[] caps = {Capability.NOTIFICATIONS, Capability.MICROPHONE, Capability.ACCESSIBILITY, Capability.SCREEN_CAPTURE,
                 Capability.OVERLAY, Capability.TERMUX, Capability.SHIZUKU};
         for (Capability c : caps) {

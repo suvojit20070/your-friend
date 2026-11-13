@@ -47,6 +47,7 @@ public final class PermissionFlows {
                     }
                     break;
                 case ACCESSIBILITY:
+                    if (PermissionSetup.grantOne(a, c)) break; // Shizuku turns it on directly
                     Ui.show(Ui.dialog(a).setTitle(R.string.perm_accessibility_title).setMessage(R.string.perm_accessibility_explain)
                             .setPositiveButton(R.string.open_settings, (d, w) -> a.startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)))
                             .setNegativeButton(android.R.string.cancel, null));
@@ -60,7 +61,17 @@ public final class PermissionFlows {
                     }).start();
                     break;
                 case OVERLAY:
-                    a.startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + a.getPackageName())));
+                    if (PermissionSetup.grantOne(a, c)) break;
+                    if (!com.suvo.agent.device.accessibility.AgentAccessibilityService.isConnected()) {
+                        // Accessibility draws the floating windows too, and the agent needs it anyway:
+                        // offer that first, "Display over other apps" only as the other choice.
+                        Ui.show(Ui.dialog(a).setTitle(R.string.perm_float_title).setMessage(R.string.perm_float_body)
+                                .setPositiveButton(R.string.perm_float_accessibility, (d, w) -> fix(a, Capability.ACCESSIBILITY))
+                                .setNeutralButton(R.string.perm_float_overlay, (d, w) -> overlaySettings(a))
+                                .setNegativeButton(android.R.string.cancel, null));
+                        break;
+                    }
+                    overlaySettings(a);
                     break;
                 case EXTERNAL_FILES:
                     a.startActivity(new Intent(a, FilesActivity.class).putExtra(FilesActivity.EXTRA_ADD_FOLDER, true));
@@ -72,11 +83,20 @@ public final class PermissionFlows {
                     termux(a, g.termux);
                     break;
                 case INSTALL_PACKAGES:
+                    if (PermissionSetup.grantOne(a, c)) break;
                     a.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.getPackageName())));
                     break;
                 default:
                     appDetails(a);
             }
+        } catch (ActivityNotFoundException e) {
+            appDetails(a);
+        }
+    }
+
+    private static void overlaySettings(Activity a) {
+        try {
+            a.startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + a.getPackageName())));
         } catch (ActivityNotFoundException e) {
             appDetails(a);
         }

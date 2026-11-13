@@ -30,6 +30,8 @@ public final class ScreenKeeper {
 
     private static final Handler main = new Handler(Looper.getMainLooper());
     private static View view;
+    /** The window manager the view was added with (the accessibility service's, or the app's). */
+    private static WindowManager viewWm;
 
     public static boolean isHelper(CharSequence description) {
         return description != null && TAG.contentEquals(description);
@@ -38,7 +40,7 @@ public final class ScreenKeeper {
     /** Puts the helper window up; false when not allowed (no overlay permission). Any thread. */
     public static boolean show(Context ctx) {
         Context app = ctx.getApplicationContext();
-        if (!Settings.canDrawOverlays(app)) return false;
+        if (!com.suvo.agent.device.OverlayWindow.available(app)) return false;
         main.post(() -> {
             if (view != null) return;
             try {
@@ -47,7 +49,7 @@ public final class ScreenKeeper {
                 v.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
                 v.setKeepScreenOn(true);
                 WindowManager.LayoutParams lp = new WindowManager.LayoutParams(1, 1,
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                        com.suvo.agent.device.OverlayWindow.type(app),
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                                 | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -56,8 +58,10 @@ public final class ScreenKeeper {
                 lp.x = 0;
                 lp.y = 0;
                 lp.setTitle("YourFriend keep-screen-on");
-                ((WindowManager) app.getSystemService(Context.WINDOW_SERVICE)).addView(v, lp);
+                WindowManager kwm = com.suvo.agent.device.OverlayWindow.manager(app);
+                kwm.addView(v, lp);
                 view = v;
+                viewWm = kwm;
             } catch (RuntimeException e) {
                 view = null;
             }
@@ -71,7 +75,7 @@ public final class ScreenKeeper {
         main.post(() -> {
             if (view == null) return;
             try {
-                ((WindowManager) app.getSystemService(Context.WINDOW_SERVICE)).removeView(view);
+                (viewWm != null ? viewWm : (WindowManager) app.getSystemService(Context.WINDOW_SERVICE)).removeView(view);
             } catch (RuntimeException ignored) {
             }
             view = null;
