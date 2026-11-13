@@ -13,4 +13,6 @@
     <color name="splash_s9">#17170B</color>
     <color name="splash_s10">#17130B</color>
     <color name="splash_s11">#17100B</color>
+    <!-- The app name on the launch screen (drawn at 30 percent opacity). -->
+    <color name="splash_text">#E9E1D9</color>
 </resources>

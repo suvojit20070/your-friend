@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable
+        name="PullToRefreshLayout">
+        <attr
+            name="ptr_triggerDistance"
+            format="dimension" />
+        <attr
+            name="ptr_contentDownMaxDistance"
+            format="dimension" />
+        <attr
+            name="ptr_contentDownTightness"
+            format="float" />
+        <attr
+            name="ptr_indicatorDownTightness"
+            format="float" />
+        <attr
+            name="ptr_indicatorGroupMargin"
+            format="dimension" />
+    </declare-styleable>
+</resources>

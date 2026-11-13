@@ -55,6 +55,23 @@ public final class BrowserActivity extends BaseActivity implements WebSession.Ho
         topAction(R.drawable.ic_settings, R.string.browser_settings, v -> settings());
         address = findViewById(R.id.browser_address);
         slot = findViewById(R.id.browser_slot);
+        pull = findViewById(R.id.browser_refresh);
+        pull.setChildScrollCheck(() -> {
+            AgentWebView w = WebSession.current();
+            return w == null || w.getScrollY() > 0 || w.canScrollVertically(-1);
+        });
+        pull.setOnRefreshListener(() -> {
+            AgentWebView w = WebSession.current();
+            if (w == null) {
+                pull.setRefreshing(false);
+                return;
+            }
+            w.reload();
+            // Never spin forever (a page that never reports 100%).
+            pull.postDelayed(() -> {
+                if (pull.isRefreshing()) pull.setRefreshing(false);
+            }, 15_000);
+        });
         tabsButton = findViewById(R.id.browser_tabs);
         // The top bar's back arrow leaves the browser (the phone's back button goes back in the page).
         View topBack = findViewById(R.id.top_back);
@@ -255,17 +272,21 @@ public final class BrowserActivity extends BaseActivity implements WebSession.Ho
         if (!isFinishing()) refresh();
     }
 
+    private com.suvo.agent.ui.widgets.FasterPullToRefreshLayout pull;
+
     private void refresh() {
         AgentWebView w = WebSession.current();
         List<AgentWebView> tabs = WebSession.tabList();
         tabsButton.setText(String.valueOf(tabs.size()));
         if (w == null) {
             progress.setVisibility(View.INVISIBLE);
+            if (pull != null && pull.isRefreshing()) pull.setRefreshing(false);
             return;
         }
         if (!address.hasFocus()) address.setText(w.getUrl() == null ? "" : w.getUrl());
         setTopBar(TextUtils.isEmpty(w.getTitle()) ? getString(R.string.browser_title) : w.getTitle());
         progress.setVisibility(w.progress < 100 ? View.VISIBLE : View.INVISIBLE);
+        if (w.progress >= 100 && pull != null && pull.isRefreshing()) pull.setRefreshing(false);
         progress.setProgressCompat(w.progress, true);
         findViewById(R.id.browser_back).setAlpha(w.canGoBack() ? 1f : 0.4f);
         findViewById(R.id.browser_forward).setAlpha(w.canGoForward() ? 1f : 0.4f);

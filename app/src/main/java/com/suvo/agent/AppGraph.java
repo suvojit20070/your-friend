@@ -116,6 +116,8 @@ public final class AppGraph {
                 ctx.getSharedPreferences("connectors", Context.MODE_PRIVATE), secrets);
         workspace = new Workspace(ctx);
         saf = new SafStore(ctx);
+        // Picked folders from before the "give to the agent" switch stay with the agent.
+        com.suvo.agent.files.FolderAccess.migrate(settings, saf);
         termux = new TermuxBackend(ctx);
         termuxUser = termux.forUser();
         shizuku = new ShizukuManager(ctx);

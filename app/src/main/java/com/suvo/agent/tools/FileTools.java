@@ -46,8 +46,8 @@ public final class FileTools {
 
     static String grantsHint(AppGraph g) {
         StringBuilder sb = new StringBuilder();
-        for (SafStore.Grant gr : g.saf.grants()) sb.append(sb.length() == 0 ? "" : ", ").append("ext:").append(gr.name);
-        return sb.length() == 0 ? "No external folders granted (the user can add one in Files)." : "Granted folders: " + sb;
+        for (String root : com.suvo.agent.files.FolderAccess.agentRoots(g.settings, g.saf)) sb.append(sb.length() == 0 ? "" : ", ").append(root);
+        return sb.length() == 0 ? "No folder of the user's is given to you (the user can give one in Files)." : "Folders the user gave you: " + sb;
     }
 
     public static final class ListFiles extends BaseTool {

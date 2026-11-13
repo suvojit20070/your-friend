@@ -167,7 +167,10 @@ public final class MainActivity extends BaseActivity {
         UpdateChecker.check(this, g.shizuku);
         // Shizuku → everything in one go; otherwise Accessibility alone (asked once, never nagging).
         area.postDelayed(() -> {
-            if (!isFinishing()) PermissionSetup.maybeOffer(this);
+            if (isFinishing()) return;
+            PermissionSetup.maybeOffer(this);
+            // No 3D model yet: put on the suggested one (the floating companion needs it).
+            com.suvo.agent.character.vrm.RecommendedVrm.autoApplyIfMissing(this);
         }, 1200);
     }
 

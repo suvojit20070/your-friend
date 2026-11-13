@@ -104,7 +104,14 @@ public final class SettingsActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        com.suvo.agent.character.vrm.RecommendedVrm.addListener(vrmListener);
         build();
+    }
+
+    @Override
+    protected void onPause() {
+        com.suvo.agent.character.vrm.RecommendedVrm.removeListener(vrmListener);
+        super.onPause();
     }
 
     /** Hides every row that does not contain all words of the search text, and lists matching screens of the app. */
@@ -303,19 +310,31 @@ public final class SettingsActivity extends BaseActivity {
             g.settings.put(Settings.CHARACTER_POS_Y, 0f);
             Ui.toast(this, R.string.done);
         });
-        r.switchRow(R.drawable.ic_character, R.string.settings_floating, R.string.settings_floating_desc, Settings.FLOATING_COMPANION, true, on -> {
-            if (on) {
-                if (g.capabilities.state(Capability.OVERLAY) != CapabilityState.AVAILABLE) {
-                    g.settings.put(Settings.FLOATING_COMPANION, false);
-                    PermissionFlows.fix(this, Capability.OVERLAY);
-                    build();
+        if (!com.suvo.agent.character.vrm.RecommendedVrm.hasModel(this)) {
+            // The floating companion is the 3D character: off until a 3D model is set.
+            r.row(R.drawable.ic_character, getString(R.string.settings_floating), getString(R.string.settings_floating_needs_model),
+                    r.chip(getString(R.string.state_off), Palette.of(this).onSurfaceVariant), v -> {
+                        if (com.suvo.agent.character.vrm.RecommendedVrm.running()) {
+                            Ui.toast(this, com.suvo.agent.character.vrm.RecommendedVrm.progress());
+                            return;
+                        }
+                        Ui.confirm(this, R.string.settings_vrm_recommended, getString(R.string.settings_vrm_recommended_confirm), this::downloadRecommendedVrm);
+                    });
+        } else {
+            r.switchRow(R.drawable.ic_character, R.string.settings_floating, R.string.settings_floating_desc, Settings.FLOATING_COMPANION, true, on -> {
+                if (on) {
+                    if (g.capabilities.state(Capability.OVERLAY) != CapabilityState.AVAILABLE) {
+                        g.settings.put(Settings.FLOATING_COMPANION, false);
+                        PermissionFlows.fix(this, Capability.OVERLAY);
+                        build();
+                    } else {
+                        FloatingCompanionService.onAppVisibilityChanged(this, true);
+                    }
                 } else {
-                    FloatingCompanionService.onAppVisibilityChanged(this, true);
+                    FloatingCompanionService.stop(this);
                 }
-            } else {
-                FloatingCompanionService.stop(this);
-            }
-        });
+            });
+        }
         r.switchRow(R.drawable.ic_character, R.string.settings_companion_brain, R.string.settings_companion_brain_desc,
                 Settings.COMPANION_BRAIN, true, null);
         r.switchRow(R.drawable.ic_character, R.string.settings_companion_agent, R.string.settings_companion_agent_desc,
@@ -474,9 +493,9 @@ public final class SettingsActivity extends BaseActivity {
         // A model we suggest, downloaded and put on in one tap.
         boolean usingRecommended = custom && g.settings.bool(VRM_RECOMMENDED_IN_USE, false);
         TextView rec = r.row(R.drawable.ic_star, getString(R.string.settings_vrm_recommended),
-                vrmDownload != null ? vrmDownload : getString(usingRecommended ? R.string.settings_vrm_recommended_in_use : R.string.settings_vrm_recommended_desc),
+                com.suvo.agent.character.vrm.RecommendedVrm.running() ? com.suvo.agent.character.vrm.RecommendedVrm.progress() : getString(usingRecommended ? R.string.settings_vrm_recommended_in_use : R.string.settings_vrm_recommended_desc),
                 null, v -> {
-                    if (vrmDownload != null) return;
+                    if (com.suvo.agent.character.vrm.RecommendedVrm.running()) return;
                     if (usingRecommended) {
                         Ui.toast(this, R.string.settings_vrm_recommended_in_use);
                         return;
@@ -502,71 +521,26 @@ public final class SettingsActivity extends BaseActivity {
         r.note(getString(R.string.settings_vrm_note));
     }
 
-    /** A 3D model we suggest (one tap: download + apply). */
-    static final String VRM_RECOMMENDED_URL = "https://storage.devs.li/get?key=CQ3cWTdmp2A_m1Af0jzk8lGs&id=366";
-    private static final String VRM_RECOMMENDED_IN_USE = "vrm_recommended_in_use";
-    /** Progress text while the suggested model downloads (kept across page rebuilds). */
-    private static volatile String vrmDownload;
+    private static final String VRM_RECOMMENDED_IN_USE = com.suvo.agent.character.vrm.RecommendedVrm.IN_USE;
     /** The suggested model row's subtitle. */
     private TextView vrmRecRow;
-
-    private void setVrmProgress(String text) {
-        vrmDownload = text;
-        runOnUiThread(() -> {
-            // row() returns the row's subtitle: the progress goes there.
+    private final com.suvo.agent.character.vrm.RecommendedVrm.Listener vrmListener = new com.suvo.agent.character.vrm.RecommendedVrm.Listener() {
+        @Override
+        public void onProgress(String text) {
             if (vrmRecRow != null) vrmRecRow.setText(text);
-        });
-    }
+        }
+
+        @Override
+        public void onDone(boolean ok, String message) {
+            if (isFinishing()) return;
+            Ui.show(Ui.dialog(SettingsActivity.this).setTitle(ok ? R.string.settings_vrm_recommended : R.string.error_title).setMessage(message)
+                    .setPositiveButton(android.R.string.ok, null));
+            build();
+        }
+    };
 
     private void downloadRecommendedVrm() {
-        setVrmProgress(getString(R.string.settings_vrm_downloading, ""));
-        g.io.execute(() -> {
-            java.io.File tmp = new java.io.File(getCacheDir(), "avatar_download.vrm");
-            String result;
-            boolean ok = false;
-            try {
-                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(VRM_RECOMMENDED_URL).openConnection();
-                c.setInstanceFollowRedirects(true);
-                c.setConnectTimeout(20_000);
-                c.setReadTimeout(60_000);
-                int code = c.getResponseCode();
-                if (code >= 400) throw new java.io.IOException("HTTP " + code);
-                long size = c.getContentLengthLong();
-                try (InputStream in = c.getInputStream(); OutputStream out = new java.io.FileOutputStream(tmp)) {
-                    byte[] buf = new byte[1 << 16];
-                    long total = 0, shown = 0;
-                    int n;
-                    while ((n = in.read(buf)) > 0) {
-                        total += n;
-                        if (total > 200L * 1024 * 1024) throw new java.io.IOException("The model is larger than 200 MB");
-                        out.write(buf, 0, n);
-                        if (total - shown > 256 * 1024) {
-                            shown = total;
-                            setVrmProgress(getString(R.string.settings_vrm_downloading, size > 0
-                                    ? (total * 100 / size) + "% · " + Ui.size(total) + " / " + Ui.size(size) : Ui.size(total)));
-                        }
-                    }
-                } finally {
-                    c.disconnect();
-                }
-                result = applyVrm(tmp);
-                g.settings.put(VRM_RECOMMENDED_IN_USE, true);
-                ok = true;
-            } catch (Exception | OutOfMemoryError e) {
-                //noinspection ResultOfMethodCallIgnored
-                tmp.delete();
-                result = getString(R.string.settings_vrm_invalid, e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
-            }
-            vrmDownload = null;
-            final String msg = result;
-            final boolean success = ok;
-            runOnUiThread(() -> {
-                if (isFinishing()) return;
-                Ui.show(Ui.dialog(this).setTitle(success ? R.string.settings_vrm_recommended : R.string.error_title).setMessage(msg)
-                        .setPositiveButton(android.R.string.ok, null));
-                build();
-            });
-        });
+        com.suvo.agent.character.vrm.RecommendedVrm.start(this);
     }
 
     /** Checks the downloaded / picked model and makes it the character's. @return the message to show */

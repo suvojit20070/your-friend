@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Generic screen: top bar + scrolling column filled from code with Rows. -->
+<!-- Generic screen: top bar + scrolling column filled from code with Rows (pull to refresh where the screen turns it on). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -7,11 +7,16 @@
 
     <include layout="@layout/top_bar" />
 
+    <com.suvo.agent.ui.widgets.FasterPullToRefreshLayout
+        android:id="@+id/rows_refresh"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
     <ScrollView
         android:id="@+id/rows_scroll"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="match_parent"
         android:clipToPadding="false"
         android:fadingEdgeLength="24dp"
         android:fillViewport="true"
@@ -28,4 +33,5 @@
             android:paddingEnd="@dimen/screen_padding"
             android:paddingBottom="40dp" />
     </ScrollView>
+    </com.suvo.agent.ui.widgets.FasterPullToRefreshLayout>
 </LinearLayout>

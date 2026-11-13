@@ -28,6 +28,7 @@ public final class McpActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rows);
+        pullToRefresh(this::build);
         serverId = getIntent().getStringExtra(EXTRA_ID);
         setTopBar(R.string.mcp_title);
         if (serverId == null) topAction(R.drawable.ic_add, R.string.mcp_add, v -> edit(null));

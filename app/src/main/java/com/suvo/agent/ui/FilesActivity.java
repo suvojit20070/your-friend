@@ -1,30 +1,46 @@
 package com.suvo.agent.ui;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.view.Gravity;
 import android.view.View;
-import android.widget.EditText;
+import android.widget.CheckBox;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.suvo.agent.R;
+import com.suvo.agent.device.shizuku.ShizukuManager;
 import com.suvo.agent.files.FileAccess;
+import com.suvo.agent.files.FileOpsService;
+import com.suvo.agent.files.FolderAccess;
 import com.suvo.agent.files.SafStore;
+import com.suvo.agent.files.ShizukuFs;
 import com.suvo.agent.files.Workspace;
+import com.suvo.agent.ui.widgets.FasterPullToRefreshLayout;
 
 import java.io.File;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * File manager for the agent workspace (app-private), its trash and user-granted folders
- * (Storage Access Framework). The agent can only reach what is listed here.
+ * File manager for the agent workspace (app-private), its trash, folders the user picked (Storage
+ * Access Framework) and — with Shizuku — any folder of the phone by path. Each of the user's folders
+ * has a switch: only the folders switched on reach the agent.
+ *
+ * Long press selects (then tap more); copy / move / delete run in {@link FileOpsService}, so a job
+ * keeps going when this screen closes. Pull down to refresh.
  */
 public final class FilesActivity extends BaseActivity {
 
@@ -33,20 +49,39 @@ public final class FilesActivity extends BaseActivity {
 
     private static final int REQ_TREE = 111;
     private static final int REQ_IMPORT = 112;
-    private static final int MAX_TEXT_EDIT = 1024 * 1024;
+    private static final int MAX_TEXT_EDIT = 8 * 1024 * 1024;
 
-    /** null = roots screen; "/" = workspace root; "ext:Name/..." = granted folder. */
+    /** Copy / move waiting for "Paste here" (kept while the app lives, across screens). */
+    private static final List<String> CLIP = new ArrayList<>();
+    private static boolean clipMove;
+
+    /** null = roots screen; "/" = workspace root; "ext:Name/..." = picked folder; "sh:/abs" = Shizuku. */
     private String path;
     private FileAccess fa;
+    private FasterPullToRefreshLayout refresh;
+
+    /** Selection mode: the selected paths, and the check boxes of the rows on screen. */
+    private final Set<String> selected = new LinkedHashSet<>();
+    private final Map<String, CheckBox> boxes = new LinkedHashMap<>();
+    private final Map<String, FileAccess.Entry> shown = new LinkedHashMap<>();
+    private boolean selecting;
+
+    private final FileOpsService.Listener opsListener = (job, error) -> {
+        if (isFinishing()) return;
+        if (error != null) Ui.toast(this, getString(R.string.error_prefix, error));
+        build();
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_rows);
-        fa = new FileAccess(g.workspace, g.saf);
+        setContentView(R.layout.activity_files);
+        fa = FileAccess.forUser(g.workspace, g.saf);
         path = savedInstanceState != null ? savedInstanceState.getString(EXTRA_PATH) : getIntent().getStringExtra(EXTRA_PATH);
         setTopBar(R.string.section_files);
         topAction(R.drawable.ic_add, R.string.files_new, v -> createMenu());
+        refresh = findViewById(R.id.files_refresh);
+        refresh.setOnRefreshListener(this::build);
         if (savedInstanceState == null && getIntent().getBooleanExtra(EXTRA_ADD_FOLDER, false)) pickTree();
     }
 
@@ -59,11 +94,22 @@ public final class FilesActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        FileOpsService.addListener(opsListener);
         build();
     }
 
     @Override
+    protected void onPause() {
+        FileOpsService.removeListener(opsListener);
+        super.onPause();
+    }
+
+    @Override
     public void onBackPressed() {
+        if (selecting) {
+            endSelection();
+            return;
+        }
         if (path != null) {
             path = parentOf(path);
             build();
@@ -72,8 +118,19 @@ public final class FilesActivity extends BaseActivity {
         super.onBackPressed();
     }
 
-    private static String parentOf(String p) {
+    static String parentOf(String p) {
         if (p == null || p.equals("/")) return null;
+        if (ShizukuFs.isShizuku(p)) {
+            String real;
+            try {
+                real = ShizukuFs.real(p);
+            } catch (java.io.IOException e) {
+                return null;
+            }
+            if (real.equals("/")) return null;
+            int s = real.lastIndexOf('/');
+            return s <= 0 ? ShizukuFs.PREFIX + "/" : ShizukuFs.PREFIX + real.substring(0, s);
+        }
         String t = p.endsWith("/") ? p.substring(0, p.length() - 1) : p;
         int slash = t.lastIndexOf('/');
         if (FileAccess.isExternal(t)) {
@@ -90,7 +147,7 @@ public final class FilesActivity extends BaseActivity {
     private static final int ROWS_PER_FRAME = 30;
     /** Bumped on every rebuild; work for an older screen is dropped. */
     private int generation;
-    private final java.util.Map<String, Integer> scrollByPath = new java.util.HashMap<>();
+    private final Map<String, Integer> scrollByPath = new java.util.HashMap<>();
     private String shownPath;
 
     private void build() {
@@ -99,20 +156,34 @@ public final class FilesActivity extends BaseActivity {
         if (scroll != null && shownPath != null) scrollByPath.put(shownPath, scroll.getScrollY());
         String key = path == null ? "" : path;
         boolean samePath = key.equals(shownPath);
+        if (!samePath) {
+            selected.clear();
+            selecting = false;
+        }
         shownPath = key;
+        boxes.clear();
+        shown.clear();
         LinearLayout box = findViewById(R.id.rows);
         box.removeAllViews();
         Rows r = new Rows(this, box);
         if (path == null) {
             roots(r, gen);
+            refresh.setRefreshing(false);
         } else {
             folder(r, gen, box);
         }
+        updateBar();
         Ui.tintAccent(this, box);
         if (scroll != null && !samePath) {
             Integer y = scrollByPath.get(key);
             scroll.post(() -> scroll.scrollTo(0, y == null ? 0 : y));
         }
+    }
+
+    // ---- Roots -----------------------------------------------------------------------------------
+
+    private boolean shizukuReady() {
+        return g.shizuku.state() == ShizukuManager.State.READY;
     }
 
     private void roots(Rows r, int gen) {
@@ -127,26 +198,81 @@ public final class FilesActivity extends BaseActivity {
             });
         });
         r.row(R.drawable.ic_delete, getString(R.string.files_trash), getString(R.string.files_trash_desc), null, v -> go("/.trash"));
+
         r.section(R.string.files_granted);
         List<SafStore.Grant> grants = g.saf.grants();
-        if (grants.isEmpty()) r.note(getString(R.string.files_no_grants));
+        List<String> shFolders = FolderAccess.shizukuFolders(g.settings);
+        if (grants.isEmpty() && shFolders.isEmpty()) r.note(getString(R.string.files_no_grants));
         for (SafStore.Grant gr : grants) {
-            TextView revoke = new TextView(this, null, 0, R.style.YF_Chip);
-            revoke.setText(R.string.files_revoke);
-            revoke.setOnClickListener(v -> Ui.confirm(this, R.string.files_revoke, getString(R.string.files_revoke_confirm, gr.name), () -> {
+            String root = "ext:" + gr.name;
+            folderRow(r, gr.name, root, () -> Ui.confirm(this, R.string.files_revoke, getString(R.string.files_revoke_confirm, gr.name), () -> {
                 g.saf.revoke(gr.treeUri);
+                FolderAccess.setForAgent(g.settings, root, false);
                 build();
             }));
-            r.row(R.drawable.ic_files, gr.name, "ext:" + gr.name, revoke, v -> go("ext:" + gr.name));
         }
+        for (String abs : shFolders) {
+            String root = ShizukuFs.PREFIX + abs;
+            folderRow(r, abs, root, () -> Ui.confirm(this, R.string.files_remove_folder, getString(R.string.files_remove_folder_confirm, abs), () -> {
+                FolderAccess.removeShizukuFolder(g.settings, abs);
+                build();
+            }));
+        }
+        if (!grants.isEmpty() || !shFolders.isEmpty()) r.note(getString(R.string.files_agent_note));
+
         r.button(R.string.files_add_folder, true, v -> pickTree());
         r.note(getString(R.string.files_saf_note));
+
+        r.section(R.string.files_phone);
+        if (shizukuReady()) {
+            r.row(R.drawable.ic_files, getString(R.string.files_phone_storage), "/sdcard", null, v -> go(ShizukuFs.PREFIX + "/sdcard"));
+            r.row(R.drawable.ic_path, getString(R.string.files_go_to_path), getString(R.string.files_go_to_path_desc), null, v -> goToPath());
+        } else {
+            r.row(R.drawable.ic_shield, getString(R.string.files_phone_storage), getString(R.string.files_phone_needs_shizuku), null,
+                    v -> PermissionFlows.shizuku(this, g.shizuku));
+        }
+    }
+
+    /** A user folder: tap opens it, the switch gives it to the agent, long press removes it. */
+    private void folderRow(Rows r, String title, String root, Runnable remove) {
+        com.google.android.material.materialswitch.MaterialSwitch sw = Widgets.newSwitch(this);
+        sw.setChecked(FolderAccess.forAgent(g.settings, root));
+        sw.setContentDescription(getString(R.string.files_give_agent));
+        TextView sub = r.row(R.drawable.ic_files, title, agentLabel(sw.isChecked()), sw, v -> go(root));
+        sw.setOnCheckedChangeListener((b, on) -> {
+            FolderAccess.setForAgent(g.settings, root, on);
+            sub.setText(agentLabel(on));
+        });
+        View row = (View) sub.getParent().getParent();
+        row.setOnLongClickListener(v -> {
+            remove.run();
+            return true;
+        });
+    }
+
+    private String agentLabel(boolean on) {
+        return getString(on ? R.string.files_agent_on : R.string.files_agent_off);
+    }
+
+    private void goToPath() {
+        Ui.prompt(this, R.string.files_go_to_path, "/sdcard/", false, text -> {
+            String t = text.trim();
+            if (t.startsWith("~")) t = "/sdcard" + t.substring(1);
+            if (!t.startsWith("/")) t = "/sdcard/" + t;
+            try {
+                go(ShizukuFs.PREFIX + ShizukuFs.real(t));
+            } catch (java.io.IOException e) {
+                Ui.toast(this, getString(R.string.error_prefix, e.getMessage()));
+            }
+        });
     }
 
     private void go(String p) {
         path = p;
         build();
     }
+
+    // ---- A folder --------------------------------------------------------------------------------
 
     private void folder(Rows r, int gen, LinearLayout box) {
         TextView crumb = r.note(path);
@@ -164,13 +290,23 @@ public final class FilesActivity extends BaseActivity {
                 });
             }));
         }
-        // Listing (especially a shared folder through the Storage Access Framework) is slow:
+        if (ShizukuFs.isShizuku(path)) {
+            String abs = path.substring(ShizukuFs.PREFIX.length());
+            if (!FolderAccess.shizukuFolders(g.settings).contains(abs) && !abs.equals("/")) {
+                r.button(R.string.files_keep_folder, false, v -> {
+                    FolderAccess.addShizukuFolder(g.settings, abs);
+                    Ui.toast(this, R.string.files_folder_added);
+                    build();
+                });
+            }
+        }
+        // Listing (a picked folder through the Storage Access Framework, or Shizuku) is slow:
         // never on the main thread.
         android.view.View spin = Progress.loading(this, 40, true);
         LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(Ui.dp(this, 40), Ui.dp(this, 40));
-        sp.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+        sp.gravity = Gravity.CENTER_HORIZONTAL;
         sp.setMargins(0, Ui.dp(this, 24), 0, Ui.dp(this, 24));
-        r.parent().addView(spin, sp);
+        if (!refresh.isRefreshing()) r.parent().addView(spin, sp);
         final String at = path;
         g.io.execute(() -> {
             List<FileAccess.Entry> list;
@@ -186,18 +322,19 @@ public final class FilesActivity extends BaseActivity {
             runOnUiThread(() -> {
                 if (gen != generation || isFinishing()) return;
                 box.removeView(spin);
+                refresh.setRefreshing(false);
                 if (err != null) {
                     r.note(getString(R.string.error_prefix, err.getMessage()));
                 } else if (got.isEmpty()) {
                     r.note(getString(R.string.files_empty));
                 } else {
+                    for (FileAccess.Entry e : got) shown.put(e.path, e);
                     addEntries(r, box, got, 0, gen);
                 }
             });
         });
     }
 
-    /** Adds up to {@link #PAGE} rows from {@code from}, a few per frame, then a "Show more" button. */
     private void addEntries(Rows r, LinearLayout box, List<FileAccess.Entry> list, int from, int gen) {
         int end = Math.min(list.size(), from + PAGE);
         addChunk(r, box, list, from, end, gen);
@@ -225,13 +362,22 @@ public final class FilesActivity extends BaseActivity {
 
     private void entryRow(Rows r, FileAccess.Entry e) {
         String sub = e.dir ? getString(R.string.files_folder) : Ui.size(e.size) + " · " + Ui.ago(e.modified);
-        TextView row = r.row(e.dir ? R.drawable.ic_files : iconFor(e), e.name, sub, null, v -> {
-            if (e.dir) go(e.path);
+        CheckBox cb = new CheckBox(this);
+        cb.setClickable(false);
+        cb.setFocusable(false);
+        cb.setButtonTintList(ColorStateList.valueOf(Palette.of(this).primary));
+        cb.setChecked(selected.contains(e.path));
+        cb.setVisibility(selecting ? View.VISIBLE : View.GONE);
+        boxes.put(e.path, cb);
+        TextView row = r.row(e.dir ? R.drawable.ic_files : iconFor(e), e.name, sub, cb, v -> {
+            if (selecting) toggle(e.path);
+            else if (e.dir) go(e.path);
             else openFile(e);
         });
-        View parentRow = (android.view.View) row.getParent().getParent();
+        View parentRow = (View) row.getParent().getParent();
         parentRow.setOnLongClickListener(v -> {
-            actions(e);
+            if (!selecting) startSelection();
+            toggle(e.path);
             return true;
         });
     }
@@ -245,16 +391,164 @@ public final class FilesActivity extends BaseActivity {
 
     private static boolean isTextLike(FileAccess.Entry e) {
         return e.mime.startsWith("text/") || e.mime.equals("application/json") || e.mime.equals("application/xml")
-                || e.name.matches("(?i).*\\.(md|txt|log|py|java|kt|cpp|c|h|js|ts|sh|yaml|yml|toml|ini|csv|json|xml|html|css|gradle|properties|cfg|conf)$");
+                || e.mime.equals("application/javascript") || e.mime.equals("application/x-sh")
+                || e.name.matches("(?i).*\\.(md|txt|log|py|java|kt|kts|cpp|cc|c|h|hpp|js|mjs|ts|sh|bash|yaml|yml|toml|ini|csv|json|xml|svg"
+                + "|html|htm|css|gradle|properties|cfg|conf|rs|go|rb|php|lua|sql|smali|env|gitignore)$")
+                || !e.name.contains(".");
     }
 
-    // ---- Viewer / editor ------------------------------------------------------------------------
+    // ---- Selection -------------------------------------------------------------------------------
+
+    private void startSelection() {
+        selecting = true;
+        for (CheckBox cb : boxes.values()) cb.setVisibility(View.VISIBLE);
+        updateBar();
+    }
+
+    private void endSelection() {
+        selecting = false;
+        selected.clear();
+        for (CheckBox cb : boxes.values()) {
+            cb.setChecked(false);
+            cb.setVisibility(View.GONE);
+        }
+        updateBar();
+    }
+
+    private void toggle(String p) {
+        if (!selected.remove(p)) selected.add(p);
+        CheckBox cb = boxes.get(p);
+        if (cb != null) cb.setChecked(selected.contains(p));
+        if (selected.isEmpty()) endSelection();
+        else updateBar();
+    }
+
+    private void selectAll() {
+        boolean all = selected.size() == shown.size();
+        selected.clear();
+        if (!all) selected.addAll(shown.keySet());
+        for (Map.Entry<String, CheckBox> b : boxes.entrySet()) b.getValue().setChecked(selected.contains(b.getKey()));
+        if (selected.isEmpty()) endSelection();
+        else updateBar();
+    }
+
+    /** The bar under the top bar: selection actions, or "Paste here" while copy / move waits. */
+    private void updateBar() {
+        LinearLayout bar = findViewById(R.id.files_bar);
+        bar.removeAllViews();
+        Palette p = Palette.of(this);
+        if (selecting && !selected.isEmpty()) {
+            bar.setVisibility(View.VISIBLE);
+            bar.setBackground(new TonalDrawable(p.surfaceHigh, -1));
+            barButton(bar, R.drawable.ic_close, R.string.close, v -> endSelection());
+            TextView count = new TextView(this, null, 0, R.style.YF_RowTitle);
+            count.setText(String.valueOf(selected.size()));
+            LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, -2, 1f);
+            cl.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+            bar.addView(count, cl);
+            barButton(bar, R.drawable.ic_select_all, R.string.files_select_all, v -> selectAll());
+            barButton(bar, R.drawable.ic_copy, R.string.files_copy, v -> clip(false));
+            barButton(bar, R.drawable.ic_move, R.string.files_move, v -> clip(true));
+            barButton(bar, R.drawable.ic_delete, R.string.delete, v -> deleteSelected());
+            barButton(bar, R.drawable.ic_more, R.string.more, v -> moreForSelection(v));
+            return;
+        }
+        if (!CLIP.isEmpty() && path != null) {
+            bar.setVisibility(View.VISIBLE);
+            bar.setBackground(new TonalDrawable(p.primaryContainer, -1));
+            barButton(bar, R.drawable.ic_close, android.R.string.cancel, v -> {
+                CLIP.clear();
+                updateBar();
+            });
+            TextView t = new TextView(this, null, 0, R.style.YF_Caption);
+            t.setTextColor(p.onPrimaryContainer);
+            t.setText(getResources().getQuantityString(clipMove ? R.plurals.files_to_move : R.plurals.files_to_copy, CLIP.size(), CLIP.size()));
+            LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, -2, 1f);
+            tl.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+            bar.addView(t, tl);
+            android.widget.Button paste = new android.widget.Button(this, null, 0, R.style.YF_Button);
+            paste.setText(R.string.files_paste_here);
+            paste.setAllCaps(false);
+            paste.setBackground(new TonalDrawable(p.primary, -1));
+            paste.setTextColor(p.onPrimary);
+            LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(-2, Ui.dp(this, 44));
+            pl.setMargins(Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 8), Ui.dp(this, 6));
+            paste.setOnClickListener(v -> paste());
+            bar.addView(paste, pl);
+            return;
+        }
+        bar.setVisibility(View.GONE);
+    }
+
+    private void barButton(LinearLayout bar, int icon, int desc, View.OnClickListener l) {
+        ImageButton b = new ImageButton(this);
+        b.setImageResource(icon);
+        b.setContentDescription(getString(desc));
+        b.setBackground(null);
+        b.setColorFilter(Palette.of(this).onSurface);
+        int s = Ui.dp(this, 44);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(s, s);
+        lp.setMargins(Ui.dp(this, 2), Ui.dp(this, 2), Ui.dp(this, 2), Ui.dp(this, 2));
+        b.setPadding(Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10), Ui.dp(this, 10));
+        b.setOnClickListener(l);
+        b.setOnLongClickListener(v -> {
+            Ui.toast(this, desc);
+            return true;
+        });
+        Fx.press(b);
+        bar.addView(b, lp);
+    }
+
+    private void clip(boolean move) {
+        CLIP.clear();
+        CLIP.addAll(selected);
+        clipMove = move;
+        endSelection();
+        Ui.toast(this, R.string.files_pick_destination);
+    }
+
+    private void paste() {
+        if (path == null || CLIP.isEmpty()) return;
+        FileOpsService.start(this, new FileOpsService.Job(clipMove ? FileOpsService.Kind.MOVE : FileOpsService.Kind.COPY, CLIP, path));
+        CLIP.clear();
+        updateBar();
+        Ui.toast(this, R.string.files_op_started);
+    }
+
+    private void deleteSelected() {
+        List<String> items = new ArrayList<>(selected);
+        boolean permanent = false;
+        for (String s : items) if (FileAccess.isExternal(s) || s.startsWith("/.trash")) permanent = true;
+        String msg = getResources().getQuantityString(permanent ? R.plurals.files_delete_many_forever : R.plurals.files_delete_many,
+                items.size(), items.size());
+        Ui.confirm(this, R.string.delete, msg, () -> {
+            FileOpsService.start(this, new FileOpsService.Job(FileOpsService.Kind.DELETE, items, null));
+            endSelection();
+            Ui.toast(this, R.string.files_op_started);
+        });
+    }
+
+    /** One item: open with, share, rename, copy path. Several: share (files only). */
+    private void moreForSelection(View anchor) {
+        List<String> items = new ArrayList<>(selected);
+        if (items.size() == 1) {
+            FileAccess.Entry e = shown.get(items.get(0));
+            if (e != null) {
+                endSelection();
+                actions(e);
+            }
+            return;
+        }
+        Ui.toast(this, R.string.files_one_at_a_time);
+    }
+
+    // ---- Viewer / editor -------------------------------------------------------------------------
 
     private void openFile(FileAccess.Entry e) {
         if (e.mime.startsWith("image/")) {
             showImage(e);
         } else if (isTextLike(e) && e.size <= MAX_TEXT_EDIT) {
-            editText(e);
+            EditorActivity.open(this, e.path);
         } else {
             actions(e);
         }
@@ -290,94 +584,97 @@ public final class FilesActivity extends BaseActivity {
         });
     }
 
-    private void editText(FileAccess.Entry e) {
-        g.io.execute(() -> {
-            try {
-                String text = new String(fa.read(e.path, MAX_TEXT_EDIT), StandardCharsets.UTF_8);
-                runOnUiThread(() -> {
-                    EditText et = new EditText(this, null, 0, R.style.YF_Input);
-                    et.setTypeface(android.graphics.Typeface.MONOSPACE);
-                    et.setTextSize(13f);
-                    et.setText(text);
-                    et.setHorizontallyScrolling(false);
-                    et.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
-                    LinearLayout box = new LinearLayout(this);
-                    int pad = Ui.dp(this, 16);
-                    box.setPadding(pad, Ui.dp(this, 8), pad, 0);
-                    box.addView(et, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-                    android.widget.ScrollView sv = new android.widget.ScrollView(this);
-                    sv.addView(box);
-                    Ui.show(Ui.dialog(this).setTitle(e.name).setView(sv)
-                            .setPositiveButton(R.string.save, (d, w) -> g.io.execute(() -> {
-                                try {
-                                    fa.write(e.path, et.getText().toString().getBytes(StandardCharsets.UTF_8), false);
-                                    runOnUiThread(() -> {
-                                        Ui.toast(this, R.string.saved);
-                                        build();
-                                    });
-                                } catch (Exception ex) {
-                                    runOnUiThread(() -> Ui.toast(this, getString(R.string.error_prefix, ex.getMessage())));
-                                }
-                            }))
-                            .setNegativeButton(R.string.close, null)
-                            .setNeutralButton(R.string.tools_actions, (d, w) -> actions(e)));
-                });
-            } catch (Exception ex) {
-                runOnUiThread(() -> Ui.toast(this, getString(R.string.error_prefix, ex.getMessage())));
-            }
-        });
-    }
-
-    // ---- Actions --------------------------------------------------------------------------------
+    // ---- Actions (one item) ----------------------------------------------------------------------
 
     private void actions(FileAccess.Entry e) {
-        String[] items = {
-                getString(R.string.files_open_with),
-                getString(R.string.files_share),
-                getString(R.string.files_rename),
-                getString(R.string.files_copy_path),
-                getString(R.string.delete),
-        };
-        Ui.show(Ui.dialog(this).setTitle(e.name).setItems(items, (d, w) -> {
-            switch (w) {
-                case 0:
-                case 1:
-                    if (e.dir) {
-                        Ui.toast(this, R.string.files_folder_not_shareable);
-                        return;
-                    }
-                    Uri u = contentUri(e);
-                    if (u == null) {
-                        Ui.toast(this, R.string.files_cannot_open);
-                        return;
-                    }
-                    Intent i = w == 0
-                            ? new Intent(Intent.ACTION_VIEW).setDataAndType(u, e.mime)
-                            : new Intent(Intent.ACTION_SEND).setType(e.mime).putExtra(Intent.EXTRA_STREAM, u);
-                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    try {
-                        startActivity(Intent.createChooser(i, e.name));
-                    } catch (Exception ex) {
-                        Ui.toast(this, R.string.files_no_app);
-                    }
-                    break;
-                case 2:
-                    Ui.prompt(this, R.string.files_rename, e.name, false, n -> run(() -> fa.rename(e.path, n.trim())));
-                    break;
-                case 3:
-                    Ui.copy(this, e.path);
-                    Ui.toast(this, R.string.copied);
-                    break;
-                default:
-                    Ui.confirm(this, R.string.delete, getString(FileAccess.isExternal(e.path) ? R.string.files_delete_external_confirm
-                            : R.string.files_delete_confirm, e.name), () -> run(() -> fa.delete(e.path)));
-            }
+        List<String> items = new ArrayList<>();
+        List<Runnable> does = new ArrayList<>();
+        if (!e.dir && isTextLike(e)) {
+            items.add(getString(R.string.files_edit));
+            does.add(() -> EditorActivity.open(this, e.path));
+        }
+        items.add(getString(R.string.files_open_with));
+        does.add(() -> share(e, false));
+        items.add(getString(R.string.files_share));
+        does.add(() -> share(e, true));
+        items.add(getString(R.string.files_rename));
+        does.add(() -> Ui.prompt(this, R.string.files_rename, e.name, false, n -> run(() -> fa.rename(e.path, n.trim()))));
+        items.add(getString(R.string.files_copy));
+        does.add(() -> {
+            selected.clear();
+            selected.add(e.path);
+            clip(false);
+        });
+        items.add(getString(R.string.files_move));
+        does.add(() -> {
+            selected.clear();
+            selected.add(e.path);
+            clip(true);
+        });
+        items.add(getString(R.string.files_copy_path));
+        does.add(() -> {
+            Ui.copy(this, ShizukuFs.isShizuku(e.path) ? e.path.substring(ShizukuFs.PREFIX.length()) : e.path);
+            Ui.toast(this, R.string.copied);
+        });
+        items.add(getString(R.string.delete));
+        does.add(() -> Ui.confirm(this, R.string.delete, getString(FileAccess.isExternal(e.path) ? R.string.files_delete_external_confirm
+                : R.string.files_delete_confirm, e.name), () -> {
+            FileOpsService.start(this, new FileOpsService.Job(FileOpsService.Kind.DELETE, java.util.Collections.singletonList(e.path), null));
+            Ui.toast(this, R.string.files_op_started);
         }));
+        Ui.show(Ui.dialog(this).setTitle(e.name).setItems(items.toArray(new CharSequence[0]), (d, w) -> does.get(w).run()));
+    }
+
+    /** Open with / share: workspace and picked folders directly; a Shizuku file through a copy in the workspace. */
+    private void share(FileAccess.Entry e, boolean send) {
+        if (e.dir) {
+            Ui.toast(this, R.string.files_folder_not_shareable);
+            return;
+        }
+        g.io.execute(() -> {
+            Uri u = null;
+            try {
+                if (ShizukuFs.isShizuku(e.path)) {
+                    File dir = new File(g.workspace.root(), ".open");
+                    //noinspection ResultOfMethodCallIgnored
+                    dir.mkdirs();
+                    File[] old = dir.listFiles();
+                    if (old != null) for (File f : old) Workspace.deleteRecursive(f);
+                    File f = new File(dir, e.name);
+                    try (InputStream in = fa.open(e.path); java.io.FileOutputStream out = new java.io.FileOutputStream(f)) {
+                        byte[] buf = new byte[1 << 16];
+                        int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    }
+                    u = com.suvo.agent.files.WorkspaceProvider.uriFor(this, f);
+                } else {
+                    u = contentUri(e);
+                }
+            } catch (Exception ex) {
+                u = null;
+            }
+            final Uri uri = u;
+            runOnUiThread(() -> {
+                if (uri == null) {
+                    Ui.toast(this, R.string.files_cannot_open);
+                    return;
+                }
+                Intent i = send
+                        ? new Intent(Intent.ACTION_SEND).setType(e.mime).putExtra(Intent.EXTRA_STREAM, uri)
+                        : new Intent(Intent.ACTION_VIEW).setDataAndType(uri, e.mime);
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    startActivity(Intent.createChooser(i, e.name));
+                } catch (Exception ex) {
+                    Ui.toast(this, R.string.files_no_app);
+                }
+            });
+        });
     }
 
     private Uri contentUri(FileAccess.Entry e) {
         try {
-            if (FileAccess.isExternal(e.path)) {
+            if (e.path.startsWith("ext:")) {
                 SafStore.Doc d = g.saf.resolve(e.path);
                 return d == null ? null : d.uri;
             }
@@ -405,7 +702,15 @@ public final class FilesActivity extends BaseActivity {
 
     private void createMenu() {
         if (path == null) {
-            pickTree();
+            if (shizukuReady()) {
+                Ui.show(Ui.dialog(this).setItems(new CharSequence[]{getString(R.string.files_add_folder), getString(R.string.files_go_to_path)},
+                        (d, w) -> {
+                            if (w == 0) pickTree();
+                            else goToPath();
+                        }));
+            } else {
+                pickTree();
+            }
             return;
         }
         String[] items = {getString(R.string.files_new_folder), getString(R.string.files_new_file), getString(R.string.files_import)};
@@ -439,7 +744,7 @@ public final class FilesActivity extends BaseActivity {
         if (requestCode == REQ_TREE) {
             try {
                 g.saf.persistGrant(uri);
-                Ui.toast(this, R.string.files_folder_added);
+                Ui.toast(this, R.string.files_folder_added_off);
             } catch (SecurityException e) {
                 Ui.toast(this, getString(R.string.error_prefix, e.getMessage()));
             }
@@ -455,8 +760,7 @@ public final class FilesActivity extends BaseActivity {
             run(() -> {
                 try (InputStream in = getContentResolver().openInputStream(uri)) {
                     if (in == null) throw new java.io.FileNotFoundException(String.valueOf(uri));
-                    byte[] bytes = com.suvo.agent.device.ImageUtil.readAll(in, 200 * 1024 * 1024);
-                    return fa.write(dest, bytes, false);
+                    return fa.writeStream(dest, in, false);
                 }
             });
         }

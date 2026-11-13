@@ -30,14 +30,21 @@
         android:layout_marginTop="6dp"
         android:layout_marginEnd="22dp" />
 
-    <FrameLayout
-        android:id="@+id/browser_slot"
+    <!-- Pull down at the top of a page to reload it. -->
+    <com.suvo.agent.ui.widgets.FasterPullToRefreshLayout
+        android:id="@+id/browser_refresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginTop="6dp"
-        android:layout_marginEnd="12dp"
-        android:layout_weight="1" />
+        android:layout_weight="1">
+
+        <FrameLayout
+            android:id="@+id/browser_slot"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="12dp" />
+    </com.suvo.agent.ui.widgets.FasterPullToRefreshLayout>
 
     <LinearLayout
         android:id="@+id/browser_bar"

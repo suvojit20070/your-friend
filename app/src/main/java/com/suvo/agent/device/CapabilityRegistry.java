@@ -80,7 +80,7 @@ public final class CapabilityRegistry implements CapabilityProvider {
             case WORKSPACE_FILES:
                 return CapabilityState.AVAILABLE;
             case EXTERNAL_FILES:
-                return saf.grants().isEmpty() ? CapabilityState.AUTHORIZATION_REQUIRED : CapabilityState.AVAILABLE;
+                return com.suvo.agent.files.FolderAccess.agentRoots(settings, saf).isEmpty() ? CapabilityState.AUTHORIZATION_REQUIRED : CapabilityState.AVAILABLE;
             case SHIZUKU:
                 if (!settings.bool(com.suvo.agent.data.Settings.ALLOW_SHIZUKU, true)) return CapabilityState.DISABLED_BY_USER;
                 switch (shizuku.state()) {

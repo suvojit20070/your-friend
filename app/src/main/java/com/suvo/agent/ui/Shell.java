@@ -115,6 +115,10 @@ final class Shell {
             pb.setSolidUntil(top + barH / 2f);
             pb.setStatus(top);
             scroller.setPadding(scroller.getPaddingLeft(), scT + top + barH, scroller.getPaddingRight(), scroller.getPaddingBottom());
+            // Pull to refresh: its indicator appears under the floating bar, not behind it.
+            if (scroller.getParent() instanceof com.suvo.agent.ui.widgets.FasterPullToRefreshLayout) {
+                ((com.suvo.agent.ui.widgets.FasterPullToRefreshLayout) scroller.getParent()).setIndicatorTopOffset(top + barH);
+            }
             return insets;
         });
         frame.requestApplyInsets();
@@ -139,6 +143,14 @@ final class Shell {
         if (v instanceof FrameLayout && ((FrameLayout) v).getChildCount() > 0) {
             View c = ((FrameLayout) v).getChildAt(0);
             if (c instanceof ScrollView || c instanceof AbsListView) return c;
+        }
+        // Pull to refresh around the list.
+        if (v instanceof com.suvo.agent.ui.widgets.FasterPullToRefreshLayout) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View c = g.getChildAt(i);
+                if (c instanceof ScrollView || c instanceof AbsListView) return c;
+            }
         }
         return null;
     }

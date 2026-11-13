@@ -51,6 +51,9 @@ jobs:
       - name: Validate resources and translations
         run: python3 tools/check_resources.py
 
+      - name: Fetch code-colour grammars for the file editor
+        run: python3 tools/editor/fetch_grammars.py || true
+
       - name: Build debug APK
         run: ./gradlew --stacktrace assembleDebug
 
@@ -131,6 +134,10 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
         if: steps.secrets.outputs.present == 'true'
+
+      - name: Fetch code-colour grammars for the file editor
+        if: steps.secrets.outputs.present == 'true'
+        run: python3 tools/editor/fetch_grammars.py || true
 
       - name: Build signed release APK
         if: steps.secrets.outputs.present == 'true'

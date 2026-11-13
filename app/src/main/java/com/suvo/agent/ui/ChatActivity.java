@@ -1048,6 +1048,8 @@ public final class ChatActivity extends BaseActivity {
             g.saf.persistGrant(tree);
             String name = tree.getLastPathSegment();
             for (com.suvo.agent.files.SafStore.Grant gr : g.saf.grants()) if (gr.treeUri.equals(tree)) name = gr.name;
+            // Attached in a chat: the user means the agent to use it.
+            com.suvo.agent.files.FolderAccess.setForAgent(g.settings, "ext:" + name, true);
             Pending p = new Pending();
             p.label = "📁 " + name;
             p.note = com.suvo.agent.core.util.Attachments.folder(name, devicePath(tree));
@@ -1992,6 +1994,91 @@ public final class ChatActivity extends BaseActivity {
         if (!g.agent.isRunning()) return false;
         Fx.pill(this, getString(R.string.chat_switch_locked), findViewById(R.id.chat_composer));
         return true;
+    }
+
+    // ---- Pull up at the end of the chat: a new conversation ----------------------------------------
+
+    private float pullStartY = -1f;
+    private boolean pullArmed;
+    private TextView pullHint;
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+        try {
+            pullUp(e);
+        } catch (RuntimeException ignored) {
+            // Never let the gesture break touch handling.
+        }
+        return super.dispatchTouchEvent(e);
+    }
+
+    /** Watches touches (never takes them): at the bottom of a chat, a long drag up starts a new one. */
+    private void pullUp(android.view.MotionEvent e) {
+        if (list == null) return;
+        switch (e.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN: {
+                int[] loc = new int[2];
+                list.getLocationOnScreen(loc);
+                boolean inside = e.getRawY() >= loc[1] && e.getRawY() <= loc[1] + list.getHeight();
+                boolean ok = inside && !items.isEmpty() && !list.canScrollVertically(1) && !g.agent.isRunning() && !Overlay.anyOpen(this);
+                pullStartY = ok ? e.getRawY() : -1f;
+                pullArmed = false;
+                break;
+            }
+            case android.view.MotionEvent.ACTION_MOVE: {
+                if (pullStartY < 0) break;
+                if (e.getPointerCount() > 1 || list.canScrollVertically(1)) {
+                    endPull(false);
+                    break;
+                }
+                setPull(pullStartY - e.getRawY());
+                break;
+            }
+            case android.view.MotionEvent.ACTION_UP:
+                endPull(pullStartY >= 0 && pullArmed);
+                break;
+            case android.view.MotionEvent.ACTION_CANCEL:
+                endPull(false);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void setPull(float dy) {
+        float threshold = Ui.dp(this, 120);
+        float p = Math.max(0f, dy) * 0.45f;
+        if (listBox != null) listBox.setTranslationY(-Math.min(p, threshold * 1.2f));
+        if (pullHint == null) {
+            pullHint = new TextView(this, null, 0, R.style.YF_Chip);
+            Palette pal = Palette.of(this);
+            pullHint.setBackground(new TonalDrawable(pal.surfaceHighest, -1));
+            pullHint.setTextColor(pal.onSurface);
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(-2, -2,
+                    Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+            lp.bottomMargin = list.getPaddingBottom() + Ui.dp(this, 12);
+            ((ViewGroup) list.getParent()).addView(pullHint, lp);
+        }
+        boolean armed = p >= threshold;
+        if (armed != pullArmed) {
+            pullArmed = armed;
+            if (armed) list.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK);
+        }
+        pullHint.setText(armed ? R.string.chat_pull_release : R.string.chat_pull_new);
+        pullHint.setAlpha(Math.min(1f, p / (threshold * 0.5f)));
+        pullHint.setVisibility(p > Ui.dp(this, 6) ? View.VISIBLE : View.GONE);
+    }
+
+    private void endPull(boolean start) {
+        pullStartY = -1f;
+        pullArmed = false;
+        if (listBox != null) listBox.animate().translationY(0f).setDuration(220).start();
+        if (pullHint != null) pullHint.setVisibility(View.GONE);
+        if (!start || switchLocked()) return;
+        conversationId = g.agent.newConversation();
+        lastError = null;
+        reload();
+        Fx.pill(this, getString(R.string.chat_new), findViewById(R.id.chat_composer));
     }
 
     private void showHistory() {

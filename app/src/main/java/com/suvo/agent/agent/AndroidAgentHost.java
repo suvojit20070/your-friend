@@ -198,14 +198,16 @@ public final class AndroidAgentHost implements AgentHost {
      */
     private String workFolderRule() {
         StringBuilder sb = new StringBuilder("Where to work: ");
-        java.util.List<com.suvo.agent.files.SafStore.Grant> grants = g.saf.grants();
-        if (!grants.isEmpty()) {
-            sb.append("the user granted external folder(s) ");
-            for (int i = 0; i < grants.size(); i++) sb.append(i == 0 ? "" : ", ").append("ext:").append(grants.get(i).name);
-            sb.append(". ALWAYS create and save your work there (e.g. ext:").append(grants.get(0).name)
-                    .append("/<project>/…) so the user can open it — not in the private workspace (use that only for scratch files).");
+        // Only the folders the user switched on for the agent in Files.
+        java.util.List<String> roots = com.suvo.agent.files.FolderAccess.agentRoots(g.settings, g.saf);
+        if (!roots.isEmpty()) {
+            sb.append("the user gave you these folder(s): ");
+            for (int i = 0; i < roots.size(); i++) sb.append(i == 0 ? "" : ", ").append(roots.get(i));
+            sb.append(" (\"sh:\" folders are shared storage reached through Shizuku). ALWAYS create and save your work there (e.g. ")
+                    .append(roots.get(0)).append("/<project>/…) so the user can open it — not in the private workspace (use that only "
+                    + "for scratch files). Other folders of the phone are not yours: the user decides in Files which folders you get.");
         } else {
-            sb.append("no external folder is granted, so use the private workspace (the user can add a folder in Files).");
+            sb.append("the user gave you no folder of their own, so use the private workspace (the user can give one in Files).");
         }
         boolean jail = g.settings.bool(com.suvo.agent.terminal.TermuxBackend.JAIL_SETTING, true);
         sb.append(" In Termux your folder is ~/yf").append(jail ? " — for your commands it IS ~ (your home and root: pwd shows the "

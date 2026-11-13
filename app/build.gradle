@@ -117,6 +117,11 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.12.1'
     // Material 3 components: MaterialSwitch and Slider (the rest of the UI is the app's own).
     implementation 'com.google.android.material:material:1.13.0'
+    // Sora Editor: the file editor (line numbers, undo / redo, find & replace, code colours through
+    // TextMate grammars that CI downloads into assets/textmate).
+    implementation platform('io.github.rosemoe:editor-bom:0.24.4')
+    implementation 'io.github.rosemoe:editor'
+    implementation 'io.github.rosemoe:language-textmate'
     // Shizuku (optional elevated device control via ADB/root identity, no root required).
     implementation 'dev.rikka.shizuku:api:13.1.5'
     implementation 'dev.rikka.shizuku:provider:13.1.5'

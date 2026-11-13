@@ -34,6 +34,9 @@ public final class TeamActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rows);
+        pullToRefresh(() -> {
+            if (!editMode) buildList();
+        });
         long id = getIntent().getLongExtra(EXTRA_ID, -1);
         editMode = id >= 0 || getIntent().getBooleanExtra(EXTRA_NEW, false);
         if (editMode) {

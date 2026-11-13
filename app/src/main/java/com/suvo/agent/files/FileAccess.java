@@ -20,12 +20,14 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * One file API over two storage areas:
+ * One file API over three storage areas:
  * <ul>
  *   <li>workspace paths ("notes/todo.md", "/code/main.py", "workspace:/x") — private app storage;</li>
- *   <li>"ext:&lt;Folder&gt;/..." — folders the user granted through the system picker.</li>
+ *   <li>"ext:&lt;Folder&gt;/..." — folders the user granted through the system picker;</li>
+ *   <li>"sh:/abs/path" — shared storage through Shizuku ({@link ShizukuFs}).</li>
  * </ul>
- * Nothing else on the device is reachable.
+ * Made for the agent (the default), it reaches only the folders the user switched on for it
+ * ({@link FolderAccess}); the Files screen makes one for the user, which reaches all of them.
  */
 public final class FileAccess {
 
@@ -61,14 +63,55 @@ public final class FileAccess {
 
     private final Workspace ws;
     private final SafStore saf;
+    /** false: the agent's view (only folders switched on for it). */
+    private final boolean forUser;
+    private ShizukuFs shz;
 
+    /** The agent's view: only the folders the user switched on for it. */
     public FileAccess(Workspace ws, SafStore saf) {
-        this.ws = ws;
-        this.saf = saf;
+        this(ws, saf, false);
     }
 
+    public FileAccess(Workspace ws, SafStore saf, boolean forUser) {
+        this.ws = ws;
+        this.saf = saf;
+        this.forUser = forUser;
+    }
+
+    /** For the Files screen: every folder the user added. */
+    public static FileAccess forUser(Workspace ws, SafStore saf) {
+        return new FileAccess(ws, saf, true);
+    }
+
+    /** A picked folder ("ext:") or a Shizuku path ("sh:"): outside the workspace, deletions are permanent. */
     public static boolean isExternal(String path) {
+        return path != null && (path.trim().startsWith("ext:") || ShizukuFs.isShizuku(path));
+    }
+
+    private static boolean isSaf(String path) {
         return path != null && path.trim().startsWith("ext:");
+    }
+
+    private ShizukuFs shizuku() {
+        if (shz == null) {
+            com.suvo.agent.AppGraph g = com.suvo.agent.AppGraph.get();
+            shz = new ShizukuFs(g.ctx, g.shizuku);
+        }
+        return shz;
+    }
+
+    /** The agent may only touch folders the user switched on for it. */
+    private void guard(String path) {
+        if (forUser || path == null) return;
+        if (!FolderAccess.agentMay(com.suvo.agent.AppGraph.get().settings, path)) {
+            throw new SecurityException("The user has not given this folder to the agent: " + path.trim()
+                    + ". Folders the agent may use: " + FolderAccess.agentRoots(com.suvo.agent.AppGraph.get().settings, saf));
+        }
+    }
+
+    private Entry shEntry(String dirPath, ShizukuFs.Item it) {
+        String path = ShizukuFs.PREFIX + ShizukuFs.join(dirPath, it.name);
+        return new Entry(path, it.name, it.dir, it.size, it.modified, it.dir ? "inode/directory" : mimeFor(it.name));
     }
 
     public static String mimeFor(String name) {
@@ -104,8 +147,12 @@ public final class FileAccess {
     }
 
     public List<Entry> list(String path) throws IOException {
+        guard(path);
         List<Entry> out = new ArrayList<>();
-        if (isExternal(path)) {
+        if (ShizukuFs.isShizuku(path)) {
+            String dir = ShizukuFs.real(path);
+            for (ShizukuFs.Item it : shizuku().list(path)) out.add(shEntry(dir, it));
+        } else if (isSaf(path)) {
             SafStore.Doc d = saf.resolve(path.trim());
             if (d == null) throw new FileNotFoundException(path);
             if (!d.isDir()) throw new IOException("Not a folder: " + path);
@@ -119,7 +166,7 @@ public final class FileAccess {
             File[] kids = dir.listFiles();
             if (kids != null) {
                 for (File k : kids) {
-                    if (k.getName().equals(".trash")) continue;
+                    if (k.getName().equals(".trash") || k.getName().equals(".open")) continue;
                     out.add(new Entry(ws.relative(k), k.getName(), k.isDirectory(), k.length(), k.lastModified(), mimeFor(k.getName())));
                 }
             }
@@ -129,7 +176,14 @@ public final class FileAccess {
     }
 
     public Entry stat(String path) throws IOException {
-        if (isExternal(path)) {
+        guard(path);
+        if (ShizukuFs.isShizuku(path)) {
+            String real = ShizukuFs.real(path);
+            ShizukuFs.Item it = shizuku().stat(path);
+            if (it == null) throw new FileNotFoundException("No such file: " + path);
+            return shEntry(real.substring(0, Math.max(1, real.lastIndexOf('/'))), it);
+        }
+        if (isSaf(path)) {
             SafStore.Doc d = saf.resolve(path.trim());
             if (d == null) throw new FileNotFoundException(path);
             return new Entry(path.trim(), d.name, d.isDir(), d.size, d.modified, d.mime);
@@ -149,7 +203,9 @@ public final class FileAccess {
     }
 
     public InputStream open(String path) throws IOException {
-        if (isExternal(path)) {
+        guard(path);
+        if (ShizukuFs.isShizuku(path)) return shizuku().open(path);
+        if (isSaf(path)) {
             SafStore.Doc d = saf.resolve(path.trim());
             if (d == null || d.isDir()) throw new FileNotFoundException(path);
             return saf.open(d.uri);
@@ -174,7 +230,17 @@ public final class FileAccess {
 
     /** Writes (creating parent folders in the workspace). Returns the normalized path. */
     public String write(String path, byte[] data, boolean append) throws IOException {
-        if (isExternal(path)) {
+        return writeStream(path, new java.io.ByteArrayInputStream(data), append);
+    }
+
+    /** Writes from a stream (creating parent folders in the workspace). Returns the normalized path. */
+    public String writeStream(String path, InputStream data, boolean append) throws IOException {
+        guard(path);
+        if (ShizukuFs.isShizuku(path)) {
+            shizuku().write(path, data, append);
+            return ShizukuFs.PREFIX + ShizukuFs.real(path);
+        }
+        if (isSaf(path)) {
             String p = path.trim();
             SafStore.Doc existing = saf.resolve(p);
             Uri target;
@@ -190,7 +256,7 @@ public final class FileAccess {
                 target = saf.createFile(parent.uri, mimeFor(name), name);
             }
             try (OutputStream os = saf.openWrite(target, append)) {
-                os.write(data);
+                pipe(data, os);
             }
             return p;
         }
@@ -199,13 +265,24 @@ public final class FileAccess {
         File parent = f.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) throw new IOException("Could not create folder for " + path);
         try (FileOutputStream fos = new FileOutputStream(f, append)) {
-            fos.write(data);
+            pipe(data, fos);
         }
         return ws.relative(f);
     }
 
+    private static void pipe(InputStream in, OutputStream out) throws IOException {
+        byte[] buf = new byte[1 << 16];
+        int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+    }
+
     public String mkdirs(String path) throws IOException {
-        if (isExternal(path)) {
+        guard(path);
+        if (ShizukuFs.isShizuku(path)) {
+            shizuku().mkdirs(path);
+            return ShizukuFs.PREFIX + ShizukuFs.real(path);
+        }
+        if (isSaf(path)) {
             String p = path.trim();
             String prefix = p.contains("/") ? p.substring(0, p.indexOf('/')) : p;
             String rest = p.contains("/") ? p.substring(p.indexOf('/') + 1) : "";
@@ -233,7 +310,12 @@ public final class FileAccess {
 
     /** Workspace deletions go to the recoverable trash; external deletions are permanent. */
     public String delete(String path) throws IOException {
-        if (isExternal(path)) {
+        guard(path);
+        if (ShizukuFs.isShizuku(path)) {
+            shizuku().delete(path);
+            return "deleted permanently";
+        }
+        if (isSaf(path)) {
             SafStore.Doc d = saf.resolve(path.trim());
             if (d == null) throw new FileNotFoundException(path);
             if (!saf.delete(d.uri)) throw new IOException("The storage provider refused to delete " + path);
@@ -254,7 +336,13 @@ public final class FileAccess {
         if (newName.contains("/") || newName.contains("\\") || newName.equals("..") || newName.equals(".")) {
             throw new IOException("New name must be a plain file name");
         }
-        if (isExternal(path)) {
+        guard(path);
+        if (ShizukuFs.isShizuku(path)) {
+            shizuku().rename(path, newName);
+            String p = ShizukuFs.real(path);
+            return ShizukuFs.PREFIX + p.substring(0, p.lastIndexOf('/') + 1) + newName;
+        }
+        if (isSaf(path)) {
             SafStore.Doc d = saf.resolve(path.trim());
             if (d == null) throw new FileNotFoundException(path);
             Uri u = saf.rename(d.uri, newName);
@@ -271,14 +359,29 @@ public final class FileAccess {
     }
 
     public String copy(String from, String to, boolean overwrite) throws IOException {
+        guard(from);
+        guard(to);
+        if (ShizukuFs.isShizuku(from) && ShizukuFs.isShizuku(to)) {
+            if (!overwrite && exists(to)) throw new IOException("Destination exists: " + to + " (set overwrite=true)");
+            shizuku().copy(from, to, false);
+            return ShizukuFs.PREFIX + ShizukuFs.real(to);
+        }
         Entry src = stat(from);
         if (src.dir) throw new IOException("Copying folders is not supported; copy files individually");
         if (!overwrite && exists(to)) throw new IOException("Destination exists: " + to + " (set overwrite=true)");
-        byte[] data = read(from, 200 * 1024 * 1024);
-        return write(to, data, false);
+        try (InputStream in = open(from)) {
+            return writeStream(to, in, false);
+        }
     }
 
     public String move(String from, String to, boolean overwrite) throws IOException {
+        guard(from);
+        guard(to);
+        if (ShizukuFs.isShizuku(from) && ShizukuFs.isShizuku(to)) {
+            if (!overwrite && exists(to)) throw new IOException("Destination exists: " + to + " (set overwrite=true)");
+            shizuku().copy(from, to, true);
+            return ShizukuFs.PREFIX + ShizukuFs.real(to);
+        }
         if (!isExternal(from) && !isExternal(to)) {
             File a = ws.resolve(from);
             File b = ws.resolve(to);
@@ -291,8 +394,32 @@ public final class FileAccess {
             return ws.relative(b);
         }
         String dest = copy(from, to, overwrite);
-        delete(from);
+        remove(from);
         return dest;
+    }
+
+    /** Deletes for good (after a move: the data now lives at the destination). */
+    public void remove(String path) throws IOException {
+        guard(path);
+        if (isExternal(path)) {
+            delete(path);
+            return;
+        }
+        File f = ws.resolve(path);
+        if (!f.exists()) return;
+        if (f.equals(ws.root().getCanonicalFile())) throw new SecurityException("Refusing to delete the whole workspace");
+        Workspace.deleteRecursive(f);
+    }
+
+    /** For copy / move in Files: copies a file or a whole folder; ShizukuFs does folders on its own. */
+    public boolean bothShizuku(String a, String b) {
+        return ShizukuFs.isShizuku(a) && ShizukuFs.isShizuku(b);
+    }
+
+    public void shizukuCopy(String from, String to, boolean move) throws IOException {
+        guard(from);
+        guard(to);
+        shizuku().copy(from, to, move);
     }
 
     /** Recursive search by name pattern and/or content (text files up to 2 MB). */

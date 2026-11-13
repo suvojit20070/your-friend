@@ -99,7 +99,11 @@ public final class TerminalActivity extends BaseActivity {
         output.setTypeface(Typeface.MONOSPACE);
         output.setHighlightColor(0x5557AB5A);
         input.setTypeface(Typeface.MONOSPACE);
-        input.setHint(R.string.terminal_hint);
+        // Typed in place after the output, like a real terminal: no hint, no separate box.
+        input.setHint(null);
+        // A tap anywhere on the terminal page puts the cursor on the command line.
+        findViewById(R.id.term_page).setOnClickListener(v -> focusInput());
+        scroll.setOnClickListener(v -> focusInput());
         if (Build.VERSION.SDK_INT >= 29) {
             android.graphics.drawable.GradientDrawable cur = new android.graphics.drawable.GradientDrawable();
             cur.setColor(GREEN);
@@ -730,6 +734,9 @@ public final class TerminalActivity extends BaseActivity {
         run.setBackground(new TonalDrawable(on ? 0x22E5534B : 0x1A57AB5A, Ui.dp(this, 8)).pressable(0x33FFFFFF));
         findViewById(R.id.term_busy).setVisibility(on ? View.VISIBLE : View.GONE);
         ((TextView) findViewById(R.id.term_dollar)).setText(dollar(on));
+        // While a command runs the prompt goes away (the cursor waits on its own line), as in a terminal.
+        prompt.setVisibility(on ? View.GONE : View.VISIBLE);
+        findViewById(R.id.term_dollar).setVisibility(on ? View.GONE : View.VISIBLE);
     }
 
     private void clearScreen() {
@@ -765,7 +772,15 @@ public final class TerminalActivity extends BaseActivity {
         if (buffer.length() > MAX_OUTPUT_CHARS) buffer.delete(0, buffer.length() - MAX_OUTPUT_CHARS);
         output.setText(buffer);
         // Scroll without moving focus (fullScroll would take the keyboard away from the input).
-        scroll.post(() -> scroll.scrollTo(0, output.getBottom()));
+        scroll.post(() -> scroll.scrollTo(0, findViewById(R.id.term_page).getBottom()));
+    }
+
+    private void focusInput() {
+        input.requestFocus();
+        input.setSelection(input.getText().length());
+        android.view.inputmethod.InputMethodManager imm = getSystemService(android.view.inputmethod.InputMethodManager.class);
+        if (imm != null) imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+        scroll.post(() -> scroll.scrollTo(0, findViewById(R.id.term_page).getBottom()));
     }
 
     // ---- Menu: runtimes, environment, SSH hosts -------------------------------------------------

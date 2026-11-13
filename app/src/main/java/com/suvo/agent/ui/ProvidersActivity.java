@@ -30,6 +30,7 @@ public final class ProvidersActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rows);
+        pullToRefresh(this::build);
         setTopBar(R.string.section_providers);
         topAction(R.drawable.ic_add, R.string.provider_add, v -> startActivity(new Intent(this, ProviderEditorActivity.class)));
         // Opened from the token line under an answer: show that provider's usage right away.

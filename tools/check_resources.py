@@ -56,7 +56,7 @@ def parse(path):
 def collect_defined():
     """Returns {type: set(names)} for app resources."""
     d = {t: set() for t in ("string", "plurals", "color", "dimen", "style", "drawable", "mipmap",
-                            "layout", "xml", "id", "bool", "integer", "array", "anim", "raw", "font", "menu")}
+                            "layout", "xml", "id", "bool", "integer", "array", "anim", "raw", "font", "menu", "styleable", "attr")}
     for folder in sorted(os.listdir(RES)):
         full = os.path.join(RES, folder)
         if not os.path.isdir(full):
@@ -80,6 +80,14 @@ def collect_defined():
                         tag = "array"
                     if tag == "style":
                         n = n.replace(".", "_")
+                    if tag == "declare-styleable":
+                        # R.styleable.Name and R.styleable.Name_attr (custom view attributes)
+                        d["styleable"].add(n)
+                        for a in el:
+                            if a.get("name"):
+                                d["styleable"].add(n + "_" + a.get("name"))
+                                d["attr"].add(a.get("name"))
+                        continue
                     if tag in d:
                         d[tag].add(n)
             elif base in d:

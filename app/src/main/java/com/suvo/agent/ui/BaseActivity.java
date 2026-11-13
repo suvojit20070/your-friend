@@ -47,6 +47,9 @@ public abstract class BaseActivity extends Activity {
     @Override
     public void setContentView(int layoutResID) {
         super.setContentView(layoutResID);
+        // Pull to refresh is off unless the screen turns it on (pullToRefresh).
+        com.suvo.agent.ui.widgets.FasterPullToRefreshLayout ptr = findViewById(R.id.rows_refresh);
+        if (ptr != null) ptr.setPtrEnabled(false);
         View root = ((ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
         if (root != null) {
             // Content scrolls under a floating glass top bar where the layout allows it.
@@ -107,6 +110,26 @@ public abstract class BaseActivity extends Activity {
     protected void setTopBar(CharSequence title) {
         TextView t = findViewById(R.id.top_title);
         if (t != null) t.setText(title);
+    }
+
+    /**
+     * Turns on pull to refresh for a screen built on activity_rows: {@code reload} runs on the pull;
+     * the indicator goes away by itself shortly after (or call {@link #refreshDone()} when loading
+     * ends later).
+     */
+    protected void pullToRefresh(Runnable reload) {
+        com.suvo.agent.ui.widgets.FasterPullToRefreshLayout ptr = findViewById(R.id.rows_refresh);
+        if (ptr == null) return;
+        ptr.setPtrEnabled(true);
+        ptr.setOnRefreshListener(() -> {
+            reload.run();
+            ptr.postDelayed(this::refreshDone, 600);
+        });
+    }
+
+    protected void refreshDone() {
+        com.suvo.agent.ui.widgets.FasterPullToRefreshLayout ptr = findViewById(R.id.rows_refresh);
+        if (ptr != null && ptr.isRefreshing()) ptr.setRefreshing(false);
     }
 
     private final java.util.List<Object[]> actions = new java.util.ArrayList<>();

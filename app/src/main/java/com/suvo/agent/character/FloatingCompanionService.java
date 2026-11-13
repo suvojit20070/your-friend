@@ -118,7 +118,8 @@ public final class FloatingCompanionService extends Service {
     }
 
     public static boolean canRun(Context ctx) {
-        return com.suvo.agent.device.OverlayWindow.available(ctx);
+        // The floating companion is the 3D character: without a 3D model it stays off.
+        return com.suvo.agent.device.OverlayWindow.available(ctx) && com.suvo.agent.character.vrm.RecommendedVrm.hasModel(ctx);
     }
 
     /** On by default; the user can switch it off in Settings. */
@@ -183,7 +184,7 @@ public final class FloatingCompanionService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        if (!com.suvo.agent.device.OverlayWindow.available(this)) {
+        if (!canRun(this)) {
             stopSelf();
             return START_NOT_STICKY;
         }

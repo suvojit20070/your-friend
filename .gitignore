@@ -13,3 +13,7 @@
 *.jks
 secrets.properties
 *.jks.base64
+
+# Downloaded by CI (tools/editor/fetch_grammars.py)
+/app/src/main/assets/textmate/grammars/
+/app/src/main/assets/textmate/languages.json

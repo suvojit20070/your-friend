@@ -84,7 +84,9 @@ public final class MarkdownScaleActivity extends BaseActivity {
 
         // Card under the preview with the slider.
         View scroll = findViewById(R.id.rows_scroll);
-        ViewGroup column = (ViewGroup) scroll.getParent();
+        // The scroller sits in the pull-to-refresh frame; the card goes in the page column under it.
+        ViewGroup column = (ViewGroup) (scroll.getParent() instanceof com.suvo.agent.ui.widgets.FasterPullToRefreshLayout
+                ? scroll.getParent().getParent() : scroll.getParent());
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(new TonalDrawable(pal.surfaceHigh, Ui.dp(this, 36)));

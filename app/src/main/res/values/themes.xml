@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.YourFriend" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Launch screen (Android 12+): the app name instead of the icon. -->
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor" tools:targetApi="31">@android:color/transparent</item>
         <item name="android:windowBackground">@drawable/bg_app</item>
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:colorPrimary">@color/accent</item>

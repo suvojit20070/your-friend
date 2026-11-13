@@ -45,6 +45,7 @@ public final class ToolsActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rows);
+        pullToRefresh(this::build);
         setTopBar(R.string.section_tools);
         if (savedInstanceState != null) tab = savedInstanceState.getInt(STATE_TAB);
     }

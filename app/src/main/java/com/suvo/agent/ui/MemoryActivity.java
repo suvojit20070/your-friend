@@ -48,6 +48,7 @@ public final class MemoryActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rows);
+        pullToRefresh(this::refresh);
         setTopBar(R.string.section_memory);
         topAction(R.drawable.ic_add, R.string.memory_add, v -> edit(null));
         LinearLayout box = findViewById(R.id.rows);

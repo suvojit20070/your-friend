@@ -8,44 +8,72 @@
     -->
     <style name="Theme.YourFriend.Splash.S0" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s0</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S1" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s1</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S2" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s2</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S3" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s3</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S4" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s4</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S5" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s5</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S6" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s6</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S7" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s7</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S8" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s8</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S9" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s9</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S10" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s10</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.S11" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_s11</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.Dynamic" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">@color/splash_dynamic</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
     <style name="Theme.YourFriend.Splash.Dim" parent="Theme.YourFriend">
         <item name="android:windowSplashScreenBackground">#FF000000</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_name</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
 </resources>

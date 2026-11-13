@@ -38,6 +38,7 @@ public final class StorageActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rows);
+        pullToRefresh(this::build);
         setTopBar(R.string.storage_title);
         box = findViewById(R.id.rows);
         build();

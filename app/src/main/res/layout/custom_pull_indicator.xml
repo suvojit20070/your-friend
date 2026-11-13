@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:id="@+id/custom_indicator_container"
+	android:layout_width="wrap_content"
+	android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:clipToPadding="false"
+	android:clipChildren="false">
+	<com.google.android.material.card.MaterialCardView
+		android:id="@+id/custom_card"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="7dp"
+		app:contentPadding="7dp"
+		app:cardBackgroundColor="?attr/colorPrimaryContainer"
+		android:layout_gravity="center_horizontal|center_vertical"
+		app:cardCornerRadius="50dp"
+		app:strokeWidth="0dp"
+		android:clipToPadding="false"
+		android:clipChildren="false">
+		<androidx.appcompat.widget.AppCompatImageView
+			android:id="@+id/custom_vector"
+			android:layout_width="33dp"
+			android:layout_height="33dp"
+			android:focusable="false"
+			app:srcCompat="@drawable/twelve_styled"
+			android:adjustViewBounds="true"
+			android:elevation="2dp" />
+	</com.google.android.material.card.MaterialCardView>
+</LinearLayout>

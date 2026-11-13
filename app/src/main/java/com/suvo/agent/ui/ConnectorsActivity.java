@@ -43,6 +43,7 @@ public final class ConnectorsActivity extends BaseActivity implements ConnectorR
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rows);
+        pullToRefresh(this::build);
         setTopBar(R.string.connectors_title);
         g.connectors.addListener(this);
         build();

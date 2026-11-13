@@ -23,6 +23,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Copy / move / delete from Files keep running when the screen closes. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- Audio from the chat keeps playing with its media notification -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- Floating companion overlay (granted by the user in system settings) -->
@@ -205,6 +207,12 @@
             android:exported="false"
             android:targetActivity=".ui.AssistActivity" />
 
+        <!-- Copy / move / delete jobs from Files (not tied to the screen). -->
+        <service
+            android:name=".files.FileOpsService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Quick Settings tiles -->
         <service
             android:name=".launch.Tiles$Ask"
@@ -293,6 +301,7 @@
         <activity android:name=".ui.CustomToolEditorActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.TerminalActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.FilesActivity" android:exported="false" />
+        <activity android:name=".ui.EditorActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.VoiceActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ui.ScreenControlActivity" android:exported="false" />
         <activity android:name=".ui.PermissionsActivity" android:exported="false" />
