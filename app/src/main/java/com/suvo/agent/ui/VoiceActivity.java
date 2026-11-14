@@ -104,6 +104,12 @@ public final class VoiceActivity extends BaseActivity {
         r.textRow(R.drawable.ic_mic, R.string.voice_stt_language, Settings.STT_LANGUAGE, "", false, R.string.voice_language_auto, null);
         r.switchRow(R.drawable.ic_mic, R.string.voice_auto_listen, R.string.voice_auto_listen_desc,
                 com.suvo.agent.voice.AutoListen.SETTING, false, null);
+        // Voice call in the assistant card.
+        r.switchRow(R.drawable.ic_mic, R.string.voice_call_mode, R.string.voice_call_mode_desc, AssistActivity.CALL_MODE, true, null);
+        r.sliderRow(R.drawable.ic_mic, R.string.voice_call_timeout, com.suvo.agent.voice.CallService.TIMEOUT,
+                com.suvo.agent.voice.CallService.DEFAULT_TIMEOUT, 10, 300, "s", null);
+        r.switchRow(R.drawable.ic_voice, R.string.voice_call_status, R.string.voice_call_status_desc,
+                com.suvo.agent.voice.CallService.SPEAK_STATUS, true, null);
         r.switchRow(R.drawable.ic_mic, R.string.voice_hands_free, R.string.voice_hands_free_desc, Settings.HANDS_FREE, false, on -> {
             if (on) {
                 if (!g.settings.bool(Settings.ALLOW_BACKGROUND_LISTENING, false)) {

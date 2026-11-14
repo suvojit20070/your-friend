@@ -387,6 +387,12 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
+        <!-- A voice call with the companion (assistant card): keeps the microphone while the card steps aside or the screen locks. -->
+        <service
+            android:name=".voice.CallService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
         <service
             android:name=".device.capture.ScreenCaptureService"
             android:exported="false"

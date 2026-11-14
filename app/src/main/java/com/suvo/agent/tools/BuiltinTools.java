@@ -43,6 +43,8 @@ public final class BuiltinTools {
         add(g, () -> new ScreenTools.ScreenAccessibility(g));
         add(g, () -> new ScreenTools.ScreenShell(g));
         add(g, () -> new ShizukuTools.DeviceAdmin(g));
+        add(g, () -> new LockTools.Lock(g));
+        add(g, () -> new LockTools.Unlock(g));
         add(g, () -> new ScreenTools.Screenshot(g));
         add(g, () -> new ScreenTools.ViewImage(g));
         add(g, () -> new ScreenTools.Camera(g));

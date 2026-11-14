@@ -84,6 +84,11 @@ public final class AssistActivity extends BaseActivity {
     private long conversation;
     private boolean asked;
 
+    /** Setting: the mic starts a voice call (listens the whole time) instead of one sentence. */
+    public static final String CALL_MODE = "assist_call_mode";
+    /** The card is stopped (screen off / behind another app) — used to close it when a call ends. */
+    private boolean stopped;
+
     /** Setting: how the assistant looks — card (default), bar, top, glow (no card, only an animation). */
     public static final String STYLE = "assist_style";
     private String style = "card";
@@ -135,6 +140,12 @@ public final class AssistActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Like other assistants it works on the lock screen (without unlocking); woken by the wake
+        // word it also turns the screen on.
+        if (Build.VERSION.SDK_INT >= 27) {
+            setShowWhenLocked(true);
+            if (getIntent() != null && getIntent().getBooleanExtra(EXTRA_FROM_WAKE, false)) setTurnScreenOn(true);
+        }
         // Float over the other app: transparent window, no theme background.
         getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
         Palette pal = Palette.of(this);
@@ -180,6 +191,8 @@ public final class AssistActivity extends BaseActivity {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             finish();
         }));
+        // A fresh chat for the card (the old one is cleared).
+        head.addView(iconButton(R.drawable.ic_add, R.string.assist_new_chat, v -> newChat()));
         head.addView(iconButton(R.drawable.ic_close, R.string.close, v -> finish()));
         LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hp.setMargins(Ui.dp(this, 18), Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 4));
@@ -682,6 +695,10 @@ public final class AssistActivity extends BaseActivity {
     // ---------------------------------------------------------------------------------- voice
 
     private void toggleMic() {
+        if (com.suvo.agent.voice.CallService.active()) {
+            com.suvo.agent.voice.CallService.end(this);
+            return;
+        }
         if (speech.isListening()) {
             speech.stop();
             return;
@@ -694,7 +711,78 @@ public final class AssistActivity extends BaseActivity {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
             return;
         }
-        listen(false);
+        if (g.settings.bool(CALL_MODE, true)) startCall();
+        else listen(false);
+    }
+
+    // ---------------------------------------------------------------------------------- call
+
+    private final com.suvo.agent.voice.CallService.Sink callSink = text -> {
+        conversation = com.suvo.agent.voice.CallService.conversation();
+        ask(text);
+    };
+
+    private final com.suvo.agent.voice.CallService.Listener callListener = new com.suvo.agent.voice.CallService.Listener() {
+        @Override
+        public void onCallState(com.suvo.agent.voice.CallService.State state, String text) {
+            if (isDestroyed()) return;
+            switch (state) {
+                case LISTENING:
+                    mic.setImageResource(R.drawable.ic_stop);
+                    if (!g.agent.isRunning()) {
+                        say(getString(R.string.call_listening));
+                        glowState(AssistGlow.LISTENING);
+                    }
+                    break;
+                case HEARING:
+                    say("“" + text + "”");
+                    glowState(AssistGlow.LISTENING);
+                    break;
+                case THINKING:
+                    break;
+                case ENDED:
+                    com.suvo.agent.voice.CallService.removeListener(this);
+                    com.suvo.agent.voice.CallService.clearSink(callSink);
+                    mic.setImageResource(R.drawable.ic_mic);
+                    say(getString(R.string.call_ended));
+                    glowState(AssistGlow.IDLE);
+                    if (stopped) finish();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        @Override
+        public void onLevel(float rmsDb) {
+            if (glow != null) glow.setVoice(rmsDb);
+        }
+    };
+
+    /** A call: the mic stays open; what you say is sent when you pause; answers come back spoken. */
+    private void startCall() {
+        g.speech.stop();
+        main.removeCallbacks(autoQuiet);
+        if (speech.isListening()) speech.cancel();
+        com.suvo.agent.voice.CallService.setSink(callSink);
+        com.suvo.agent.voice.CallService.addListener(callListener);
+        com.suvo.agent.voice.CallService.start(this, conversation);
+        mic.setImageResource(R.drawable.ic_stop);
+        mic.setContentDescription(getString(R.string.call_end));
+        say(getString(R.string.call_listening));
+        glowState(AssistGlow.LISTENING);
+    }
+
+    /** The card's chat starts over (button, or "new chat" said in a call). */
+    private void newChat() {
+        if (g.agent.isRunning() && g.agent.current() != null && g.agent.current().conversationId == conversation) g.agent.cancel();
+        conversation = g.agent.resetAssistConversation();
+        com.suvo.agent.voice.CallService.setConversation(conversation);
+        asked = false;
+        stream.setLength(0);
+        answer.setText("");
+        answer.setVisibility(View.GONE);
+        say(getString(R.string.call_new_chat));
     }
 
     private com.suvo.agent.voice.AutoListen.Pending autoListen;
@@ -707,6 +795,8 @@ public final class AssistActivity extends BaseActivity {
 
     /** The answer is done: listen for the reply (setting "Listen after the answer"). */
     private void maybeAutoListen() {
+        // A call listens all the time anyway.
+        if (com.suvo.agent.voice.CallService.active()) return;
         if (!com.suvo.agent.voice.AutoListen.on(g) || speech.isListening()) return;
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return;
         if (autoListen != null) autoListen.cancel();
@@ -838,8 +928,9 @@ public final class AssistActivity extends BaseActivity {
             } else {
                 status.setText(R.string.assist_done);
                 if (glow != null) {
-                    // No card to read: the answer is said out loud (unless replies are spoken anyway).
-                    if (!g.settings.bool(com.suvo.agent.data.Settings.VOICE_OUTPUT, false) && !task.finalText.trim().isEmpty()) {
+                    // No card to read: the answer is said out loud (unless replies are spoken anyway, or a call says it).
+                    if (!g.settings.bool(com.suvo.agent.data.Settings.VOICE_OUTPUT, false) && !task.finalText.trim().isEmpty()
+                            && !com.suvo.agent.voice.CallService.active()) {
                         g.speech.speak(task.finalText);
                     }
                     glowState(AssistGlow.SPEAKING);
@@ -860,6 +951,7 @@ public final class AssistActivity extends BaseActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        stopped = false;
         com.suvo.agent.agent.ScreenGate.set(screenHider);
     }
 
@@ -902,6 +994,8 @@ public final class AssistActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Hands-free waits for this: the card is up, no voice-only fallback.
+        com.suvo.agent.voice.HandsFreeService.assistShown();
         if (hiddenForTask) {
             hiddenForTask = false;
             android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
@@ -914,8 +1008,10 @@ public final class AssistActivity extends BaseActivity {
         com.suvo.agent.agent.ScreenGate.clear(screenHider);
         if (speech.isListening()) speech.cancel();
         super.onStop();
-        // An assistant card does not stay behind other apps — unless it only stepped aside for a task.
-        if (!isChangingConfigurations() && !hiddenForTask) finish();
+        stopped = true;
+        // An assistant card does not stay behind other apps — unless it only stepped aside for a task,
+        // or a call is going on (the screen went off on the lock screen: keep talking).
+        if (!isChangingConfigurations() && !hiddenForTask && !com.suvo.agent.voice.CallService.active()) finish();
     }
 
     @Override
@@ -928,7 +1024,8 @@ public final class AssistActivity extends BaseActivity {
             startOrType();
             return;
         }
-        // Assistant gesture again while open: listen again.
+        // Assistant gesture again while open: listen again (a running call just goes on).
+        if (com.suvo.agent.voice.CallService.active()) return;
         if (!speech.isListening()) toggleMic();
     }
 
@@ -938,6 +1035,10 @@ public final class AssistActivity extends BaseActivity {
         main.removeCallbacks(autoQuiet);
         if (glow != null) glow.stop();
         g.agent.removeListener(listener);
+        com.suvo.agent.voice.CallService.removeListener(callListener);
+        com.suvo.agent.voice.CallService.clearSink(callSink);
+        // Closing the card ends its call.
+        if (!isChangingConfigurations()) com.suvo.agent.voice.CallService.end(this);
         // Hands-free waits while the card is open; it goes back to listening for the wake word now.
         com.suvo.agent.voice.HandsFreeService.assistClosed();
         super.onDestroy();

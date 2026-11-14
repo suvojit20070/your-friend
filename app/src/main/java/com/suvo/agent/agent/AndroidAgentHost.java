@@ -97,6 +97,18 @@ public final class AndroidAgentHost implements AgentHost {
         langText.append(lang.isEmpty() ? "Reply in the language the user writes in (English, Hinglish, Bengali, Hindi, Japanese or any other)." : "Reply in: " + lang + ".");
         if (!tone.isEmpty()) langText.append(" Tone: ").append(tone).append('.');
         if (g.settings.bool(Settings.VOICE_OUTPUT, false)) langText.append(" Replies are also spoken aloud, so keep them easy to listen to.");
+        // A voice call (assistant card call or hands-free without a screen): talk like on the phone.
+        boolean onCall = (com.suvo.agent.voice.CallService.active() && task.conversationId == com.suvo.agent.voice.CallService.conversation())
+                || (com.suvo.agent.voice.HandsFreeService.isRunning() && task.conversationId == com.suvo.agent.voice.HandsFreeService.conversation());
+        if (onCall) {
+            langText.append(" YOU ARE ON A VOICE CALL with the user: everything you write is spoken aloud and they may not be "
+                    + "looking at the phone. Answer fast and short (1–3 spoken sentences), plain words — no markdown, lists, "
+                    + "links, emojis or code. Answer from what you know when you can; use a tool only when the request "
+                    + "really needs one (an action on the phone, fresh facts). Do not explain tool steps — the app already "
+                    + "tells the user briefly what is going on. If the phone is locked and the job needs the screen, use "
+                    + "unlock_screen; calls, alarms, music and answers do not need unlocking. Ask at most one short question "
+                    + "when something is unclear. See the skill \"voice-call\".");
+        }
         pa.responseLanguage = langText.toString();
         pa.capabilitySummary = g.capabilities.summaryForPrompt();
         String accounts = g.connectors.summaryForPrompt();

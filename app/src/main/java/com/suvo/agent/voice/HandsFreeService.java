@@ -53,6 +53,16 @@ public final class HandsFreeService extends Service {
     private long followUpUntil;
     /** The chat hands-free talks in (chosen once per session, see AgentRuntime.assistConversation). */
     private long handsFreeConversation = -1;
+    /**
+     * The card could not come up (locked phone, Android blocked it): hands-free carries on by voice
+     * alone — it hears the request, the answer is spoken, and follow-ups need no wake word for the
+     * call time set in Settings.
+     */
+    private boolean headless;
+    /** The card reported it is on screen. */
+    private boolean assistShown;
+    private long lastStatusAt;
+    private String lastStatusKind = "";
     private long lastLevelAt;
 
     private static volatile boolean running;
@@ -70,6 +80,12 @@ public final class HandsFreeService extends Service {
     /** Why it stopped by itself (shown in Voice settings), null when you stopped it. */
     private String stopReason;
     private int consecutiveErrors;
+
+    /** The chat hands-free talks in (-1 = none yet). */
+    public static long conversation() {
+        HandsFreeService s = instance;
+        return s == null ? -1 : s.handsFreeConversation;
+    }
 
     public static boolean isRunning() {
         return running;
@@ -180,8 +196,27 @@ public final class HandsFreeService extends Service {
             agentListener = new AgentListener() {
                 @Override
                 public void onFinished(TaskState task) {
-                    waitingForAgent = false;
-                    main.postDelayed(HandsFreeService.this::listenIfIdle, 400);
+                    main.post(() -> {
+                        AppGraph hg = AppGraph.get();
+                        boolean mine = task.conversationId == handsFreeConversation && waitingForAgent;
+                        waitingForAgent = false;
+                        if (mine && !assistOpen) {
+                            // Hands-free has no screen: the answer is spoken, then follow-ups need no wake word.
+                            String reply = task.status == TaskState.Status.COMPLETED ? task.finalText.trim() : task.error.trim();
+                            if (!reply.isEmpty() && (!hg.settings.bool(Settings.VOICE_OUTPUT, false) || task.status != TaskState.Status.COMPLETED)) {
+                                hg.speech.speak(reply);
+                            }
+                            followUpUntil = android.os.SystemClock.uptimeMillis()
+                                    + Math.max(10, hg.settings.integer(CallService.TIMEOUT, CallService.DEFAULT_TIMEOUT)) * 1000L;
+                        }
+                        main.postDelayed(HandsFreeService.this::listenIfIdle, 400);
+                    });
+                }
+
+                @Override
+                public void onToolExecuting(TaskState task, com.suvo.agent.core.llm.ToolCall call) {
+                    if (task.conversationId != handsFreeConversation || assistOpen) return;
+                    main.post(() -> sayStatus(call.name));
                 }
             };
             speechListener = new SpeechController.Listener() {
@@ -334,9 +369,43 @@ public final class HandsFreeService extends Service {
         if (s != null && running) s.main.post(s::prepareWake);
     }
 
+    /** A short spoken line about the tool that runs (no screen to look at). */
+    private void sayStatus(String tool) {
+        AppGraph g = AppGraph.get();
+        if (!g.settings.bool(CallService.SPEAK_STATUS, true) || g.speech.isActive()) return;
+        String kind = CallService.statusKind(tool);
+        if (kind == null) return;
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastStatusAt < 7000 || (kind.equals(lastStatusKind) && now - lastStatusAt < 25_000)) return;
+        lastStatusAt = now;
+        lastStatusKind = kind;
+        g.speech.speak(getString(CallService.statusRes(kind)));
+    }
+
+    /** The card is on screen (called from the card): no voice-only fallback needed. */
+    public static void assistShown() {
+        HandsFreeService s = instance;
+        if (s != null) s.main.post(() -> s.assistShown = true);
+    }
+
+    /** The card did not come up in time: go on by voice alone. */
+    private void goHeadless() {
+        if (!running || assistShown || !assistOpen) return;
+        AppGraph g = AppGraph.get();
+        assistOpen = false;
+        headless = true;
+        followUpUntil = android.os.SystemClock.uptimeMillis() + 10_000;
+        g.speech.speak(getString(R.string.handsfree_yes));
+        publish(getString(R.string.handsfree_wake_heard));
+        main.postDelayed(this::listenIfIdle, 300);
+    }
+
     /** Wake word heard: the assistant card opens and records the request itself. */
     private void openAssistant() {
         assistOpen = true;
+        assistShown = false;
+        // On a locked phone the card may not come up (or comes up late): then voice alone.
+        main.postDelayed(this::goHeadless, 3500);
         if (gate != null) gate.pause(true);
         publish(getString(R.string.handsfree_wake_heard));
         com.suvo.agent.character.FloatingCompanionService.react();

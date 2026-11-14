@@ -277,6 +277,11 @@ public final class SettingsActivity extends BaseActivity {
         r.choiceRow(R.drawable.ic_chat, R.string.assist_chat, com.suvo.agent.agent.AgentRuntime.ASSIST_CHAT, "separate",
                 new String[]{getString(R.string.assist_chat_separate), getString(R.string.assist_chat_new), getString(R.string.assist_chat_current)},
                 new String[]{"separate", "new", "current"}, null);
+        r.row(R.drawable.ic_delete, getString(R.string.assist_chat_clear), getString(R.string.assist_chat_clear_desc), null,
+                v -> Ui.confirm(this, R.string.assist_chat_clear, getString(R.string.assist_chat_clear_confirm), () -> {
+                    g.agent.resetAssistConversation();
+                    Ui.toast(this, R.string.assist_chat_cleared);
+                }));
         r.row(R.drawable.ic_play, getString(R.string.assist_style_try), null, null,
                 v -> startActivity(new Intent(this, AssistActivity.class).putExtra(AssistActivity.EXTRA_LISTEN, false)));
         r.link(R.drawable.ic_screen, R.string.section_screen, R.string.settings_screen_desc, ScreenControlActivity.class);

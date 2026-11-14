@@ -135,6 +135,25 @@ public final class AgentRuntime {
         return id;
     }
 
+    /**
+     * "New chat" for the assistant card / hands-free / call: a fresh chat of its own (the app's
+     * chat stays as it is) — or, in "current" mode, a new chat for the app too.
+     */
+    public long resetAssistConversation() {
+        String mode = g.settings.str(ASSIST_CHAT, "separate");
+        if ("current".equals(mode)) return newConversation();
+        long old = g.settings.lng(ASSIST_CONVERSATION, -1L);
+        // The separate Assistant chat starts over (its old messages go away); "new" just starts another.
+        if ("separate".equals(mode) && old >= 0 && g.conversations.get(old) != null && !(isRunning() && current != null
+                && current.conversationId == old)) {
+            g.conversations.delete(old);
+        }
+        long id = g.conversations.create("separate".equals(mode) ? g.ctx.getString(com.suvo.agent.R.string.assist_chat_title) : "",
+                g.characters.active().id);
+        g.settings.put(ASSIST_CONVERSATION, id);
+        return id;
+    }
+
     public long newConversation() {
         activeConversation = g.conversations.create("", g.characters.active().id);
         return activeConversation;

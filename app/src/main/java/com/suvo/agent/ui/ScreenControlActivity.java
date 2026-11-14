@@ -92,7 +92,121 @@ public final class ScreenControlActivity extends BaseActivity {
         r.switchRow(R.drawable.ic_shield, R.string.privacy_shizuku, R.string.privacy_shizuku_desc, Settings.ALLOW_SHIZUKU, true, v -> build());
         if (st == ShizukuManager.State.READY) r.button(R.string.shizuku_test, false, v -> testShizuku());
         r.note(getString(R.string.shizuku_explain));
+
+        unlockSection(r);
         Ui.tintAccent(this, box);
+    }
+
+    // ---- Phone unlock for the agent --------------------------------------------------------------
+
+    private void unlockSection(Rows r) {
+        r.section(R.string.unlock_section);
+        r.note(getString(R.string.unlock_intro));
+        String m = com.suvo.agent.device.lock.UnlockSecret.method(this);
+        String label = getString("pin".equals(m) ? R.string.unlock_method_pin : "pattern".equals(m) ? R.string.unlock_method_pattern
+                : R.string.unlock_method_none);
+        r.row(R.drawable.ic_shield, getString(R.string.unlock_method), label, null, v -> chooseUnlock());
+        if (!"none".equals(m)) {
+            r.switchRow(R.drawable.ic_shield, R.string.unlock_only_charging, R.string.unlock_only_charging_desc,
+                    com.suvo.agent.device.lock.UnlockSecret.ONLY_CHARGING, false, null);
+            if (g.settings.integer(com.suvo.agent.device.lock.UnlockSecret.FAILS, 0) >= 2) r.note(getString(R.string.unlock_paused));
+            r.button(R.string.unlock_test, false, v -> testUnlock());
+        }
+        r.note(getString(R.string.unlock_note));
+    }
+
+    private void chooseUnlock() {
+        String[] items = {getString(R.string.unlock_method_none), getString(R.string.unlock_method_pin), getString(R.string.unlock_method_pattern)};
+        Ui.show(Ui.dialog(this).setTitle(R.string.unlock_method).setItems(items, (d, w) -> {
+            if (w == 0) {
+                com.suvo.agent.device.lock.UnlockSecret.clear(this);
+                build();
+            } else {
+                // Warn first: anyone who can talk to the companion could get the phone opened.
+                Ui.show(Ui.dialog(this).setTitle(R.string.unlock_warning_title).setMessage(R.string.unlock_warning)
+                        .setPositiveButton(R.string.unlock_warning_ok, (d2, w2) -> {
+                            if (w == 1) askPin();
+                            else askPattern(null);
+                        })
+                        .setNegativeButton(android.R.string.cancel, null));
+            }
+        }));
+    }
+
+    private void askPin() {
+        android.widget.EditText e = new android.widget.EditText(this, null, 0, R.style.YF_Input);
+        e.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        e.setHint(R.string.unlock_pin_hint);
+        android.widget.FrameLayout wrap = new android.widget.FrameLayout(this);
+        android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(-1, -2);
+        lp.setMargins(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), Ui.dp(this, 4));
+        wrap.addView(e, lp);
+        Ui.show(Ui.dialog(this).setTitle(R.string.unlock_method_pin).setView(wrap)
+                .setPositiveButton(R.string.save, (d, w) -> {
+                    String pin = e.getText().toString();
+                    if (pin.length() < 4) {
+                        Ui.toast(this, R.string.unlock_pin_short);
+                        return;
+                    }
+                    saveSecret("pin", pin);
+                })
+                .setNegativeButton(android.R.string.cancel, null));
+    }
+
+    /** Draw the pattern twice (the second time confirms it). */
+    private void askPattern(String first) {
+        PatternPadView pad = new PatternPadView(this);
+        android.widget.FrameLayout wrap = new android.widget.FrameLayout(this);
+        android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(-1, -2);
+        lp.setMargins(Ui.dp(this, 28), Ui.dp(this, 8), Ui.dp(this, 28), Ui.dp(this, 8));
+        wrap.addView(pad, lp);
+        final Overlay[] dlg = new Overlay[1];
+        pad.setListener(order -> {
+            if (order.isEmpty()) {
+                Ui.toast(this, R.string.unlock_pattern_short);
+                return;
+            }
+            if (dlg[0] != null) dlg[0].dismiss();
+            if (first == null) {
+                askPattern(order);
+            } else if (first.equals(order)) {
+                saveSecret("pattern", order);
+            } else {
+                Ui.toast(this, R.string.unlock_pattern_mismatch);
+                askPattern(null);
+            }
+        });
+        int title = first == null ? R.string.unlock_pattern_draw : R.string.unlock_pattern_again;
+        dlg[0] = Ui.show(Ui.dialog(this).setTitle(title)
+                .setView(wrap).setNegativeButton(android.R.string.cancel, null));
+    }
+
+    private void saveSecret(String method, String secret) {
+        try {
+            com.suvo.agent.device.lock.UnlockSecret.save(this, method, secret);
+            Ui.toast(this, R.string.unlock_saved);
+        } catch (Exception e) {
+            Ui.toast(this, getString(R.string.error_prefix, e.getMessage()));
+        }
+        build();
+    }
+
+    /** Lock the phone, wait, then unlock with the saved method (tells how it went). */
+    private void testUnlock() {
+        Ui.show(Ui.dialog(this).setTitle(R.string.unlock_test).setMessage(R.string.unlock_test_desc)
+                .setPositiveButton(R.string.unlock_test_go, (d, w) -> g.io.execute(() -> {
+                    com.suvo.agent.device.lock.ScreenUnlocker.lock(this);
+                    String msg;
+                    try {
+                        Thread.sleep(4000);
+                        msg = com.suvo.agent.device.lock.ScreenUnlocker.unlock(this).message;
+                    } catch (InterruptedException e) {
+                        msg = "Stopped";
+                    }
+                    String m = msg;
+                    runOnUiThread(() -> Ui.show(Ui.dialog(this).setTitle(R.string.unlock_test).setMessage(m).setPositiveButton(android.R.string.ok, null)));
+                }))
+                .setNegativeButton(android.R.string.cancel, null));
     }
 
     private void testRead() {
