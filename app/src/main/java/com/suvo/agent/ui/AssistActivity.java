@@ -58,6 +58,19 @@ public final class AssistActivity extends BaseActivity {
     public static final String EXTRA_SEND = "send";
     /** The app's own entry point (an alias that other apps cannot start). */
     public static final String INTERNAL = "com.suvo.agent.ui.AssistInternal";
+    /** Open straight into a call that greets you (double tap on the companion) — app's own entry only. */
+    public static final String EXTRA_CALL = "call";
+
+    /** The intent that opens a greeting call (used by the floating companion). */
+    public static Intent callIntent(android.content.Context ctx) {
+        return new Intent().setClassName(ctx, INTERNAL).putExtra(EXTRA_CALL, true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    }
+
+    /** The next call started here opens with a greeting (wake word, double tap). */
+    private boolean greetCall;
+    /** A call even when the card's mic is set to one question at a time. */
+    private boolean forceCall;
 
     /** Selected text the next question is about ("" = none). */
     private String selection = "";
@@ -567,6 +580,13 @@ public final class AssistActivity extends BaseActivity {
         }
         if (trusted && "com.suvo.agent.TALK".equals(i.getAction())) i.putExtra(EXTRA_LISTEN, true);
         boolean shown = false;
+        // Wake word ("hey …") or a double tap on the companion: a call that says hello first.
+        greetCall = i.getBooleanExtra(EXTRA_FROM_WAKE, false) || (trusted && i.getBooleanExtra(EXTRA_CALL, false));
+        forceCall = greetCall;
+        if (forceCall) {
+            startMode = 2;
+            shown = true;
+        }
         if (sel != null && !sel.trim().isEmpty()) {
             showSelection(sel.trim());
             shown = true;
@@ -695,6 +715,11 @@ public final class AssistActivity extends BaseActivity {
     // ---------------------------------------------------------------------------------- voice
 
     private void toggleMic() {
+        if (com.suvo.agent.voice.CallService.active() && (forceCall || greetCall)) {
+            // Opened for a call while one is going on: it just goes on.
+            forceCall = greetCall = false;
+            return;
+        }
         if (com.suvo.agent.voice.CallService.active()) {
             com.suvo.agent.voice.CallService.end(this);
             return;
@@ -711,7 +736,7 @@ public final class AssistActivity extends BaseActivity {
             requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
             return;
         }
-        if (g.settings.bool(CALL_MODE, true)) startCall();
+        if (forceCall || g.settings.bool(CALL_MODE, true)) startCall();
         else listen(false);
     }
 
@@ -740,6 +765,11 @@ public final class AssistActivity extends BaseActivity {
                     break;
                 case THINKING:
                     break;
+                case MUTED:
+                    mic.setImageResource(R.drawable.ic_mic);
+                    say(getString(R.string.call_muted));
+                    glowState(AssistGlow.IDLE);
+                    break;
                 case ENDED:
                     com.suvo.agent.voice.CallService.removeListener(this);
                     com.suvo.agent.voice.CallService.clearSink(callSink);
@@ -766,7 +796,9 @@ public final class AssistActivity extends BaseActivity {
         if (speech.isListening()) speech.cancel();
         com.suvo.agent.voice.CallService.setSink(callSink);
         com.suvo.agent.voice.CallService.addListener(callListener);
-        com.suvo.agent.voice.CallService.start(this, conversation);
+        com.suvo.agent.voice.CallService.start(this, conversation, greetCall);
+        greetCall = false;
+        forceCall = false;
         mic.setImageResource(R.drawable.ic_stop);
         mic.setContentDescription(getString(R.string.call_end));
         say(getString(R.string.call_listening));
@@ -864,6 +896,8 @@ public final class AssistActivity extends BaseActivity {
         if (text.isEmpty()) return;
         if (speech.isListening()) speech.cancel();
         String sent = selection.isEmpty() ? text : text + "\n\n[Selected text]\n" + selection;
+        // The voice-only style has no card to read: the answer is said aloud as it streams.
+        if (glow != null) g.agent.speakNextReply(conversation);
         String err = g.agent.submit(conversation, sent, null);
         if (err != null) {
             status.setText(err);
@@ -928,11 +962,6 @@ public final class AssistActivity extends BaseActivity {
             } else {
                 status.setText(R.string.assist_done);
                 if (glow != null) {
-                    // No card to read: the answer is said out loud (unless replies are spoken anyway, or a call says it).
-                    if (!g.settings.bool(com.suvo.agent.data.Settings.VOICE_OUTPUT, false) && !task.finalText.trim().isEmpty()
-                            && !com.suvo.agent.voice.CallService.active()) {
-                        g.speech.speak(task.finalText);
-                    }
                     glowState(AssistGlow.SPEAKING);
                     glow.postDelayed(() -> glowState(AssistGlow.IDLE), 2500);
                 }
@@ -1037,8 +1066,8 @@ public final class AssistActivity extends BaseActivity {
         g.agent.removeListener(listener);
         com.suvo.agent.voice.CallService.removeListener(callListener);
         com.suvo.agent.voice.CallService.clearSink(callSink);
-        // Closing the card ends its call.
-        if (!isChangingConfigurations()) com.suvo.agent.voice.CallService.end(this);
+        // Closing the card does not end its call: it goes on in the notification (Hang up / Mute)
+        // until "bye", Hang up or the quiet time.
         // Hands-free waits while the card is open; it goes back to listening for the wake word now.
         com.suvo.agent.voice.HandsFreeService.assistClosed();
         super.onDestroy();

@@ -179,6 +179,7 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
         vrm = new VrmView(getContext());
         vrm.setHeadroom(headroom);
         vrm.setFps(frameSkip == 0 ? 60 : 30);
+        vrm.setQuality(vrmQuality);
         addView(vrm, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         vrm.setModel(source, framing, new VrmView.Callback() {
             @Override
@@ -207,12 +208,26 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
         return vrm != null && vrmReady;
     }
 
-    /** quality: "low" (30 fps, flat fills), "medium" (30 fps), "high" (60 fps). */
+    /**
+     * quality: "low" (30 fps, flat fills), "medium" (30 fps, soft rim light), "high" (60 fps,
+     * smooth edges, crisper cel shading, outline, finer hair and cloth physics). No shadows.
+     */
     public void setQuality(String quality, boolean reducedMotion) {
         gfx.low = "low".equals(quality);
         frameSkip = "high".equals(quality) ? 0 : 1;
         animator.reducedMotion = reducedMotion;
-        if (vrm != null) vrm.setFps(frameSkip == 0 ? 60 : 30);
+        vrmQuality = "low".equals(quality) ? 0 : "high".equals(quality) ? 2 : 1;
+        if (vrm != null) {
+            vrm.setFps(frameSkip == 0 ? 60 : 30);
+            vrm.setQuality(vrmQuality);
+        }
+    }
+
+    private int vrmQuality = 1;
+
+    /** Dance a move ({@code DanceMoves}, -1 = stop) to the music's beat. */
+    public void setDance(int move, float bpm, float energy, long beatAnchorNs) {
+        if (vrm != null) vrm.setDance(move, bpm, energy, beatAnchorNs);
     }
 
     public void setActivity(CharacterAnimator.Activity a) {

@@ -48,12 +48,17 @@ public final class CallService extends Service {
     public static final String SPEAK_STATUS = "call_speak_status";
 
     private static final String ACTION_END = "com.suvo.agent.call.END";
+    private static final String ACTION_MUTE = "com.suvo.agent.call.MUTE";
+    /** The mic is off for a moment (Mute in the notification): nothing is heard or sent. */
+    private boolean muted;
+    private String shownStatus = "";
     private static final String EXTRA_CONVERSATION = "conversation";
+    private static final String EXTRA_GREET = "greet";
     /** A pause this long after you stop talking sends what you said. */
     private static final long SEND_PAUSE_MS = 1500;
     private static final int NOTIF_ID = 1014;
 
-    public enum State {LISTENING, HEARING, THINKING, ENDED}
+    public enum State {LISTENING, HEARING, THINKING, MUTED, ENDED}
 
     public interface Listener {
         /** State changes; {@code text} is what was heard so far (HEARING) or sent (THINKING). */
@@ -103,8 +108,13 @@ public final class CallService extends Service {
 
     /** Starts (or joins) a call in this chat. Call it while a screen of the app is visible. */
     public static void start(Context ctx, long conversationId) {
+        start(ctx, conversationId, false);
+    }
+
+    /** {@code greet}: a new call opens with a short line ("Yes, tell me?"), then listens. */
+    public static void start(Context ctx, long conversationId, boolean greet) {
         conversation = conversationId;
-        Intent i = new Intent(ctx, CallService.class).putExtra(EXTRA_CONVERSATION, conversationId);
+        Intent i = new Intent(ctx, CallService.class).putExtra(EXTRA_CONVERSATION, conversationId).putExtra(EXTRA_GREET, greet);
         if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(i);
         else ctx.startService(i);
     }
@@ -143,7 +153,79 @@ public final class CallService extends Service {
         conversation = id;
     }
 
+    public static boolean isMuted() {
+        CallService s = instance;
+        return s != null && s.muted;
+    }
+
+    /** Mute / unmute the call's microphone (also from the notification). */
+    public static void toggleMute() {
+        CallService s = instance;
+        if (s != null) s.main.post(() -> s.setMuted(!s.muted));
+    }
+
     // ---- Service ---------------------------------------------------------------------------------
+
+    /** The call notification: status, Hang up, Mute / Unmute; a tap brings the card back. */
+    private Notification notification(String status) {
+        PendingIntent endPi = PendingIntent.getService(this, 40, new Intent(this, CallService.class).setAction(ACTION_END),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent mutePi = PendingIntent.getService(this, 42, new Intent(this, CallService.class).setAction(ACTION_MUTE),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent open = PendingIntent.getActivity(this, 41, new Intent(this, com.suvo.agent.ui.AssistActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        .putExtra(com.suvo.agent.ui.AssistActivity.EXTRA_SHOW_RESULT, true),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        return Notifications.builder(this, Notifications.CHANNEL_LISTEN)
+                .setSmallIcon(R.drawable.ic_stat_companion)
+                .setContentTitle(getString(R.string.call_title) + " · " + companion())
+                .setContentText(status)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setUsesChronometer(true)
+                .setWhen(startedAt)
+                .setShowWhen(true)
+                .setContentIntent(open)
+                .setCategory(Notification.CATEGORY_CALL)
+                .addAction(new Notification.Action.Builder(null, getString(R.string.call_hang_up), endPi).build())
+                .addAction(new Notification.Action.Builder(null, getString(muted ? R.string.call_unmute : R.string.call_mute), mutePi).build())
+                .build();
+    }
+
+    private long startedAt = System.currentTimeMillis();
+
+    private String companion() {
+        try {
+            String n = AppGraph.get().characters.active().name;
+            if (n != null && !n.trim().isEmpty()) return n.trim();
+        } catch (RuntimeException ignored) {
+        }
+        return getString(R.string.app_name);
+    }
+
+    private void showStatus(String status) {
+        if (ended || status.equals(shownStatus)) return;
+        shownStatus = status;
+        android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
+        if (nm != null) nm.notify(NOTIF_ID, notification(status));
+    }
+
+    private void setMuted(boolean on) {
+        if (ended || muted == on) return;
+        muted = on;
+        main.removeCallbacks(send);
+        pending.setLength(0);
+        if (offline != null) offline.setMuted(on);
+        else if (on) {
+            if (rec != null) rec.cancel();
+        } else {
+            listen();
+        }
+        lastActivity = SystemClock.uptimeMillis();
+        shownStatus = "";
+        showStatus(getString(on ? R.string.call_muted : R.string.call_listening));
+        for (Listener l : LISTENERS) l.onCallState(on ? State.MUTED : State.LISTENING, "");
+    }
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -156,22 +238,12 @@ public final class CallService extends Service {
             finishCall();
             return START_NOT_STICKY;
         }
+        if (intent != null && ACTION_MUTE.equals(intent.getAction())) {
+            setMuted(!muted);
+            return START_NOT_STICKY;
+        }
         if (intent != null) conversation = intent.getLongExtra(EXTRA_CONVERSATION, conversation);
-        PendingIntent endPi = PendingIntent.getService(this, 40, new Intent(this, CallService.class).setAction(ACTION_END),
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        PendingIntent open = PendingIntent.getActivity(this, 41, new Intent(this, com.suvo.agent.ui.AssistActivity.class)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        .putExtra(com.suvo.agent.ui.AssistActivity.EXTRA_SHOW_RESULT, true),
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        Notification n = Notifications.builder(this, Notifications.CHANNEL_LISTEN)
-                .setSmallIcon(R.drawable.ic_stat_companion)
-                .setContentTitle(getString(R.string.call_title))
-                .setContentText(getString(R.string.call_text))
-                .setOngoing(true)
-                .setContentIntent(open)
-                .setCategory(Notification.CATEGORY_CALL)
-                .addAction(new Notification.Action.Builder(null, getString(R.string.call_end), endPi).build())
-                .build();
+        Notification n = notification(getString(R.string.call_text));
         try {
             if (Build.VERSION.SDK_INT >= 30) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
             else startForeground(NOTIF_ID, n);
@@ -180,12 +252,16 @@ public final class CallService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        if (instance == null || instance.ended) begin();
+        if (instance == null || instance.ended) {
+            begin();
+            if (intent != null && intent.getBooleanExtra(EXTRA_GREET, false)) greet();
+        }
         return START_NOT_STICKY;
     }
 
     private void begin() {
         instance = this;
+        startedAt = System.currentTimeMillis();
         ended = false;
         lastActivity = SystemClock.uptimeMillis();
         rec = new SpeechInput(this);
@@ -205,6 +281,14 @@ public final class CallService extends Service {
         };
         g.agent.addListener(agentListener);
         g.speech.addListener(speechWatch);
+        // The fixed lines of a call are made with the chosen voice once, so later they play at once.
+        java.util.List<String> lines = new ArrayList<>();
+        for (String k : new String[]{"web", "screen", "unlock", "app", "message", "team", "work"}) lines.add(getString(statusRes(k)));
+        for (int r : GREETINGS) lines.add(getString(r));
+        lines.add(getString(R.string.call_bye));
+        lines.add(getString(R.string.call_new_chat));
+        lines.add(getString(R.string.call_stopped));
+        g.speech.prewarm(lines);
         if (!startOffline()) listen();
         main.postDelayed(tick, 1000);
     }
@@ -228,6 +312,7 @@ public final class CallService extends Service {
         if (agentListener != null) g.agent.removeListener(agentListener);
         for (Listener l : LISTENERS) l.onCallState(State.ENDED, "");
         if (instance == this) instance = null;
+        HandsFreeService.callEnded();
         stopForeground(true);
         stopSelf();
     }
@@ -249,9 +334,9 @@ public final class CallService extends Service {
                 if (ended) return;
                 main.removeCallbacks(send);
                 lastActivity = SystemClock.uptimeMillis();
-                // You started talking over the companion: it stops (the detector already asked for
-                // clearer, longer speech while it was talking, so its own voice does not do this).
-                if (g.speech.isActive()) g.speech.stop();
+                // A sound while the companion talks: first only quieter. It stops when the sound
+                // turns out to be real words (onText), so a cough or a door does not cut it off.
+                if (g.speech.isActive()) duckForNow();
                 state(State.HEARING, pending.toString());
             }
 
@@ -264,7 +349,9 @@ public final class CallService extends Service {
             public void onText(String text) {
                 if (ended) return;
                 lastActivity = SystemClock.uptimeMillis();
-                if (!text.trim().isEmpty() && !isEcho(text)) {
+                boolean real = !text.trim().isEmpty() && !isEcho(text);
+                decideBargeIn(real ? text : "");
+                if (real) {
                     if (pending.length() > 0) pending.append(' ');
                     pending.append(text.trim());
                     state(State.HEARING, pending.toString());
@@ -301,7 +388,7 @@ public final class CallService extends Service {
     // ---- Listening loop (the phone's recognizer) ------------------------------------------------
 
     private void listen() {
-        if (ended) return;
+        if (ended || muted) return;
         AppGraph g = AppGraph.get();
         rec.start(g.settings.str(Settings.STT_LANGUAGE, ""), new SpeechInput.Callback() {
             @Override
@@ -319,15 +406,20 @@ public final class CallService extends Service {
                 if (text.trim().isEmpty() || isEcho(text)) return;
                 main.removeCallbacks(send);
                 lastActivity = SystemClock.uptimeMillis();
-                // Talking over the companion stops it — real words only (2+), not a stray sound.
-                if (g.speech.isActive() && text.trim().split("\\s+").length >= 2) g.speech.stop();
+                // Talking over the companion: quieter at once; it stops on real words (2+, or "stop").
+                if (g.speech.isActive()) {
+                    if (isRealInterruption(text)) g.speech.stop();
+                    else duckForNow();
+                }
                 state(State.HEARING, (pending + " " + text).trim());
             }
 
             @Override
             public void onFinal(String text) {
                 errorsInARow = 0;
-                if (!text.trim().isEmpty() && !isEcho(text)) {
+                boolean real = !text.trim().isEmpty() && !isEcho(text);
+                decideBargeIn(real ? text : "");
+                if (real) {
                     if (pending.length() > 0) pending.append(' ');
                     pending.append(text.trim());
                     lastActivity = SystemClock.uptimeMillis();
@@ -416,7 +508,8 @@ public final class CallService extends Service {
         String reply = task.status == TaskState.Status.COMPLETED ? task.finalText.trim() : task.error.trim();
         if (!reply.isEmpty()) {
             remember(reply);
-            if (!g.settings.bool(Settings.VOICE_OUTPUT, false) || task.status != TaskState.Status.COMPLETED) g.speech.speak(reply);
+            // The answer was said while it streamed in (AgentRuntime); only a failure is said here.
+            if (task.status != TaskState.Status.COMPLETED && task.status != TaskState.Status.CANCELLED) g.speech.speakQuick(reply);
         }
         if (queued.length() > 0) {
             String next = queued.toString();
@@ -446,9 +539,17 @@ public final class CallService extends Service {
 
     // ---- What the companion says during the call -------------------------------------------------
 
+    private static final int[] GREETINGS = {R.string.call_greet_1, R.string.call_greet_2, R.string.call_greet_3, R.string.call_greet_4};
+
+    /** Opens the call like a phone assistant: one short line, then it listens. */
+    private void greet() {
+        say(getString(GREETINGS[new java.util.Random().nextInt(GREETINGS.length)]));
+    }
+
     private void say(String text) {
         remember(text);
-        AppGraph.get().speech.speak(text);
+        // Fixed lines: instantly (cached voice, or the phone's voice), never waiting on the cloud.
+        AppGraph.get().speech.speakQuick(text);
     }
 
     /** A short spoken line about the tool that just started (at most one every few seconds). */
@@ -503,7 +604,10 @@ public final class CallService extends Service {
     }
 
     private void state(State s, String text) {
+        if (muted && s != State.ENDED) return;
         for (Listener l : LISTENERS) l.onCallState(s, text);
+        if (s == State.LISTENING) showStatus(getString(R.string.call_listening));
+        else if (s == State.THINKING) showStatus(getString(R.string.status_thinking));
     }
 
     // ---- Our own voice coming back through the microphone ----------------------------------------
@@ -522,16 +626,44 @@ public final class CallService extends Service {
     private boolean isEcho(String heard) {
         AppGraph g = AppGraph.get();
         long now = SystemClock.uptimeMillis();
-        boolean recent = g.speech.isActive() || (!spokenAt.isEmpty() && now - spokenAt.get(spokenAt.size() - 1) < 4000);
-        if (!recent || spoken.isEmpty()) return false;
+        String streamed = norm(g.speech.recentlySpoken(4000));
+        boolean recent = g.speech.isActive() || !streamed.isEmpty() || (!spokenAt.isEmpty() && now - spokenAt.get(spokenAt.size() - 1) < 4000);
+        if (!recent || (spoken.isEmpty() && streamed.isEmpty())) return false;
         String h = norm(heard);
         if (h.isEmpty()) return false;
         String[] words = h.split(" ");
         if (words.length == 0) return false;
-        String said = spoken.get(spoken.size() - 1);
+        String said = (spoken.isEmpty() ? "" : spoken.get(spoken.size() - 1)) + " " + streamed;
         int hit = 0;
         for (String w : words) if (!w.isEmpty() && said.contains(w)) hit++;
         return hit >= Math.max(2, Math.round(words.length * 0.7f)) || (words.length <= 2 && said.contains(h));
+    }
+
+    // ---- Talking over the companion -------------------------------------------------------------
+
+    private final Runnable unduck = () -> AppGraph.get().speech.duck(false);
+
+    /** The companion goes quieter for a moment (it may be you starting to talk). */
+    private void duckForNow() {
+        AppGraph.get().speech.duck(true);
+        main.removeCallbacks(unduck);
+        // Nothing came of it (no words): full volume again.
+        main.postDelayed(unduck, 6000);
+    }
+
+    /** What was heard is known now: real words stop the companion, anything else lets it go on. */
+    private void decideBargeIn(String heard) {
+        AppGraph g = AppGraph.get();
+        main.removeCallbacks(unduck);
+        if (g.speech.isActive() && !heard.isEmpty() && isRealInterruption(heard)) g.speech.stop();
+        else g.speech.duck(false);
+    }
+
+    /** Two or more words, or one of the stop / end words. */
+    private boolean isRealInterruption(String text) {
+        String low = norm(text);
+        if (low.isEmpty()) return false;
+        return low.split(" ").length >= 2 || matches(low, R.string.call_words_stop) || matches(low, R.string.call_words_end);
     }
 
     static String norm(String s) {

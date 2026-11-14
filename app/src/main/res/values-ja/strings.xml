@@ -288,7 +288,14 @@
     <string name="call_bye">じゃあね、バイバイ！</string>
     <string name="call_end">終了</string>
     <string name="call_ended">通話終了</string>
+    <string name="call_greet_1">はい、どうぞ？</string>
+    <string name="call_greet_2">ここにいるよ。どうしたの？</string>
+    <string name="call_greet_3">やあ！何をしようか？</string>
+    <string name="call_greet_4">聞いてるよ、どうぞ。</string>
+    <string name="call_hang_up">通話を切る</string>
     <string name="call_listening">聞いています…（通話）</string>
+    <string name="call_mute">ミュート</string>
+    <string name="call_muted">ミュート中 — マイクはオフ</string>
     <string name="call_new_chat">了解、新しく始めましょう。</string>
     <string name="call_say_app">開いています。</string>
     <string name="call_say_message">今送ります。</string>
@@ -300,6 +307,7 @@
     <string name="call_stopped">止めました。</string>
     <string name="call_text">話を聞いています。終えるには「バイバイ」と言うか「終了」をタップ。</string>
     <string name="call_title">通話中</string>
+    <string name="call_unmute">ミュート解除</string>
     <string name="call_words_end">bye,goodbye,bye bye,end call,end the call,hang up,that\'s all,stop listening,バイバイ,さようなら,終了,切って,じゃあね</string>
     <string name="call_words_new_chat">new chat,clear chat,start over,new conversation,新しいチャット,チャットをクリア,最初から</string>
     <string name="call_words_stop">stop,cancel,stop it,wait stop,止めて,ストップ,キャンセル</string>
@@ -483,6 +491,11 @@
     <string name="companion_conversation">コンパニオン</string>
     <string name="companion_listening">聞いています…離すと送信</string>
     <string name="companion_mic_needed">先に Your Friend でマイクを許可してから、長押しして話してください。</string>
+    <string name="companion_mood_back">おかえり！</string>
+    <string name="companion_mood_dizzy">うわぁ…目が回る…</string>
+    <string name="companion_mood_ignored">わたしのこと忘れてた…？</string>
+    <string name="companion_mood_poked">つつかないで！ふん。</string>
+    <string name="companion_mood_shaken">ちょっと！そんなに揺らさないで！</string>
     <string name="companion_notification_text">キャラクターをダブルタップすると何かを指し示せます。「隠す」で非表示にします。</string>
     <string name="companion_notification_title">Your Friend が画面に表示中</string>
     <string name="companion_understanding">理解中…</string>
@@ -968,6 +981,10 @@
     <string name="settings_companion_brain">生き生きコンパニオン (AI)</string>
     <string name="settings_companion_brain_desc">フローティングキャラクターが画面の内容を見て、気分・座る・立つ・歩く・眠るを時々自分で決めます。1〜2分ごとにAIプロバイダーへ小さな別リクエストを送ります（トークンを使います）。乗っている物が消えると必ず下へ落ちます。</string>
     <string name="settings_context_trigger">コンテキスト圧縮の開始</string>
+    <string name="settings_dance">音楽に合わせて踊る</string>
+    <string name="settings_dance_ai">AIがダンスの動きを選ぶ</string>
+    <string name="settings_dance_ai_desc">音楽の再生中、30秒ごとにAIが曲とテンポから次の動きを選びます（1分に約2回の小さなリクエスト）。オフ：テンポで動きを選びます。</string>
+    <string name="settings_dance_desc">どのアプリでも音楽が流れると、フローティングキャラクターがビートに合わせて踊ります。曲名には通知へのアクセス、ビートにはマイクの許可が必要です（低音の大きさだけを読み、録音はしません）。</string>
     <string name="settings_developer">開発者</string>
     <string name="settings_device">端末</string>
     <string name="settings_export_config">設定をエクスポート</string>

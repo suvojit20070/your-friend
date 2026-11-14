@@ -309,6 +309,9 @@ public final class AgentRuntime {
         if (invalid != null) return invalid;
         activeConversation = conversationId;
         g.speech.stop();
+        final boolean scheduledRun = scheduledNext;
+        // Said aloud while it streams in: replies on, a call in this chat, hands-free, or the card asked.
+        final com.suvo.agent.voice.SpeechController.Talk talk = !scheduledRun && speakAloud(conversationId) ? g.speech.startTalk() : null;
         CancellationToken tk = new CancellationToken();
         token = tk;
         TaskState task = new TaskState(conversationId, text);
@@ -316,7 +319,6 @@ public final class AgentRuntime {
         if (Team.runningCount() == 0) log.clear(); // members still at work keep their lines
         addLog("status", g.ctx.getString(R.string.log_task_started), text);
         ChatMessage user = images == null || images.isEmpty() ? ChatMessage.user(text) : ChatMessage.user(text, images);
-        final boolean scheduledRun = scheduledNext;
         // Everything heavier (database, prompt host, foreground service) happens on the task's own
         // thread, so the send button's press animation never stutters.
         Thread t = new Thread(() -> {
@@ -336,12 +338,16 @@ public final class AgentRuntime {
             com.suvo.agent.core.tools.ResourceGuard.SHARED.name(task.id, g.characters.active().name);
             g.settings.applyTo(g.policy);
             AgentConfig cfg = g.settings.agentConfig();
-            AgentLoop lp = new AgentLoop(llm, g.executor, h, cfg, new InternalListener(), tk);
+            AgentLoop lp = new AgentLoop(llm, g.executor, h, cfg, new InternalListener(talk), tk);
             loop = lp;
             AgentForegroundService.start(g.ctx, text);
             treeRoot = AgentTree.startRoot(g.characters.active().name, text);
-            lp.run(task, user);
-            afterTask(task, llm, conversationId);
+            try {
+                lp.run(task, user);
+            } finally {
+                if (talk != null) talk.finish();
+            }
+            afterTask(task, llm, conversationId, talk);
         }, "agent-task");
         t.start();
         return null;
@@ -368,25 +374,26 @@ public final class AgentRuntime {
         return l != null && l.isPaused();
     }
 
-    private void afterTask(TaskState task, LlmClient llm, long conversationId) {
+    private void afterTask(TaskState task, LlmClient llm, long conversationId, com.suvo.agent.voice.SpeechController.Talk talk) {
         com.suvo.agent.core.tools.ResourceGuard.SHARED.releaseAll(task.id);
         // Team members may still be working in the background: the notification then stays.
         int working = Team.runningCount();
         if (working == 0) AgentForegroundService.stop(g.ctx);
         else AgentForegroundService.update(g.ctx, g.ctx.getResources().getQuantityString(R.plurals.team_working, working, working));
         try {
-            afterTask0(task, llm, conversationId);
+            afterTask0(task, llm, conversationId, talk);
         } finally {
             main.post(this::flushTeamReports);
         }
     }
 
-    private void afterTask0(TaskState task, LlmClient llm, long conversationId) {
+    private void afterTask0(TaskState task, LlmClient llm, long conversationId, com.suvo.agent.voice.SpeechController.Talk talk) {
         boolean quiet = quietResult && com.suvo.agent.agent.Scheduler.NOTHING.equals(task.finalText.trim());
         quietResult = false;
         if (task.status == TaskState.Status.COMPLETED && !task.finalText.isEmpty() && !quiet) {
             com.suvo.agent.launch.AssistantWidget.lastReply(g.ctx, task.finalText);
-            if (g.settings.bool(Settings.VOICE_OUTPUT, false)) g.speech.speak(task.finalText);
+            // Normally said while streaming; a provider that sent no text pieces gets it said now.
+            if (talk != null && !talk.spoke() && !talk.cancelled()) g.speech.speak(task.finalText);
             if (!App.isInForeground()) notifyDone(task);
         }
         if (g.settings.bool(Settings.AUTO_MEMORY, true) && task.status != TaskState.Status.CANCELLED) {
@@ -426,8 +433,30 @@ public final class AgentRuntime {
         nm.notify(Notifications.ID_TASK_DONE, n);
     }
 
+    private volatile long speakNextFor = Long.MIN_VALUE;
+
+    /** The next answer in this chat is said aloud (the card's voice-only style). */
+    public void speakNextReply(long conversationId) {
+        speakNextFor = conversationId;
+    }
+
+    private boolean speakAloud(long conversationId) {
+        boolean once = speakNextFor == conversationId;
+        speakNextFor = Long.MIN_VALUE;
+        return once || g.settings.bool(Settings.VOICE_OUTPUT, false)
+                || (com.suvo.agent.voice.CallService.active() && com.suvo.agent.voice.CallService.conversation() == conversationId)
+                || com.suvo.agent.voice.HandsFreeService.speaksFor(conversationId);
+    }
+
     /** Bridges loop callbacks to the live log, the notification, and UI listeners (main thread). */
     private final class InternalListener implements AgentListener {
+        /** The answer being said aloud as it streams (null = not spoken). */
+        private final com.suvo.agent.voice.SpeechController.Talk talk;
+
+        InternalListener(com.suvo.agent.voice.SpeechController.Talk talk) {
+            this.talk = talk;
+        }
+
         @Override
         public void onStatusChanged(TaskState task) {
             addLog("status", task.status.name(), task.error);
@@ -438,6 +467,7 @@ public final class AgentRuntime {
 
         @Override
         public void onTextDelta(TaskState task, String delta) {
+            if (talk != null) talk.delta(delta);
             dispatch(l -> l.onTextDelta(task, delta));
         }
 
@@ -454,6 +484,7 @@ public final class AgentRuntime {
 
         @Override
         public void onAssistantMessage(TaskState task, ChatMessage message) {
+            if (talk != null) talk.stepEnd(message.content);
             dispatch(l -> l.onAssistantMessage(task, message));
         }
 

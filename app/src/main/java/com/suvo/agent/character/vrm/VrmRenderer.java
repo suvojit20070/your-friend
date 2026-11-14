@@ -38,6 +38,7 @@ final class VrmRenderer {
             + "uniform mat4 uModel;\n"
             + "uniform int uSkinned;\n"
             + "uniform highp sampler2D uJoints;\n"
+            + "uniform float uOutline;\n"
             + "out vec2 vUv;\n"
             + "out vec3 vN;\n"
             + "mat4 jm(float f){ int i = int(f + 0.5); return mat4(texelFetch(uJoints, ivec2(0,i), 0), texelFetch(uJoints, ivec2(1,i), 0),"
@@ -51,7 +52,7 @@ final class VrmRenderer {
             + "  }\n"
             + "  vUv = aUv;\n"
             + "  vN = mat3(m) * aNrm;\n"
-            + "  gl_Position = uVP * m * vec4(aPos, 1.0);\n"
+            + "  gl_Position = uVP * m * vec4(aPos + aNrm * uOutline, 1.0);\n"
             + "}\n";
 
     private static final String FS = "#version 300 es\n"
@@ -63,16 +64,24 @@ final class VrmRenderer {
             + "uniform int uAlphaMode;\n"
             + "uniform float uCutoff;\n"
             + "uniform vec3 uLight;\n"
+            + "uniform int uOutlineMode;\n"
+            + "uniform float uRim;\n"
+            + "uniform float uBand;\n"
             + "out vec4 outColor;\n"
             + "void main(){\n"
             + "  vec4 c = texture(uTex, vUv) * uColor;\n"
             + "  if (uAlphaMode == 1 && c.a < uCutoff) discard;\n"
+            + "  if (uOutlineMode == 1) { outColor = vec4(c.rgb * 0.3, 1.0); return; }\n"
             + "  vec3 n = normalize(gl_FrontFacing ? vN : -vN);\n"
             + "  float d = dot(n, uLight);\n"
-            + "  float shade = mix(0.80, 1.0, smoothstep(-0.05, 0.30, d));\n"
+            // Cel shading: a crisper light/shade edge on high quality, a soft one otherwise.
+            + "  float shade = uBand > 0.5 ? mix(0.74, 1.0, smoothstep(0.0, 0.08, d)) : mix(0.80, 1.0, smoothstep(-0.05, 0.30, d));\n"
+            + "  vec3 col = c.rgb * shade;\n"
+            // Rim light: a soft glow along the edges facing away from the camera.
+            + "  if (uRim > 0.0) { float r = pow(1.0 - max(n.z, 0.0), 3.0); col += r * uRim * mix(vec3(1.0), c.rgb, 0.5); }\n"
             + "  float a = uAlphaMode == 2 ? c.a : 1.0;\n"
             + "  if (uAlphaMode == 2 && a < 0.01) discard;\n"
-            + "  outColor = vec4(c.rgb * shade * a, a);\n"
+            + "  outColor = vec4(min(col, vec3(1.0)) * a, a);\n"
             + "}\n";
 
     private static final class Gpu {
@@ -96,7 +105,7 @@ final class VrmRenderer {
     private final VrmModel m;
     private final String framing;
     private int program;
-    private int uVP, uModel, uSkinned, uJoints, uTex, uColor, uAlphaMode, uCutoff, uLight;
+    private int uVP, uModel, uSkinned, uJoints, uTex, uColor, uAlphaMode, uCutoff, uLight, uOutline, uOutlineMode, uRim, uBand;
     private final List<Item> opaque = new ArrayList<>();
     private final List<Item> blended = new ArrayList<>();
     private final List<Integer> glBuffers = new ArrayList<>();
@@ -179,6 +188,10 @@ final class VrmRenderer {
         uAlphaMode = GLES30.glGetUniformLocation(program, "uAlphaMode");
         uCutoff = GLES30.glGetUniformLocation(program, "uCutoff");
         uLight = GLES30.glGetUniformLocation(program, "uLight");
+        uOutline = GLES30.glGetUniformLocation(program, "uOutline");
+        uOutlineMode = GLES30.glGetUniformLocation(program, "uOutlineMode");
+        uRim = GLES30.glGetUniformLocation(program, "uRim");
+        uBand = GLES30.glGetUniformLocation(program, "uBand");
 
         whiteTex = texture(ByteBuffer.allocateDirect(4).put(new byte[]{-1, -1, -1, -1}), 1, 1, false);
         imageTex = new int[m.images.size()];
@@ -558,6 +571,71 @@ final class VrmRenderer {
     private volatile int forcedStyle = -1;
     private float walk, walkPhase, walkDir = 1f;
 
+    // Dancing to music (see DanceMoves): the move, tempo and a moment a beat fell (System.nanoTime).
+    private volatile int danceMove = -1;
+    private volatile float danceBpm = 110f, danceEnergy = 0.6f;
+    private volatile long danceAnchorNs;
+    private float dance;
+    private int danceCur = -1, dancePrev = -1;
+    private float danceSwitchAt;
+    private final float[] dCur = new float[com.suvo.agent.core.character.DanceMoves.CHANNELS];
+    private final float[] dPrev = new float[com.suvo.agent.core.character.DanceMoves.CHANNELS];
+    private final float[] dv = new float[com.suvo.agent.core.character.DanceMoves.CHANNELS];
+
+    /** Dance this move (-1 = stop) to a beat of {@code bpm}; {@code anchorNs} is when a beat fell. */
+    void setDance(int move, float bpm, float energy, long anchorNs) {
+        danceMove = move;
+        danceBpm = Math.max(50f, Math.min(200f, bpm));
+        danceEnergy = energy;
+        danceAnchorNs = anchorNs;
+    }
+
+    /** 0 low · 1 medium · 2 high: shading extras and finer hair/cloth physics. */
+    private volatile int quality = 1;
+
+    void setQuality(int q) {
+        quality = Math.max(0, Math.min(2, q));
+    }
+
+    /** Beats since the anchor (the music's clock). */
+    private float beatNow() {
+        long a = danceAnchorNs;
+        if (a == 0) return lastTime * danceBpm / 60f;
+        return (float) ((System.nanoTime() - a) / 1e9 * danceBpm / 60.0);
+    }
+
+    /** The dance offsets for this frame, cross-fading from the previous move when it changes. */
+    private void danceChannels(float time, float dt) {
+        int want = danceMove;
+        dance = approach(dance, want >= 0 ? 1f : 0f, want >= 0 ? 2.5f : 3.5f, dt);
+        if (want >= 0 && want != danceCur) {
+            dancePrev = danceCur;
+            danceCur = want;
+            danceSwitchAt = time;
+        }
+        float beat = beatNow();
+        com.suvo.agent.core.character.DanceMoves.pose(danceCur, beat, danceEnergy, dCur);
+        float f = Math.min(1f, (time - danceSwitchAt) / 0.6f);
+        f = f * f * (3 - 2 * f);
+        if (f < 1f && dancePrev >= 0) {
+            com.suvo.agent.core.character.DanceMoves.pose(dancePrev, beat, danceEnergy, dPrev);
+            for (int i = 0; i < dv.length; i++) dv[i] = dPrev[i] + (dCur[i] - dPrev[i]) * f;
+            // The turn is an angle: fade it by the shorter way.
+            int t = com.suvo.agent.core.character.DanceMoves.TURN;
+            float a = dPrev[t] % 360f, b = dCur[t] % 360f;
+            float d = b - a;
+            if (d > 180) d -= 360;
+            if (d < -180) d += 360;
+            dv[t] = a + d * f;
+        } else {
+            System.arraycopy(dCur, 0, dv, 0, dv.length);
+        }
+        if (dance < 0.002f) {
+            danceCur = -1;
+            dancePrev = -1;
+        }
+    }
+
     static final int IDLE_LOOK_AROUND = Gestures.LOOK_AROUND, IDLE_HAIR = Gestures.TOUCH_HAIR, IDLE_HANDS = Gestures.HANDS_TOGETHER,
             IDLE_SWAY = Gestures.SWAY, IDLE_GLANCE = Gestures.GLANCE, IDLE_STRETCH = Gestures.STRETCH;
     /** A gesture asked for from outside (-1 = none pending); played instead of the next idle action. */
@@ -656,11 +734,15 @@ final class VrmRenderer {
         // Walking: a stroll cycle, the body turned toward where it goes.
         float wt = walkTarget;
         if (wt != 0f) walkDir = wt > 0 ? 1f : -1f;
-        walk = approach(walk, wt != 0f && !sitTarget && !airTarget ? 1f : 0f, 6f, dt);
+        walk = approach(walk, wt != 0f && !sitTarget && !airTarget && danceMove < 0 ? 1f : 0f, 6f, dt);
         walkPhase += dt * 2f * (float) Math.PI * 1.6f * Math.max(0.15f, walk);
         float wPh = (float) Math.sin(walkPhase), wCos = (float) Math.cos(walkPhase);
         float breath = p.breath - 0.5f;
-        boolean busy = speak > 0.3f || think > 0.3f || listen > 0.3f || air > 0.3f;
+        danceChannels(time, dt);
+        // Dancing: the whole body follows the move while standing; sitting, only the upper body;
+        // held in the air, not at all.
+        float dU = dance * (1f - air), dL = dance * (1f - sit) * (1f - air);
+        boolean busy = speak > 0.3f || think > 0.3f || listen > 0.3f || air > 0.3f || dance > 0.3f;
 
         // ---- Idle scheduler: a new small action every few seconds while nothing else happens.
         if (idleAction >= 0 && time - idleStart > idleLen) idleAction = -1;
@@ -679,6 +761,11 @@ final class VrmRenderer {
             if (idleAction == IDLE_STRETCH && rnd.nextFloat() < 0.6f) idleAction = IDLE_LOOK_AROUND; // stretching is rare
             idleStart = time;
             idleLen = 3.2f + rnd.nextFloat() * 2.5f;
+            // Now and then (standing) she turns around and looks back at you over her shoulder.
+            if (sit < 0.5f && walk < 0.3f && rnd.nextFloat() < 0.1f) {
+                idleAction = Gestures.TURN_BACK;
+                idleLen = Gestures.length(Gestures.TURN_BACK);
+            }
             nextIdleAt = time + idleLen + 2.5f + rnd.nextFloat() * 5f;
         }
         // Wrap up quickly when something else starts (a requested gesture finishes even while talking).
@@ -691,13 +778,30 @@ final class VrmRenderer {
         float aWave = idleAction == Gestures.WAVE ? env : 0, aNod = idleAction == Gestures.NOD ? env : 0;
         float aShake = idleAction == Gestures.SHAKE_HEAD ? env : 0, aCheer = idleAction == Gestures.CHEER ? env : 0;
         float aThink = idleAction == Gestures.THINK ? env : 0;
+        float aPout = idleAction == Gestures.POUT ? env : 0, aDizzy = idleAction == Gestures.DIZZY ? env : 0;
+        float aSigh = idleAction == Gestures.SIGH ? env : 0;
+        // Turning around: a slower curve (turn, hold with a look back over the shoulder, turn back).
+        float turnBack = 0f, lookBack = 0f;
+        if (idleAction == Gestures.TURN_BACK) {
+            float in = Math.min(1f, idleT / 1.3f), out = Math.min(1f, Math.max(0f, (idleLen - idleT) / 1.3f));
+            float e = Math.min(in, out);
+            turnBack = e * e * (3 - 2 * e) * (1f - sit);
+            float mid = Math.min(1f, Math.max(0f, (idleT - 1.6f) / 0.9f)) * Math.min(1f, Math.max(0f, (idleLen - 1.6f - idleT) / 0.9f));
+            lookBack = mid * mid * (3 - 2 * mid) * turnBack;
+        }
+        // Dizzy wobble.
+        float dzA = (float) Math.sin(idleT * 5.2f) * aDizzy, dzB = (float) Math.cos(idleT * 5.2f) * aDizzy;
+        // A mood gesture (pout, dizzy, sigh) takes over from the dance for its moment.
+        float calm = 1f - Math.max(Math.max(aPout, aDizzy), Math.max(aSigh, turnBack));
+        dU *= calm;
+        dL *= calm;
 
         // ---- Weight shift: settles on one leg for a while, then moves to the other.
         if (time > weightNextAt) {
             weightTarget = weightTarget > 0 ? -(0.55f + rnd.nextFloat() * 0.45f) : (0.55f + rnd.nextFloat() * 0.45f);
             weightNextAt = time + 4f + rnd.nextFloat() * 5f;
         }
-        weight = approach(weight, weightTarget * (1f - 0.5f * think) * (1f - sit) * (1f - air) * (1f - walk), 0.9f, dt);
+        weight = approach(weight, weightTarget * (1f - 0.5f * think) * (1f - sit) * (1f - air) * (1f - walk) * (1f - dance), 0.9f, dt);
         float sway = aSway * (float) Math.sin(idleT * 2.2f) * 0.8f * (1f - air);
         float shift = weight + sway;
         float stand = (1f - sit) * (1f - air);
@@ -706,10 +810,12 @@ final class VrmRenderer {
         // ---- Hips
         float bounce = happy * stand * (float) Math.abs(Math.sin(time * 5.5)) * 0.014f
                 + aCheer * stand * (float) Math.abs(Math.sin(idleT * 7f)) * 0.02f;
-        moveBone("hips", shift * 0.022f * stand, (breath * 0.004f + bounce - listen * 0.004f - Math.abs(shift) * 0.006f) * stand
-                + (Math.abs(wPh) * 0.014f - 0.012f) * wk, listen * 0.01f);
-        rotateBone("hips", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, shift * 5.5f * stand * DEG),
-                VrmMath.axisAngle(0, 1, 0, (shift * 6f + aLook * (float) Math.sin(idleT * 1.6f) * 6f + walkDir * 58f * wk + wPh * 4f * wk) * DEG)));
+        moveBone("hips", shift * 0.022f * stand + dv[com.suvo.agent.core.character.DanceMoves.HIP_X] * dL + dzA * 0.015f * stand,
+                (breath * 0.004f + bounce - listen * 0.004f - Math.abs(shift) * 0.006f) * stand
+                + (Math.abs(wPh) * 0.014f - 0.012f) * wk + dv[com.suvo.agent.core.character.DanceMoves.HIP_Y] * dL - aSigh * 0.01f * stand, listen * 0.01f);
+        rotateBone("hips", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (shift * 5.5f * stand + dv[com.suvo.agent.core.character.DanceMoves.HIP_ROLL] * dL + dzB * 3f * stand) * DEG),
+                VrmMath.axisAngle(0, 1, 0, (shift * 6f + aLook * (float) Math.sin(idleT * 1.6f) * 6f + walkDir * 58f * wk + wPh * 4f * wk
+                        + (dv[com.suvo.agent.core.character.DanceMoves.HIP_YAW] + dv[com.suvo.agent.core.character.DanceMoves.TURN]) * dL + turnBack * 160f + aPout * 35f * (1f - sit)) * DEG)));
 
         // ---- Legs: standing leg straight, the other relaxed at the knee (contrapposto); or sitting.
         // Sitting uses the blended style table (swinging legs, crossed, leaning back, hugging the
@@ -722,30 +828,32 @@ final class VrmRenderer {
         kickPhase += dt * (st[SitStyles.KICK_SPEED] + 0.2f) * (1f + happy * 0.8f);
         float kick = sit * (float) Math.sin(kickPhase) * st[SitStyles.KICK_AMP] * (1f + happy * 0.6f);
         float crossKick = sit * (float) Math.sin(kickPhase * 1.1f) * st[SitStyles.CROSS_KICK];
-        float zL = -shift * 5.5f * stand + sit * st[SitStyles.UL_Z_L] + air * 4f + swLL;
-        float zR = -shift * 5.5f * stand + sit * st[SitStyles.UL_Z_R] - air * 4f + swRL;
+        float zL = -shift * 5.5f * stand + sit * st[SitStyles.UL_Z_L] + air * 4f + swLL + dv[com.suvo.agent.core.character.DanceMoves.UL_Z_L] * dL;
+        float zR = -shift * 5.5f * stand + sit * st[SitStyles.UL_Z_R] - air * 4f + swRL - dv[com.suvo.agent.core.character.DanceMoves.UL_Z_R] * dL;
         // Thighs turned inward around the vertical axis (applied last) keep the knees together.
         float inL = sit * st[SitStyles.KNEE_IN_L], inR = sit * st[SitStyles.KNEE_IN_R];
         rotateBone("leftUpperLeg", VrmMath.mul(VrmMath.axisAngle(0, 1, 0, -inL * DEG), VrmMath.mul(VrmMath.axisAngle(0, 0, 1, zL * DEG),
-                VrmMath.axisAngle(1, 0, 0, (-relaxL * 9f * stand + sit * st[SitStyles.UL_X_L] - air * 6f - upLL * 14f - wPh * 26f * wk) * DEG))));
+                VrmMath.axisAngle(1, 0, 0, (-relaxL * 9f * stand + sit * st[SitStyles.UL_X_L] - air * 6f - upLL * 14f - wPh * 26f * wk + dv[com.suvo.agent.core.character.DanceMoves.UL_X_L] * dL) * DEG))));
         rotateBone("rightUpperLeg", VrmMath.mul(VrmMath.axisAngle(0, 1, 0, inR * DEG), VrmMath.mul(VrmMath.axisAngle(0, 0, 1, zR * DEG),
-                VrmMath.axisAngle(1, 0, 0, (-relaxR * 9f * stand + sit * st[SitStyles.UL_X_R] - air * 4f - upRL * 14f + wPh * 26f * wk) * DEG))));
+                VrmMath.axisAngle(1, 0, 0, (-relaxR * 9f * stand + sit * st[SitStyles.UL_X_R] - air * 4f - upRL * 14f + wPh * 26f * wk + dv[com.suvo.agent.core.character.DanceMoves.UL_X_R] * dL) * DEG))));
         // Walking: the knee bends while that leg swings forward.
         float bendL = Math.max(0f, upLL) * 40f + limbs.whip(LimbSwing.LEFT_LEG) * 25f * legFree + (Math.max(0f, wCos) * 42f + 5f) * wk;
         float bendR = Math.max(0f, upRL) * 40f + limbs.whip(LimbSwing.RIGHT_LEG) * 25f * legFree + (Math.max(0f, -wCos) * 42f + 5f) * wk;
-        rotateBone("leftLowerLeg", VrmMath.axisAngle(1, 0, 0, (relaxL * 16f * stand + sit * st[SitStyles.LL_X_L] + kick + air * 10f + bendL) * DEG));
-        rotateBone("rightLowerLeg", VrmMath.axisAngle(1, 0, 0, (relaxR * 16f * stand + sit * st[SitStyles.LL_X_R] - kick + crossKick + air * 14f + bendR) * DEG));
+        rotateBone("leftLowerLeg", VrmMath.axisAngle(1, 0, 0, (relaxL * 16f * stand + sit * st[SitStyles.LL_X_L] + kick + air * 10f + bendL + dv[com.suvo.agent.core.character.DanceMoves.LL_X_L] * dL + Math.max(0f, dzA) * 8f * stand) * DEG));
+        rotateBone("rightLowerLeg", VrmMath.axisAngle(1, 0, 0, (relaxR * 16f * stand + sit * st[SitStyles.LL_X_R] - kick + crossKick + air * 14f + bendR + dv[com.suvo.agent.core.character.DanceMoves.LL_X_R] * dL + Math.max(0f, -dzA) * 8f * stand) * DEG));
         rotateBone("leftFoot", VrmMath.axisAngle(1, 0, 0, (relaxL * 6f * stand + air * 22f + sit * st[SitStyles.FOOT_X]) * DEG));
         rotateBone("rightFoot", VrmMath.axisAngle(1, 0, 0, (relaxR * 6f * stand + air * 22f + sit * st[SitStyles.FOOT_X]) * DEG));
 
         // ---- Spine, chest, shoulders
-        float lean = listen * 6f + think * 2f + sit * st[SitStyles.SPINE_X] + aStretch * -8f - air * 3f + wk * 3f;
-        rotateBone("spine", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (-shift * 7f * stand - p.bodyX * 4f + sway * 3f) * DEG),
+        float lean = listen * 6f + think * 2f + sit * st[SitStyles.SPINE_X] + aStretch * -8f - air * 3f + wk * 3f
+                + dv[com.suvo.agent.core.character.DanceMoves.SPINE_X] * dU + aSigh * 10f - aPout * 3f;
+        rotateBone("spine", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (-shift * 7f * stand - p.bodyX * 4f + sway * 3f + dv[com.suvo.agent.core.character.DanceMoves.SPINE_ROLL] * dU + dzB * 5f) * DEG),
                 VrmMath.axisAngle(1, 0, 0, (lean + breath * 2.2f) * DEG)));
-        rotateBone("chest", VrmMath.mul(VrmMath.axisAngle(0, 1, 0, (speak * (float) Math.sin(time * 1.7) * 4f + p.angleX * 8f) * DEG),
+        rotateBone("chest", VrmMath.mul(VrmMath.axisAngle(0, 1, 0, (speak * (float) Math.sin(time * 1.7) * 4f + p.angleX * 8f
+                        + dv[com.suvo.agent.core.character.DanceMoves.CHEST_YAW] * dU - lookBack * 25f) * DEG),
                 VrmMath.axisAngle(1, 0, 0, (-breath * 3.0f - aStretch * 6f) * DEG)));
         rotateBone("upperChest", VrmMath.axisAngle(1, 0, 0, -breath * 1.8f * DEG));
-        float shrug = breath * 2.6f + aStretch * 10f;
+        float shrug = breath * 2.6f + aStretch * 10f - aSigh * 12f;
         rotateBone("leftShoulder", VrmMath.axisAngle(0, 0, 1, shrug * DEG));
         rotateBone("rightShoulder", VrmMath.axisAngle(0, 0, 1, -shrug * DEG));
 
@@ -762,22 +870,28 @@ final class VrmRenderer {
         armDown("leftUpperArm", leftArmRestDir, 0);
         armDown("rightUpperArm", rightArmRestDir, 0);
         // Forward/back (around X), inward (around Y), outward/up (around Z)
-        rotateBone("leftUpperArm", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (aStretch * 150f + aCheer * (140f + (float) Math.sin(idleT * 7f) * 8f) + aHands * -4f + sit * st[SitStyles.UA_Z_L] + air * 24f + swLA + upLA) * DEG),
-                VrmMath.axisAngle(1, 0, 0, (-swing - gestL * 24f - aHands * 8f + sit * st[SitStyles.UA_X_L] - air * 8f) * DEG)));
-        rotateBone("leftUpperArm", VrmMath.axisAngle(0, 1, 0, -(aHands * 26f + sit * st[SitStyles.UA_Y_L]) * DEG));
-        rotateBone("rightUpperArm", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, (-aStretch * 150f - aCheer * (140f + (float) Math.sin(idleT * 7f + 1f) * 8f) - aWave * 125f - aHair * 100f + aHands * 4f + sit * st[SitStyles.UA_Z_R] - air * 24f + swRA - upRA) * DEG),
-                VrmMath.axisAngle(1, 0, 0, (swing - gestR * 24f - thinkArm * 38f - aHands * 8f - aHair * 10f - aWave * 10f + sit * st[SitStyles.UA_X_R] - air * 8f) * DEG)));
-        rotateBone("rightUpperArm", VrmMath.axisAngle(0, 1, 0, (thinkArm * 18f + aHands * 26f + sit * st[SitStyles.UA_Y_R]) * DEG));
+        // Dancing takes the arms over from the small idle motions (sitting styles keep their arms a bit).
+        float dA = dU * (1f - 0.4f * sit);
+        float idleArms = 1f - dA;
+        float upDL = Math.min(165f, dv[com.suvo.agent.core.character.DanceMoves.UP_L]) * dA, upDR = Math.min(165f, dv[com.suvo.agent.core.character.DanceMoves.UP_R]) * dA;
+        rotateBone("leftUpperArm", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, ((aStretch * 150f + aCheer * (140f + (float) Math.sin(idleT * 7f) * 8f) + aHands * -4f) * idleArms + sit * st[SitStyles.UA_Z_L] + air * 24f + swLA + upLA + upDL + aPout * 6f) * DEG),
+                VrmMath.axisAngle(1, 0, 0, ((-swing - gestL * 24f - aHands * 8f) * idleArms + sit * st[SitStyles.UA_X_L] * (1f - dA) - air * 8f + dv[com.suvo.agent.core.character.DanceMoves.UA_X_L] * dA - aPout * 42f) * DEG)));
+        rotateBone("leftUpperArm", VrmMath.axisAngle(0, 1, 0, -(aHands * 26f * idleArms + sit * st[SitStyles.UA_Y_L] * (1f - dA) + dv[com.suvo.agent.core.character.DanceMoves.UA_Y_L] * dA + aPout * 40f) * DEG));
+        rotateBone("rightUpperArm", VrmMath.mul(VrmMath.axisAngle(0, 0, 1, ((-aStretch * 150f - aCheer * (140f + (float) Math.sin(idleT * 7f + 1f) * 8f) - aWave * 125f - aHair * 100f + aHands * 4f) * idleArms + sit * st[SitStyles.UA_Z_R] - air * 24f + swRA - upRA - upDR - aPout * 6f) * DEG),
+                VrmMath.axisAngle(1, 0, 0, ((swing - gestR * 24f - thinkArm * 38f - aHands * 8f - aHair * 10f - aWave * 10f) * idleArms + sit * st[SitStyles.UA_X_R] * (1f - dA) - air * 8f + dv[com.suvo.agent.core.character.DanceMoves.UA_X_R] * dA - aPout * 38f) * DEG)));
+        rotateBone("rightUpperArm", VrmMath.axisAngle(0, 1, 0, ((thinkArm * 18f + aHands * 26f) * idleArms + sit * st[SitStyles.UA_Y_R] * (1f - dA) + dv[com.suvo.agent.core.character.DanceMoves.UA_Y_R] * dA + aPout * 36f) * DEG));
         // Elbows (in the rest frame: bending forward around the vertical axis)
         float whipLA = limbs.whip(LimbSwing.LEFT_ARM) * 30f * armFree, whipRA = limbs.whip(LimbSwing.RIGHT_ARM) * 30f * armFree;
-        float elbowL = 18f + aCheer * 25f + wk * 10f + gestL * 55f + listen * 6f + aHands * 70f + sit * st[SitStyles.ELBOW_L] + aStretch * -10f + air * 14f + whipLA;
-        float elbowR = 18f + aCheer * 25f + aWave * 30f + wk * 10f + gestR * 55f + thinkArm * 105f + listen * 6f + aHands * 70f + aHair * 25f + sit * st[SitStyles.ELBOW_R] + aStretch * -10f + air * 14f + whipRA;
+        float elbowL = 18f + (aCheer * 25f + wk * 10f + gestL * 55f + listen * 6f + aHands * 70f + aStretch * -10f) * idleArms + sit * st[SitStyles.ELBOW_L] * (1f - dA) + air * 14f + whipLA
+                + dv[com.suvo.agent.core.character.DanceMoves.ELBOW_L] * dA + aPout * 105f;
+        float elbowR = 18f + (aCheer * 25f + aWave * 30f + wk * 10f + gestR * 55f + thinkArm * 105f + listen * 6f + aHands * 70f + aHair * 25f + aStretch * -10f) * idleArms
+                + sit * st[SitStyles.ELBOW_R] * (1f - dA) + air * 14f + whipRA + dv[com.suvo.agent.core.character.DanceMoves.ELBOW_R] * dA + aPout * 105f;
         rotateBone("leftLowerArm", VrmMath.axisAngle(0, 1, 0, -elbowL * DEG));
         rotateBone("rightLowerArm", VrmMath.axisAngle(0, 1, 0, elbowR * DEG));
         // Touching the hair: the forearm folds up toward the head (around the forward axis).
         // Waving: the forearm stands up and swings side to side.
-        if (aHair > 0 || aWave > 0) {
-            rotateBone("rightLowerArm", VrmMath.axisAngle(0, 0, 1, (-aHair * 125f + (-60f + (float) Math.sin(idleT * 9f) * 28f) * aWave) * DEG));
+        if ((aHair > 0 || aWave > 0) && idleArms > 0.01f) {
+            rotateBone("rightLowerArm", VrmMath.axisAngle(0, 0, 1, (-aHair * 125f + (-60f + (float) Math.sin(idleT * 9f) * 28f) * aWave) * idleArms * DEG));
         }
         rotateBone("leftHand", VrmMath.axisAngle(1, 0, 0, (10f + gestL * 22f + aHands * 20f + sit * st[SitStyles.HAND_X]) * DEG));
         rotateBone("rightHand", VrmMath.axisAngle(1, 0, 0, (-10f - gestR * 22f - aHands * 20f - aHair * 25f - sit * st[SitStyles.HAND_X]) * DEG));
@@ -801,10 +915,13 @@ final class VrmRenderer {
         lookYawExtra = approach(lookYawExtra, lookAround, 3f, dt);
         lookPitchExtra = approach(lookPitchExtra, aLook * -4f + aGlance * 2f + aStretch * -12f, 3f, dt);
         // While walking the head turns back toward you a little.
-        float yaw = (p.angleX * 55f - think * 10f + lookYawExtra - walkDir * 26f * wk + aShake * (float) Math.sin(idleT * 7.5f) * 17f) * DEG;
-        float pitch = (p.angleY * 30f + nod - think * 8f - listen * 2f + lookPitchExtra + sit * st[SitStyles.HEAD_PITCH] + air * 5f) * DEG;
+        // Turned around, the head looks back over the shoulder toward you; pouting, it turns away more.
+        float yaw = (p.angleX * 55f - think * 10f + lookYawExtra - walkDir * 26f * wk + aShake * (float) Math.sin(idleT * 7.5f) * 17f
+                + dv[com.suvo.agent.core.character.DanceMoves.HEAD_YAW] * dU - lookBack * 75f + aPout * 20f) * DEG;
+        float pitch = (p.angleY * 30f + nod - think * 8f - listen * 2f + lookPitchExtra + sit * st[SitStyles.HEAD_PITCH] + air * 5f
+                + dv[com.suvo.agent.core.character.DanceMoves.HEAD_PITCH] * dU - aPout * 7f + aSigh * 16f + dzA * 9f) * DEG;
         float roll = (-p.angleZ * 14f + think * 7f + aThink * 8f + aWave * 6f + listen * 6f + aGlance * 8f + aHair * -6f + shift * 3f * stand + sit * st[SitStyles.HEAD_ROLL]
-                - limbs.upperX(LimbSwing.LEFT_ARM) * 6f * air) * DEG;
+                - limbs.upperX(LimbSwing.LEFT_ARM) * 6f * air + dv[com.suvo.agent.core.character.DanceMoves.HEAD_ROLL] * dU + aPout * 6f + dzB * 12f) * DEG;
         float[] look = VrmMath.mul(VrmMath.axisAngle(0, 1, 0, yaw), VrmMath.mul(VrmMath.axisAngle(1, 0, 0, pitch), VrmMath.axisAngle(0, 0, 1, roll)));
         rotateBone("neck", VrmMath.scale(look, 0.4f));
         rotateBone("head", VrmMath.scale(look, m.bones.containsKey("neck") ? 0.6f : 1f));
@@ -819,7 +936,8 @@ final class VrmRenderer {
         // Hair, skirt and accessories follow with physics. Sitting, the skirt is drawn forward
         // over the thighs and kept outside them.
         if (!springs.isEmpty()) {
-            springs.legPush = sit;
+            // High quality: the skirt also stays outside the legs while standing, dancing or walking.
+            springs.legPush = quality >= 2 ? Math.max(sit, 0.75f) : sit;
             springs.legRadius = height * 0.046f;
             // A light, changing breeze so the dress is never frozen.
             float breezeX = (float) (Math.sin(time * 0.71) + 0.5 * Math.sin(time * 1.93 + 1.3)) * 1.4f;
@@ -827,7 +945,13 @@ final class VrmRenderer {
             springs.lowerForce[0] = m.vrm0 ? -breezeX : breezeX;
             springs.lowerForce[1] = -sit * 4f;
             springs.lowerForce[2] = (m.vrm0 ? -1f : 1f) * (sit * 14f + breezeZ);
-            springs.step(dt, world, localPos, localRot);
+            if (quality >= 2) {
+                // Two half steps: smoother, steadier hair and clothes.
+                springs.step(dt * 0.5f, world, localPos, localRot);
+                springs.step(dt * 0.5f, world, localPos, localRot);
+            } else {
+                springs.step(dt, world, localPos, localRot);
+            }
             computeWorld(world, localRot);
         }
     }
@@ -998,10 +1122,26 @@ final class VrmRenderer {
         GLES30.glUniform3f(uLight, light[0], light[1], light[2]);
         GLES30.glUniform1i(uTex, 0);
         GLES30.glUniform1i(uJoints, 1);
+        int q = quality;
+        GLES30.glUniform1f(uRim, q == 0 ? 0f : q == 1 ? 0.22f : 0.32f);
+        GLES30.glUniform1f(uBand, q >= 2 ? 1f : 0f);
+        GLES30.glUniform1f(uOutline, 0f);
+        GLES30.glUniform1i(uOutlineMode, 0);
 
         GLES30.glDisable(GLES30.GL_BLEND);
         GLES30.glDepthMask(true);
         for (Item it : opaque) drawItem(it);
+        if (q >= 2) {
+            // High quality: a thin anime-style outline (the back faces of a slightly larger shell).
+            GLES30.glUniform1f(uOutline, height * 0.0022f);
+            GLES30.glUniform1i(uOutlineMode, 1);
+            for (Item it : opaque) {
+                if (it.mat.doubleSided) continue;
+                drawItem(it, true);
+            }
+            GLES30.glUniform1f(uOutline, 0f);
+            GLES30.glUniform1i(uOutlineMode, 0);
+        }
         GLES30.glEnable(GLES30.GL_BLEND);
         GLES30.glBlendFunc(GLES30.GL_ONE, GLES30.GL_ONE_MINUS_SRC_ALPHA);
         GLES30.glDepthMask(false);
@@ -1011,8 +1151,15 @@ final class VrmRenderer {
     }
 
     private void drawItem(Item it) {
-        applyMorphs(it.gpu);
-        if (it.mat.doubleSided) GLES30.glDisable(GLES30.GL_CULL_FACE);
+        drawItem(it, false);
+    }
+
+    private void drawItem(Item it, boolean outline) {
+        if (!outline) applyMorphs(it.gpu);
+        if (outline) {
+            GLES30.glEnable(GLES30.GL_CULL_FACE);
+            GLES30.glCullFace(GLES30.GL_FRONT);
+        } else if (it.mat.doubleSided) GLES30.glDisable(GLES30.GL_CULL_FACE);
         else {
             GLES30.glEnable(GLES30.GL_CULL_FACE);
             GLES30.glCullFace(GLES30.GL_BACK);

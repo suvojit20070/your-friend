@@ -91,6 +91,12 @@ public final class HandsFreeService extends Service {
         return running;
     }
 
+    /** True when the answer in this chat is for hands-free (no card on screen): it is said aloud. */
+    public static boolean speaksFor(long conversationId) {
+        HandsFreeService s = instance;
+        return s != null && running && s.waitingForAgent && !s.assistOpen && s.handsFreeConversation == conversationId;
+    }
+
     public static void addListener(StateListener l) {
         listeners.addIfAbsent(l);
     }
@@ -202,9 +208,10 @@ public final class HandsFreeService extends Service {
                         waitingForAgent = false;
                         if (mine && !assistOpen) {
                             // Hands-free has no screen: the answer is spoken, then follow-ups need no wake word.
-                            String reply = task.status == TaskState.Status.COMPLETED ? task.finalText.trim() : task.error.trim();
-                            if (!reply.isEmpty() && (!hg.settings.bool(Settings.VOICE_OUTPUT, false) || task.status != TaskState.Status.COMPLETED)) {
-                                hg.speech.speak(reply);
+                            // The answer itself was spoken while it streamed in (AgentRuntime); a failure is said here.
+                            String err = task.error.trim();
+                            if (task.status != TaskState.Status.COMPLETED && task.status != TaskState.Status.CANCELLED && !err.isEmpty()) {
+                                hg.speech.speak(err);
                             }
                             followUpUntil = android.os.SystemClock.uptimeMillis()
                                     + Math.max(10, hg.settings.integer(CallService.TIMEOUT, CallService.DEFAULT_TIMEOUT)) * 1000L;
@@ -241,7 +248,8 @@ public final class HandsFreeService extends Service {
     private void listenIfIdle() {
         if (!running || gate == null) return;
         AppGraph g = AppGraph.get();
-        boolean busy = assistOpen || waitingForAgent || g.agent.isRunning() || g.speech.isActive();
+        // A call has the microphone: hands-free waits until it ends.
+        boolean busy = assistOpen || waitingForAgent || g.agent.isRunning() || g.speech.isActive() || CallService.active();
         if (gate.isRunning()) {
             gate.pause(busy);
             if (!busy) publish(getString(R.string.handsfree_listening));
@@ -379,7 +387,7 @@ public final class HandsFreeService extends Service {
         if (now - lastStatusAt < 7000 || (kind.equals(lastStatusKind) && now - lastStatusAt < 25_000)) return;
         lastStatusAt = now;
         lastStatusKind = kind;
-        g.speech.speak(getString(CallService.statusRes(kind)));
+        g.speech.speakQuick(getString(CallService.statusRes(kind)));
     }
 
     /** The card is on screen (called from the card): no voice-only fallback needed. */
@@ -395,7 +403,7 @@ public final class HandsFreeService extends Service {
         assistOpen = false;
         headless = true;
         followUpUntil = android.os.SystemClock.uptimeMillis() + 10_000;
-        g.speech.speak(getString(R.string.handsfree_yes));
+        g.speech.speakQuick(getString(R.string.handsfree_yes));
         publish(getString(R.string.handsfree_wake_heard));
         main.postDelayed(this::listenIfIdle, 300);
     }
@@ -436,6 +444,12 @@ public final class HandsFreeService extends Service {
                 if (assistOpen) assistClosed();
             }, 10_000);
         }
+    }
+
+    /** A call ended: back to listening for the wake word. */
+    public static void callEnded() {
+        HandsFreeService s = instance;
+        if (s != null) s.main.postDelayed(s::listenIfIdle, 600);
     }
 
     /** Called by the assistant card when it closes: back to listening for the wake word. */

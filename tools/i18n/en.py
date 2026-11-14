@@ -1527,6 +1527,23 @@ S = {
 "stt_download_busy": "Another model is downloading",
 "stt_downloading": "Downloading… %1$s",
 "stt_download_done": "Model ready",
+"call_hang_up": "Hang up",
+"call_mute": "Mute",
+"call_unmute": "Unmute",
+"call_muted": "Muted — the mic is off",
+"call_greet_1": "Yes, tell me?",
+"call_greet_2": "I'm here. What's up?",
+"call_greet_3": "Hi! What can I do for you?",
+"call_greet_4": "Listening, go ahead.",
+"settings_dance": "Dance to music",
+"settings_dance_desc": "When music plays in any app, the floating character dances to the beat. Song names need notification access; the beat needs the microphone permission (only the bass loudness is read, nothing is recorded).",
+"settings_dance_ai": "AI picks the dance moves",
+"settings_dance_ai_desc": "Every 30 seconds while music plays, the AI chooses the next moves from the song and its tempo (about 2 small requests a minute). Off: moves are picked by tempo.",
+"companion_mood_back": "You're back!",
+"companion_mood_ignored": "You forgot about me…",
+"companion_mood_poked": "Stop poking me! Hmph.",
+"companion_mood_dizzy": "Whoa… everything is spinning…",
+"companion_mood_shaken": "Hey! Don't shake me like that!",
 }
 
 P = {

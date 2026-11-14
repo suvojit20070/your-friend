@@ -332,7 +332,7 @@ public final class SettingsActivity extends BaseActivity {
                     LocaleHelper.setLanguage(this, v);
                     restartApp();
                 });
-        r.sliderRow(R.drawable.ic_character, R.string.settings_character_size, Settings.CHARACTER_SIZE, 100, 50, 150, "%", null);
+        r.sliderRow(R.drawable.ic_character, R.string.settings_character_size, Settings.CHARACTER_SIZE, 100, 50, 200, "%", null);
         characterStyle(r);
         r.choiceRow(R.drawable.ic_character, R.string.settings_animation_quality, Settings.ANIMATION_QUALITY, "high",
                 new String[]{getString(R.string.quality_low), getString(R.string.quality_medium), getString(R.string.quality_high)},
@@ -372,6 +372,10 @@ public final class SettingsActivity extends BaseActivity {
                 Settings.COMPANION_BRAIN, true, null);
         r.switchRow(R.drawable.ic_character, R.string.settings_companion_agent, R.string.settings_companion_agent_desc,
                 Settings.COMPANION_ASKS_AGENT, true, null);
+        r.switchRow(R.drawable.ic_character, R.string.settings_dance, R.string.settings_dance_desc,
+                Settings.COMPANION_DANCE, true, null);
+        r.switchRow(R.drawable.ic_character, R.string.settings_dance_ai, R.string.settings_dance_ai_desc,
+                Settings.COMPANION_DANCE_AI, true, null);
         r.switchRow(R.drawable.ic_screen, R.string.settings_tap_cursor, R.string.settings_tap_cursor_desc,
                 com.suvo.agent.device.TapIndicator.SETTING, true, null);
 

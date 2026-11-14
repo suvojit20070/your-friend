@@ -136,7 +136,8 @@ public final class MainActivity extends BaseActivity {
         mic.setOnClickListener(v -> toggleListening());
         bubble.setOnClickListener(v -> open(ChatActivity.class));
 
-        int size = g.settings.integer(Settings.CHARACTER_SIZE, 100);
+        // Above 150 % (pinched bigger on the home screen overlay) the in-app character would not fit.
+        int size = Math.min(150, g.settings.integer(Settings.CHARACTER_SIZE, 100));
         character.getLayoutParams().width = Ui.dp(this, 300 * size / 100f);
         character.getLayoutParams().height = Ui.dp(this, 360 * size / 100f);
         character.setListener(new CharacterView.Listener() {

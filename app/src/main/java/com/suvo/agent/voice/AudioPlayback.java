@@ -24,6 +24,19 @@ public final class AudioPlayback {
     }
 
     private volatile AudioTrack current;
+    private volatile float volume = 1f;
+
+    /** Volume of what plays now and next (1 = normal); used to duck while you may be talking. */
+    public void setVolume(float v) {
+        volume = Math.max(0f, Math.min(1f, v));
+        AudioTrack t = current;
+        if (t != null) {
+            try {
+                t.setVolume(volume);
+            } catch (IllegalStateException ignored) {
+            }
+        }
+    }
 
     public void stop() {
         AudioTrack t = current;
@@ -61,6 +74,10 @@ public final class AudioPlayback {
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build();
         current = t;
+        try {
+            t.setVolume(volume);
+        } catch (IllegalStateException ignored) {
+        }
         Runnable onCancel = this::stop;
         cancel.onCancel(onCancel);
         // Loudness per written block, so the mouth moves with what is audible (head position).
@@ -159,6 +176,10 @@ public final class AudioPlayback {
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build();
         current = t;
+        try {
+            t.setVolume(volume);
+        } catch (IllegalStateException ignored) {
+        }
         Runnable onCancel = this::stop;
         cancel.onCancel(onCancel);
         final int total = pcm.samples.length;

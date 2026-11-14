@@ -52,7 +52,7 @@ import java.util.Random;
  *
  * Drag it anywhere: it falls onto whatever is below (an element on screen, read through
  * Accessibility, or the bottom of the screen) and sits or stands there. Tap: reaction.
- * Double-tap: the assistant card. With the AI "brain" on ({@link CompanionBrain}) it also changes
+ * Double-tap: a voice call (greets, then listens). With the AI "brain" on ({@link CompanionBrain}) it also changes
  * mood, face and gestures, sits, stands, walks to other places, falls asleep and can ask the
  * agent for small things; whenever what it rests on disappears (another screen, scrolled away) it
  * falls to what is below instead of sitting on nothing.
@@ -112,6 +112,27 @@ public final class FloatingCompanionService extends Service {
     // Motion → wind on hair and clothes.
     private float lastWx, lastWy, windVx, windVy;
     private long lastWindNs;
+
+    // Moods from how she is treated: shaken (dizzy, then cross), poked again and again (annoyed),
+    // left alone for a long time (sad).
+    private static final long IGNORED_MS = 30 * 60_000L;
+    private final java.util.ArrayDeque<Long> taps = new java.util.ArrayDeque<>();
+    private final java.util.ArrayDeque<Long> shakes = new java.util.ArrayDeque<>();
+    private int shakeTurns;
+    private float shakeLastVx;
+    private long shakeLastAt;
+    private long lastNoticed = SystemClock.uptimeMillis();
+    private boolean sadForIgnore;
+    private long annoyedAt;
+    private Runnable pendingOpen;
+
+    // Dancing to music.
+    private MusicWatch music;
+    private final com.suvo.agent.core.character.DanceDirector director = new com.suvo.agent.core.character.DanceDirector(new Random());
+    private boolean dancing;
+    private boolean askingDance;
+    private long danceStartNs;
+    private String songTitle = "", songArtist = "", songApp = "";
 
     public static boolean isRunning() {
         return running;
@@ -219,6 +240,40 @@ public final class FloatingCompanionService extends Service {
         return Math.round(v * density);
     }
 
+    /** Box sizes for a character size in percent (50–200). */
+    private void computeSize(int size) {
+        size = Math.max(MIN_SIZE, Math.min(MAX_SIZE, size));
+        bodyW = (int) ((is3d ? 120 : 110) * density * size / 100f);
+        bodyH = (int) ((is3d ? 240 : 132) * density * size / 100f);
+        viewW = is3d ? Math.round(bodyW * WIDE) : bodyW;
+        headroom = is3d ? Math.round(bodyH * HEADROOM) : 0;
+        viewH = bodyH + headroom;
+    }
+
+    static final int MIN_SIZE = 50, MAX_SIZE = 200;
+
+    /**
+     * Pinched to a new size: the window (and the 3D surface, once) takes the new size; the feet stay
+     * where they were, then it lands again.
+     */
+    private void applySize(int size) {
+        if (character == null || container == null) return;
+        int feet = bodyTop + viewH;
+        computeSize(size);
+        AppGraph.get().settings.put(com.suvo.agent.data.Settings.CHARACTER_SIZE, Math.max(MIN_SIZE, Math.min(MAX_SIZE, size)));
+        character.setHeadroom(headroom / (float) viewH);
+        FrameLayout.LayoutParams cl = (FrameLayout.LayoutParams) character.getLayoutParams();
+        cl.width = viewW;
+        cl.height = viewH;
+        character.setLayoutParams(cl);
+        cx = clampCx(cx);
+        bodyTop = feet - viewH;
+        layoutWindow(false);
+        safeUpdate(); // the size changed (layoutWindow only pushes a move)
+        container.post(this::limitTouchToBody);
+        main.postDelayed(this::land, 250);
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     private void show() {
         running = true;
@@ -226,14 +281,9 @@ public final class FloatingCompanionService extends Service {
         wm = com.suvo.agent.device.OverlayWindow.manager(this);
         AppGraph g = AppGraph.get();
         density = getResources().getDisplayMetrics().density;
-        int size = g.settings.integer(com.suvo.agent.data.Settings.CHARACTER_SIZE, 100);
         // The 3D character is drawn full-body, so its box is tall; the 2D one is a bust.
         is3d = CharacterView.modelSource(this) != null;
-        bodyW = (int) ((is3d ? 120 : 110) * density * size / 100f);
-        bodyH = (int) ((is3d ? 240 : 132) * density * size / 100f);
-        viewW = is3d ? Math.round(bodyW * WIDE) : bodyW;
-        headroom = is3d ? Math.round(bodyH * HEADROOM) : 0;
-        viewH = bodyH + headroom;
+        computeSize(g.settings.integer(com.suvo.agent.data.Settings.CHARACTER_SIZE, 100));
         // Intercept every touch at the window level; otherwise the character view consumes them
         // and the window can never be dragged.
         container = new FrameLayout(this) {
@@ -273,6 +323,7 @@ public final class FloatingCompanionService extends Service {
             @Override
             public void onStatusChanged(TaskState task) {
                 if (character == null) return;
+                noticed();
                 if (!task.status.isTerminal()) {
                     wake(false);
                     stopMumbling();
@@ -315,6 +366,9 @@ public final class FloatingCompanionService extends Service {
         g.speech.addListener(speechListener);
         brain = new CompanionBrain(this, new BrainBody());
         brain.start();
+        music = new MusicWatch(this, this::onMusic);
+        if (g.settings.bool(com.suvo.agent.data.Settings.COMPANION_DANCE, true)) music.start();
+        main.postDelayed(ignoreCheck, 60_000);
     }
 
     // ------------------------------------------------------------------ window geometry
@@ -402,19 +456,57 @@ public final class FloatingCompanionService extends Service {
 
     // ------------------------------------------------------------------ touch
 
-    /** Drag the window; tap = reaction, double-tap = assistant card. */
+    /** Drag the window; tap = reaction, double-tap = voice call. */
     private final class DragTouch implements View.OnTouchListener {
         float downRawX, downRawY, startCx;
         int startTop;
         boolean moved, wasMoving, onBody;
         long lastTap;
+        // Two fingers: pinch to make her bigger or smaller.
+        boolean pinching;
+        float pinchStart;
+        int pinchFromSize, pinchSize;
+
+        private float spread(MotionEvent e) {
+            if (e.getPointerCount() < 2) return 0f;
+            return (float) Math.hypot(e.getX(0) - e.getX(1), e.getY(0) - e.getY(1));
+        }
+
+        private void finishPinch() {
+            pinching = false;
+            onBody = false; // the finger still down must not drag or tap now
+            character.setScaleX(1f);
+            character.setScaleY(1f);
+            noticed();
+            if (Math.abs(pinchSize - pinchFromSize) >= 3) applySize(pinchSize);
+        }
 
         @SuppressLint("ClickableViewAccessibility")
         @Override
         public boolean onTouch(View v, MotionEvent e) {
             int slop = ViewConfiguration.get(FloatingCompanionService.this).getScaledTouchSlop();
             switch (e.getActionMasked()) {
+                case MotionEvent.ACTION_POINTER_DOWN:
+                    if (!onBody || e.getPointerCount() != 2 || !is3d) return true;
+                    pinching = true;
+                    pinchStart = Math.max(1f, spread(e));
+                    pinchFromSize = AppGraph.get().settings.integer(com.suvo.agent.data.Settings.CHARACTER_SIZE, 100);
+                    pinchSize = pinchFromSize;
+                    if (moved) {
+                        // Was being dragged: put her down where she is first.
+                        moved = false;
+                        moving = false;
+                        character.setAirborne(false);
+                        stopWind();
+                    }
+                    character.setPivotX(viewW / 2f);
+                    character.setPivotY(viewH);
+                    return true;
+                case MotionEvent.ACTION_POINTER_UP:
+                    if (pinching) finishPinch();
+                    return true;
                 case MotionEvent.ACTION_DOWN:
+                    pinching = false;
                     downRawX = e.getRawX();
                     downRawY = e.getRawY();
                     // While gliding the window is bigger than the character: only the character itself reacts.
@@ -431,6 +523,17 @@ public final class FloatingCompanionService extends Service {
                     return true;
                 case MotionEvent.ACTION_MOVE: {
                     if (!onBody) return true;
+                    if (pinching) {
+                        if (e.getPointerCount() >= 2) {
+                            float sc = spread(e) / pinchStart;
+                            pinchSize = Math.round(Math.max(MIN_SIZE, Math.min(MAX_SIZE, pinchFromSize * sc)));
+                            // Live preview by scaling the view (the window takes the size on release).
+                            float k = pinchSize / (float) pinchFromSize;
+                            character.setScaleX(k);
+                            character.setScaleY(k);
+                        }
+                        return true;
+                    }
                     float dx = e.getRawX() - downRawX;
                     float dy = e.getRawY() - downRawY;
                     if (!moved && Math.hypot(dx, dy) > slop) {
@@ -442,6 +545,10 @@ public final class FloatingCompanionService extends Service {
                         downRawY = e.getRawY();
                         dx = dy = 0;
                         moving = true;
+                        shakeLastAt = 0;
+                        shakeTurns = 0;
+                        shakeLastVx = 0;
+                        shakes.clear();
                         wake(true);
                         stopMumbling();
                         hideBubble();
@@ -455,19 +562,36 @@ public final class FloatingCompanionService extends Service {
                         cx = startCx + dx;
                         bodyTop = startTop + (int) dy;
                         layoutWindow(true); // the window follows the finger
+                        trackShake(e.getRawX(), e.getEventTime());
                     }
                     return true;
                 }
                 case MotionEvent.ACTION_UP:
                     if (!onBody) return true;
+                    if (pinching) {
+                        finishPinch();
+                        return true;
+                    }
+                    noticed();
                     if (moved || wasMoving) {
                         stopWind();
                         land();
+                        if (moved) afterShake();
                     } else {
                         long now = System.currentTimeMillis();
-                        if (now - lastTap < 320) {
+                        if (poked()) {
+                            // Poked again and again: not a double tap any more.
+                            if (pendingOpen != null) main.removeCallbacks(pendingOpen);
+                            pendingOpen = null;
                             lastTap = 0;
-                            openAssistant();
+                        } else if (now - lastTap < 320) {
+                            lastTap = 0;
+                            // A third tap right after means poking, not "open a call": wait a moment.
+                            pendingOpen = () -> {
+                                pendingOpen = null;
+                                openAssistant();
+                            };
+                            main.postDelayed(pendingOpen, 380);
                         } else {
                             lastTap = now;
                             if (character.isAsleep()) wake(true);
@@ -476,6 +600,10 @@ public final class FloatingCompanionService extends Service {
                     }
                     return true;
                 case MotionEvent.ACTION_CANCEL:
+                    if (pinching) {
+                        finishPinch();
+                        return true;
+                    }
                     if (onBody && (moved || wasMoving)) land();
                     return true;
                 default:
@@ -484,12 +612,11 @@ public final class FloatingCompanionService extends Service {
         }
     }
 
-    /** The assistant card (same as the system assistant gesture), over whatever app is open. */
+    /** Double tap: a voice call with the companion (it says hello, then listens), over any app. */
     private void openAssistant() {
         wake(false);
         character.react(CharacterAnimator.Expression.HAPPY, 1.2f);
-        Intent i = new Intent(this, com.suvo.agent.ui.AssistActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        Intent i = com.suvo.agent.ui.AssistActivity.callIntent(this);
         try {
             startActivity(i);
         } catch (RuntimeException e) {
@@ -674,6 +801,226 @@ public final class FloatingCompanionService extends Service {
         character.animator().lookAt(Math.max(-1f, Math.min(1f, nx)), Math.max(-1f, Math.min(1f, ny)), seconds);
     }
 
+    // ------------------------------------------------------------------ how she is treated
+
+    /** Something happened with her (touch, a task, a call, music): she is not ignored. */
+    private void noticed() {
+        lastNoticed = SystemClock.uptimeMillis();
+        if (sadForIgnore && character != null) {
+            sadForIgnore = false;
+            character.react(CharacterAnimator.Expression.HAPPY, 2.5f);
+            mood = "happy";
+            showBubble(getString(R.string.companion_mood_back), 2500);
+        }
+    }
+
+    /** Left alone for a long time (no touch, no chat, no call): she gets sad and sighs, once. */
+    private final Runnable ignoreCheck = new Runnable() {
+        @Override
+        public void run() {
+            if (character == null) return;
+            AppGraph g = AppGraph.get();
+            boolean busy = g.agent.isRunning() || g.speech.isActive() || com.suvo.agent.voice.CallService.active() || dancing;
+            if (busy) lastNoticed = SystemClock.uptimeMillis();
+            // The dance switch may have changed in Settings.
+            boolean danceOn = g.settings.bool(com.suvo.agent.data.Settings.COMPANION_DANCE, true);
+            if (music != null) {
+                if (danceOn) music.start();
+                else music.stop();
+            }
+            boolean shown = container != null && container.getVisibility() == View.VISIBLE;
+            if (shown && !sadForIgnore && !moving && !character.isAsleep() && SystemClock.uptimeMillis() - lastNoticed > IGNORED_MS) {
+                sadForIgnore = true;
+                mood = "sad";
+                character.animator().setExpression(CharacterAnimator.Expression.SAD);
+                character.playGesture(Gestures.SIGH);
+                say(getString(R.string.companion_mood_ignored));
+            }
+            main.postDelayed(this, 60_000);
+        }
+    };
+
+    /** Taps on her body in the last few seconds: 4 or more is poking. True when she got annoyed now. */
+    private boolean poked() {
+        long now = SystemClock.uptimeMillis();
+        taps.addLast(now);
+        while (!taps.isEmpty() && now - taps.peekFirst() > 5000) taps.removeFirst();
+        if (taps.size() < 4 || now - annoyedAt < 15_000 || character == null) return false;
+        taps.clear();
+        annoyedAt = now;
+        wake(false);
+        character.react(CharacterAnimator.Expression.ANGRY, 4f);
+        character.playGesture(Gestures.POUT);
+        say(getString(R.string.companion_mood_poked));
+        return true;
+    }
+
+    /** While dragged: counts quick changes of direction (shaking her). */
+    private void trackShake(float rawX, long t) {
+        if (shakeLastAt == 0) {
+            shakeLastAt = t;
+            shakeX = rawX;
+            return;
+        }
+        float dt = (t - shakeLastAt) / 1000f;
+        if (dt < 0.012f) return;
+        float vx = (rawX - shakeX) / dt;
+        shakeX = rawX;
+        shakeLastAt = t;
+        float fast = bodyH * 1.6f; // px/s
+        if (Math.abs(vx) > fast) {
+            if (shakeLastVx != 0 && Math.signum(vx) != Math.signum(shakeLastVx)) {
+                shakeTurns++;
+                shakes.addLast(t);
+            }
+            shakeLastVx = vx;
+        }
+        while (!shakes.isEmpty() && t - shakes.peekFirst() > 1800) shakes.removeFirst();
+    }
+
+    private float shakeX;
+
+    /** Put down after being dragged: shaken hard means dizzy, then cross. */
+    private void afterShake() {
+        boolean shaken = shakes.size() >= 4 || shakeTurns >= 6;
+        shakes.clear();
+        shakeTurns = 0;
+        shakeLastVx = 0;
+        shakeLastAt = 0;
+        if (!shaken || character == null) return;
+        character.react(CharacterAnimator.Expression.SURPRISED, 1.2f);
+        main.postDelayed(() -> {
+            if (character == null) return;
+            character.playGesture(Gestures.DIZZY);
+            showBubble(getString(R.string.companion_mood_dizzy), 3000);
+        }, 900);
+        main.postDelayed(() -> {
+            if (character == null) return;
+            character.react(CharacterAnimator.Expression.ANGRY, 4f);
+            character.playGesture(Gestures.POUT);
+            say(getString(R.string.companion_mood_shaken));
+        }, 5200);
+    }
+
+    // ------------------------------------------------------------------ dancing to music
+
+    /** MusicWatch: music started / stopped / the song changed. */
+    private void onMusic(boolean playing, String title, String artist, String app) {
+        if (character == null) return;
+        songTitle = title;
+        songArtist = artist;
+        songApp = app;
+        if (playing) {
+            noticed();
+            if (!dancing) {
+                dancing = true;
+                danceStartNs = System.nanoTime();
+                director.setBpm(com.suvo.agent.core.character.DanceDirector.DEFAULT_BPM);
+                wake(false);
+                ensureArmRoom();
+                main.removeCallbacks(danceTick);
+                main.post(danceTick);
+            } else {
+                // A new song: plan again at once.
+                planDance(true);
+            }
+        } else {
+            dancing = false;
+            main.removeCallbacks(danceTick);
+            character.setDance(-1, 0, 0, 0);
+        }
+    }
+
+    private final Runnable danceTick = new Runnable() {
+        @Override
+        public void run() {
+            if (!dancing || character == null) return;
+            boolean shown = container != null && container.getVisibility() == View.VISIBLE;
+            if (!shown || moving || character.isAsleep()) {
+                // Hidden (the app is open), held or asleep: no dancing (and no AI questions).
+                character.setDance(-1, 0, 0, 0);
+                main.postDelayed(this, 1000);
+                return;
+            }
+            float measured = music != null ? music.bpm() : 0f;
+            if (measured > 0) director.setBpm(measured);
+            long anchor = music != null ? music.beatAnchorNs() : 0;
+            if (anchor == 0) anchor = danceStartNs;
+            long now = SystemClock.uptimeMillis();
+            if (director.needsPlan(now) && !askingDance) planDance(false);
+            float beats = (float) ((System.nanoTime() - anchor) / 1e9 * director.bpm() / 60.0);
+            int move = director.moveAt(now, beats);
+            character.setDance(move, director.bpm(), director.energy(), anchor);
+            main.postDelayed(this, 250);
+        }
+    };
+
+    /**
+     * The next ~30 s of moves: asked from the AI (song, tempo) when that is on, else picked here.
+     * Until the AI answers, a picked plan keeps her dancing.
+     */
+    private void planDance(boolean force) {
+        AppGraph g = AppGraph.get();
+        long now = SystemClock.uptimeMillis();
+        float loud = music != null ? music.loudness() : 0.5f;
+        if (director.needsPlan(now) || force) director.setPlan(director.fallbackPlan(loud), -1, now);
+        if (!g.settings.bool(com.suvo.agent.data.Settings.COMPANION_DANCE_AI, true) || askingDance) return;
+        com.suvo.agent.core.llm.ProviderConfig p = com.suvo.agent.agent.RoleModels.provider(g, com.suvo.agent.agent.RoleModels.BRAIN);
+        if (p == null) p = g.providers.active();
+        if (p == null || p.validate() != null) return;
+        askingDance = true;
+        final com.suvo.agent.core.llm.ProviderConfig provider = p;
+        final java.util.List<Integer> previous = director.plan();
+        final float measured = music != null ? music.bpm() : 0f;
+        final String t = songTitle, a = songArtist, app = songApp;
+        g.io.execute(() -> {
+            com.suvo.agent.core.character.DanceDirector.Answer ans = null;
+            try {
+                com.suvo.agent.core.llm.ChatRequest req = new com.suvo.agent.core.llm.ChatRequest();
+                req.forceNoStream = true;
+                req.tools = new org.json.JSONArray();
+                req.toolChoice = null;
+                req.temperatureOverride = 0.9;
+                req.maxTokensOverride = 200;
+                req.messages.add(com.suvo.agent.core.llm.ChatMessage.system(com.suvo.agent.core.character.DanceDirector.systemPrompt()));
+                req.messages.add(com.suvo.agent.core.llm.ChatMessage.user(
+                        com.suvo.agent.core.character.DanceDirector.userMessage(t, a, app, measured, loud, previous)));
+                com.suvo.agent.core.llm.LlmClient llm = com.suvo.agent.agent.TrackedLlm.wrap(this,
+                        new com.suvo.agent.core.llm.OpenAiCompatClient(provider));
+                com.suvo.agent.core.llm.ChatResponse resp = llm.chat(req, com.suvo.agent.core.llm.StreamListener.NONE,
+                        new com.suvo.agent.core.util.CancellationToken());
+                ans = com.suvo.agent.core.character.DanceDirector.parse(resp == null ? null : resp.content);
+            } catch (Exception e) {
+                android.util.Log.i("YF.Dance", "AI moves failed: " + e.getMessage());
+            }
+            final com.suvo.agent.core.character.DanceDirector.Answer fa = ans;
+            main.post(() -> {
+                askingDance = false;
+                if (fa == null || !dancing) return;
+                if (!fa.moves.isEmpty()) director.setPlan(fa.moves, fa.energy, SystemClock.uptimeMillis());
+                // The AI's tempo only when none could be measured.
+                if (fa.bpm > 0 && (music == null || music.bpm() <= 0)) director.setBpm(fa.bpm);
+            });
+        });
+    }
+
+    /**
+     * Raised arms need room beside the body: standing right at the screen edge, she first steps in
+     * a little so a hand is not cut off by the edge of the screen.
+     */
+    private void ensureArmRoom() {
+        if (character == null || sitting || moving || restTop < 0) return;
+        float need = bodyH * 0.36f;
+        int w = screenW();
+        float target = cx;
+        if (cx - need < 0) target = need;
+        else if (cx + need > w) target = w - need;
+        if (Math.abs(target - cx) < dp(4)) return;
+        int tx = Math.round(target);
+        if (restElement && (tx < restLeft || tx > restRight)) return; // would walk off the element
+        walkTo(tx, null);
+    }
+
     // ------------------------------------------------------------------ mood, face, gesture, sleep
 
     private static CharacterAnimator.Expression expressionFor(String name) {
@@ -723,7 +1070,19 @@ public final class FloatingCompanionService extends Service {
 
     private void gesture(String name) {
         int g = Gestures.parse(name);
-        if (g >= 0 && character != null && !character.isAsleep()) character.playGesture(g);
+        if (g < 0 || character == null || character.isAsleep()) return;
+        boolean armsUp = g == Gestures.CHEER || g == Gestures.WAVE || g == Gestures.STRETCH;
+        if (armsUp && !sitting && !moving) {
+            float need = bodyH * 0.36f;
+            if (cx - need < 0 || cx + need > screenW()) {
+                ensureArmRoom();
+                main.postDelayed(() -> {
+                    if (character != null) character.playGesture(g);
+                }, 1500);
+                return;
+            }
+        }
+        character.playGesture(g);
     }
 
     private void sleep() {
@@ -1038,7 +1397,7 @@ public final class FloatingCompanionService extends Service {
 
         @Override
         public CompanionPlan.State state() {
-            if (character == null || container == null || container.getVisibility() != View.VISIBLE || moving || restTop < 0) return null;
+            if (character == null || container == null || container.getVisibility() != View.VISIBLE || moving || restTop < 0 || dancing) return null;
             CompanionPlan.State st = new CompanionPlan.State();
             DisplayMetrics dm = getResources().getDisplayMetrics();
             st.screenW = dm.widthPixels;
@@ -1125,6 +1484,9 @@ public final class FloatingCompanionService extends Service {
         instance = null;
         if (brain != null) brain.stop();
         brain = null;
+        if (music != null) music.stop();
+        music = null;
+        dancing = false;
         cancelMotion();
         main.removeCallbacksAndMessages(null);
         try {

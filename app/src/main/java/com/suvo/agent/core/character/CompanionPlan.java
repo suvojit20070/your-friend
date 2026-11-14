@@ -29,7 +29,7 @@ public final class CompanionPlan {
             "neutral", "happy", "sad", "surprised", "angry", "shy", "sleepy"));
     public static final Set<String> GESTURES = new HashSet<>(Arrays.asList(
             "none", "wave", "nod", "shake_head", "cheer", "think", "look_around", "touch_hair", "hands_together",
-            "stretch", "sway", "glance"));
+            "stretch", "sway", "glance", "turn_around", "pout", "sigh"));
     public static final Set<String> SIT_STYLES = new HashSet<>(Arrays.asList(
             "auto", "kick", "crossed", "lean_back", "hug_knees", "chin"));
     /** Seconds until the next decision. */
@@ -141,7 +141,7 @@ public final class CompanionPlan {
                 + "Answer with JSON only, no other text:\n"
                 + "{\"mood\":\"happy|calm|curious|excited|sad|sleepy|shy|bored|thoughtful\","
                 + "\"face\":\"neutral|happy|sad|surprised|angry|shy|sleepy\","
-                + "\"gesture\":\"none|wave|nod|shake_head|cheer|think|look_around|touch_hair|hands_together|stretch|sway|glance\","
+                + "\"gesture\":\"none|wave|nod|shake_head|cheer|think|look_around|touch_hair|hands_together|stretch|sway|glance|turn_around|pout|sigh\","
                 + "\"action\":\"stay|sit|stand|walk|sleep|wake\","
                 + "\"target\":\"element id or bottom or empty\",\"x\":optional px centre on the target,"
                 + "\"sit_style\":\"auto|kick|crossed|lean_back|hug_knees|chin\","

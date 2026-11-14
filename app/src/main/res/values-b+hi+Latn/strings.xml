@@ -296,7 +296,14 @@
     <string name="call_bye">Theek hai, bye!</string>
     <string name="call_end">End</string>
     <string name="call_ended">Call khatam</string>
+    <string name="call_greet_1">Haan, bolo?</string>
+    <string name="call_greet_2">Main yahin hoon. Kya hua?</string>
+    <string name="call_greet_3">Hi! Kya karun tumhare liye?</string>
+    <string name="call_greet_4">Sun rahi hoon, bolo.</string>
+    <string name="call_hang_up">Call kaato</string>
     <string name="call_listening">Sun raha hai… (call)</string>
+    <string name="call_mute">Mute karo</string>
+    <string name="call_muted">Mute hai — mic band hai</string>
     <string name="call_new_chat">Theek hai, nayi shuruaat.</string>
     <string name="call_say_app">Khol rahi hoon.</string>
     <string name="call_say_message">Abhi bhej rahi hoon.</string>
@@ -308,6 +315,7 @@
     <string name="call_stopped">Rok diya.</string>
     <string name="call_text">Aap bolte raho, sun raha hai. Khatam karne ke liye “bye” bolo ya End dabao.</string>
     <string name="call_title">Call chal rahi hai</string>
+    <string name="call_unmute">Unmute karo</string>
     <string name="call_words_end">bye,goodbye,bye bye,end call,end the call,hang up,that\'s all,stop listening,bas,bas karo,call band karo,band karo,chalo bye,theek hai bye</string>
     <string name="call_words_new_chat">new chat,clear chat,start over,new conversation,nayi chat,chat clear karo,naya chat,shuru se</string>
     <string name="call_words_stop">stop,cancel,stop it,wait stop,ruko,ruk jao,rehne do,band karo</string>
@@ -492,6 +500,11 @@
     <string name="companion_conversation">Companion</string>
     <string name="companion_listening">Sun raha hai… chhodo to send ho jayega</string>
     <string name="companion_mic_needed">Pehle Your Friend mein microphone allow karo, phir mujhe daba ke bolo.</string>
+    <string name="companion_mood_back">Aa gaye tum!</string>
+    <string name="companion_mood_dizzy">Uff… sab ghoom raha hai…</string>
+    <string name="companion_mood_ignored">Tum mujhe bhool gaye…</string>
+    <string name="companion_mood_poked">Baar baar mat chuo! Hmph.</string>
+    <string name="companion_mood_shaken">Arre! Aise mat hilao mujhe!</string>
     <string name="companion_notification_text">Kisi cheez ki taraf ishara karne ke liye character par double-tap karo. Hatane ke liye Hide dabao.</string>
     <string name="companion_notification_title">Your Friend screen par hai</string>
     <string name="companion_understanding">Samajh raha hai…</string>
@@ -986,6 +999,10 @@
     <string name="settings_companion_brain">Zinda companion (AI)</string>
     <string name="settings_companion_brain_desc">Floating character khud se mood, baithna, khada hona, kahin chalna, sona tay karega — screen par jo hai uske hisaab se. Har minute-do minute AI provider ko ek chhoti alag request jaati hai (tokens lagte hain). Jo cheez gayab ho jaye usse woh hamesha neeche gir jaata hai.</string>
     <string name="settings_context_trigger">Context compact kab ho</string>
+    <string name="settings_dance">Music pe dance</string>
+    <string name="settings_dance_ai">AI dance moves chune</string>
+    <string name="settings_dance_ai_desc">Music chalte waqt har 30 second pe AI gaane aur uske tempo se agle moves chunta hai (minute mein ~2 chhoti requests). Off: moves tempo se chune jate hain.</string>
+    <string name="settings_dance_desc">Kisi bhi app mein music chale to floating character beat pe dance karta hai. Gaane ka naam notification access se aata hai; beat ke liye mic permission chahiye (sirf bass ki loudness padhi jati hai, kuch record nahi hota).</string>
     <string name="settings_developer">Developer</string>
     <string name="settings_device">Device</string>
     <string name="settings_export_config">Settings export karo</string>

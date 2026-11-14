@@ -288,7 +288,14 @@
     <string name="call_bye">ठीक है, बाय!</string>
     <string name="call_end">समाप्त</string>
     <string name="call_ended">कॉल ख़त्म</string>
+    <string name="call_greet_1">हाँ, बोलो?</string>
+    <string name="call_greet_2">मैं यहीं हूँ। क्या हुआ?</string>
+    <string name="call_greet_3">हाय! तुम्हारे लिए क्या करूँ?</string>
+    <string name="call_greet_4">सुन रही हूँ, बोलो।</string>
+    <string name="call_hang_up">कॉल काटें</string>
     <string name="call_listening">सुन रहा है… (कॉल)</string>
+    <string name="call_mute">म्यूट करें</string>
+    <string name="call_muted">म्यूट है — माइक बंद है</string>
     <string name="call_new_chat">ठीक है, नई शुरुआत।</string>
     <string name="call_say_app">खोल रही हूँ।</string>
     <string name="call_say_message">अभी भेज रही हूँ।</string>
@@ -300,6 +307,7 @@
     <string name="call_stopped">रोक दिया।</string>
     <string name="call_text">आप बोलते रहें, सुन रहा है। ख़त्म करने के लिए “bye” बोलें या End दबाएँ।</string>
     <string name="call_title">कॉल चल रही है</string>
+    <string name="call_unmute">अनम्यूट करें</string>
     <string name="call_words_end">bye,goodbye,bye bye,end call,end the call,hang up,that\'s all,stop listening,बाय,बस,बस करो,कॉल बंद करो,ठीक है बाय</string>
     <string name="call_words_new_chat">new chat,clear chat,start over,new conversation,नई चैट,चैट साफ़ करो,शुरू से</string>
     <string name="call_words_stop">stop,cancel,stop it,wait stop,रुको,रुक जाओ,रहने दो,बंद करो</string>
@@ -483,6 +491,11 @@
     <string name="companion_conversation">साथी</string>
     <string name="companion_listening">सुना जा रहा है… छोड़ने पर भेजा जाएगा</string>
     <string name="companion_mic_needed">पहले Your Friend में माइक्रोफ़ोन की अनुमति दें, फिर मुझे दबाकर बोलें।</string>
+    <string name="companion_mood_back">आ गए तुम!</string>
+    <string name="companion_mood_dizzy">उफ़… सब घूम रहा है…</string>
+    <string name="companion_mood_ignored">तुम मुझे भूल गए…</string>
+    <string name="companion_mood_poked">बार-बार मत छुओ! हम्फ़।</string>
+    <string name="companion_mood_shaken">अरे! मुझे ऐसे मत हिलाओ!</string>
     <string name="companion_notification_text">किसी चीज़ की ओर इशारा करने के लिए कैरेक्टर पर डबल-टैप करें। हटाने के लिए Hide दबाएँ।</string>
     <string name="companion_notification_title">Your Friend स्क्रीन पर है</string>
     <string name="companion_understanding">समझा जा रहा है…</string>
@@ -968,6 +981,10 @@
     <string name="settings_companion_brain">जीवंत साथी (AI)</string>
     <string name="settings_companion_brain_desc">फ़्लोटिंग कैरेक्टर स्क्रीन पर जो है उसे देखकर खुद ही कभी-कभी मूड, बैठना, खड़ा होना, कहीं चलना, सोना तय करेगा। हर एक-दो मिनट में आपके AI प्रोवाइडर को एक छोटा अलग अनुरोध जाता है (टोकन लगते हैं)। जो चीज़ गायब हो जाए, उससे वह हमेशा नीचे गिर जाता है।</string>
     <string name="settings_context_trigger">कॉन्टेक्स्ट संक्षेप कब हो</string>
+    <string name="settings_dance">म्यूज़िक पर डांस</string>
+    <string name="settings_dance_ai">AI डांस मूव्स चुने</string>
+    <string name="settings_dance_ai_desc">म्यूज़िक चलते समय हर 30 सेकंड में AI गाने और उसके टेम्पो से अगले मूव्स चुनता है (मिनट में ~2 छोटी रिक्वेस्ट)। बंद: मूव्स टेम्पो से चुने जाते हैं।</string>
+    <string name="settings_dance_desc">किसी भी ऐप में म्यूज़िक चले तो फ़्लोटिंग कैरेक्टर बीट पर डांस करता है। गाने के नाम के लिए नोटिफ़िकेशन एक्सेस चाहिए; बीट के लिए माइक की अनुमति (सिर्फ़ बेस की लाउडनेस पढ़ी जाती है, कुछ रिकॉर्ड नहीं होता)।</string>
     <string name="settings_developer">डेवलपर</string>
     <string name="settings_device">डिवाइस</string>
     <string name="settings_export_config">सेटिंग्स निर्यात करें</string>

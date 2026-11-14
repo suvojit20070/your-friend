@@ -50,6 +50,26 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
     private volatile float walking;
     private volatile int sitStyle = -1;
     private volatile float headroom;
+    private volatile int danceMove = -1;
+    private volatile float danceBpm = 110f, danceEnergy = 0.6f;
+    private volatile long danceAnchorNs;
+    /** 0 low · 1 medium · 2 high (high also smooths the edges with 4× multisampling). */
+    private volatile int quality = 1;
+
+    /** Dance a {@code DanceMoves} move (-1 = stop) to {@code bpm}; a beat fell at {@code anchorNs} (System.nanoTime). */
+    public void setDance(int move, float bpm, float energy, long anchorNs) {
+        danceMove = move;
+        danceBpm = bpm;
+        danceEnergy = energy;
+        danceAnchorNs = anchorNs;
+    }
+
+    public void setQuality(int q) {
+        int old = quality;
+        quality = Math.max(0, Math.min(2, q));
+        // Multisampling is chosen when the GL surface is made: switching it on or off re-creates it.
+        if ((old >= 2) != (quality >= 2) && thread != null) restart();
+    }
 
     /** Keeps this fraction of the height free above the character (the body is drawn below it). */
     public void setHeadroom(float h) {
@@ -248,6 +268,8 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
                     r.setWalking(walking);
                     r.setSitStyle(sitStyle);
                     r.setWind(windX, -windY, 0f);
+                    r.setDance(danceMove, danceBpm, danceEnergy, danceAnchorNs);
+                    r.setQuality(quality);
                     r.draw(local, (t0 - start) / 1e9f);
                     if (!EGL14.eglSwapBuffers(display, eglSurface)) {
                         int err = EGL14.eglGetError();
@@ -291,9 +313,16 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
                     EGL14.EGL_DEPTH_SIZE, 16,
                     EGL14.EGL_RENDERABLE_TYPE, 0x40 /* EGL_OPENGL_ES3_BIT_KHR */,
                     EGL14.EGL_NONE};
+            int[] msaa = {
+                    EGL14.EGL_RED_SIZE, 8, EGL14.EGL_GREEN_SIZE, 8, EGL14.EGL_BLUE_SIZE, 8, EGL14.EGL_ALPHA_SIZE, 8,
+                    EGL14.EGL_DEPTH_SIZE, 16,
+                    EGL14.EGL_RENDERABLE_TYPE, 0x40,
+                    EGL14.EGL_SAMPLE_BUFFERS, 1, EGL14.EGL_SAMPLES, 4,
+                    EGL14.EGL_NONE};
             EGLConfig[] configs = new EGLConfig[1];
             int[] num = new int[1];
-            if (!EGL14.eglChooseConfig(display, attribs, 0, configs, 0, 1, num, 0) || num[0] == 0) {
+            boolean gotMsaa = quality >= 2 && EGL14.eglChooseConfig(display, msaa, 0, configs, 0, 1, num, 0) && num[0] > 0;
+            if (!gotMsaa && (!EGL14.eglChooseConfig(display, attribs, 0, configs, 0, 1, num, 0) || num[0] == 0)) {
                 throw new IllegalStateException("This phone has no OpenGL ES 3 support for the 3D character");
             }
             context = EGL14.eglCreateContext(display, configs[0], EGL14.EGL_NO_CONTEXT,

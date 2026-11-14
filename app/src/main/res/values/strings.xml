@@ -296,7 +296,14 @@
     <string name="call_bye">Okay, bye!</string>
     <string name="call_end">End</string>
     <string name="call_ended">Call ended</string>
+    <string name="call_greet_1">Yes, tell me?</string>
+    <string name="call_greet_2">I\'m here. What\'s up?</string>
+    <string name="call_greet_3">Hi! What can I do for you?</string>
+    <string name="call_greet_4">Listening, go ahead.</string>
+    <string name="call_hang_up">Hang up</string>
     <string name="call_listening">Listening… (call)</string>
+    <string name="call_mute">Mute</string>
+    <string name="call_muted">Muted — the mic is off</string>
     <string name="call_new_chat">Okay, fresh start.</string>
     <string name="call_say_app">Opening it.</string>
     <string name="call_say_message">Sending it now.</string>
@@ -308,6 +315,7 @@
     <string name="call_stopped">Stopped.</string>
     <string name="call_text">Listening while you talk. Say “bye” or tap End to finish.</string>
     <string name="call_title">On a call</string>
+    <string name="call_unmute">Unmute</string>
     <string name="call_words_end">bye,goodbye,bye bye,end call,end the call,hang up,that\'s all,stop listening</string>
     <string name="call_words_new_chat">new chat,clear chat,start over,new conversation</string>
     <string name="call_words_stop">stop,cancel,stop it,wait stop</string>
@@ -492,6 +500,11 @@
     <string name="companion_conversation">Companion</string>
     <string name="companion_listening">Listening… release to send</string>
     <string name="companion_mic_needed">Allow the microphone in Your Friend first, then hold me to talk.</string>
+    <string name="companion_mood_back">You\'re back!</string>
+    <string name="companion_mood_dizzy">Whoa… everything is spinning…</string>
+    <string name="companion_mood_ignored">You forgot about me…</string>
+    <string name="companion_mood_poked">Stop poking me! Hmph.</string>
+    <string name="companion_mood_shaken">Hey! Don\'t shake me like that!</string>
     <string name="companion_notification_text">Double-tap the character to point at something. Tap Hide to remove it.</string>
     <string name="companion_notification_title">Your Friend is on screen</string>
     <string name="companion_understanding">Got it…</string>
@@ -1013,6 +1026,10 @@
     <string name="settings_companion_brain">Lively companion (AI)</string>
     <string name="settings_companion_brain_desc">The floating character decides on its own now and then — mood, sit, stand, walk somewhere, sleep — from what is on screen. Sends a small separate request to your AI provider every minute or two (uses tokens). It always falls off things that disappear.</string>
     <string name="settings_context_trigger">Compact context at</string>
+    <string name="settings_dance">Dance to music</string>
+    <string name="settings_dance_ai">AI picks the dance moves</string>
+    <string name="settings_dance_ai_desc">Every 30 seconds while music plays, the AI chooses the next moves from the song and its tempo (about 2 small requests a minute). Off: moves are picked by tempo.</string>
+    <string name="settings_dance_desc">When music plays in any app, the floating character dances to the beat. Song names need notification access; the beat needs the microphone permission (only the bass loudness is read, nothing is recorded).</string>
     <string name="settings_developer">Developer</string>
     <string name="settings_device">Device</string>
     <string name="settings_export_config">Export settings</string>

@@ -1444,6 +1444,23 @@ S = {
 "stt_download_busy": "別のモデルをダウンロード中です",
 "stt_downloading": "ダウンロード中… %1$s",
 "stt_download_done": "モデルの準備ができました",
+"call_hang_up": "通話を切る",
+"call_mute": "ミュート",
+"call_unmute": "ミュート解除",
+"call_muted": "ミュート中 — マイクはオフ",
+"call_greet_1": "はい、どうぞ？",
+"call_greet_2": "ここにいるよ。どうしたの？",
+"call_greet_3": "やあ！何をしようか？",
+"call_greet_4": "聞いてるよ、どうぞ。",
+"settings_dance": "音楽に合わせて踊る",
+"settings_dance_desc": "どのアプリでも音楽が流れると、フローティングキャラクターがビートに合わせて踊ります。曲名には通知へのアクセス、ビートにはマイクの許可が必要です（低音の大きさだけを読み、録音はしません）。",
+"settings_dance_ai": "AIがダンスの動きを選ぶ",
+"settings_dance_ai_desc": "音楽の再生中、30秒ごとにAIが曲とテンポから次の動きを選びます（1分に約2回の小さなリクエスト）。オフ：テンポで動きを選びます。",
+"companion_mood_back": "おかえり！",
+"companion_mood_ignored": "わたしのこと忘れてた…？",
+"companion_mood_poked": "つつかないで！ふん。",
+"companion_mood_dizzy": "うわぁ…目が回る…",
+"companion_mood_shaken": "ちょっと！そんなに揺らさないで！",
 }
 
 P = {

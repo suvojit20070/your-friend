@@ -61,6 +61,13 @@ public final class ContinuousListener {
         this.cb = cb;
     }
 
+    private volatile boolean muted;
+
+    /** Mic muted for a moment: audio is read but thrown away (the recorder stays open, no restart). */
+    public void setMuted(boolean on) {
+        muted = on;
+    }
+
     /** The companion is talking: the detector needs clearer speech to start. */
     public void setEchoGuard(boolean on) {
         echoGuard = on;
@@ -131,6 +138,10 @@ public final class ContinuousListener {
                         Log.w(TAG, "read " + n);
                         break;
                     }
+                    continue;
+                }
+                if (muted) {
+                    vad.reset();
                     continue;
                 }
                 float[] f = new float[SmartVad.FRAME];

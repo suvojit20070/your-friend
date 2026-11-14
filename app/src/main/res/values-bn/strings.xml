@@ -288,7 +288,14 @@
     <string name="call_bye">ঠিক আছে, বাই!</string>
     <string name="call_end">শেষ</string>
     <string name="call_ended">কল শেষ</string>
+    <string name="call_greet_1">হ্যাঁ, বলো?</string>
+    <string name="call_greet_2">আমি আছি। কী হয়েছে?</string>
+    <string name="call_greet_3">হাই! তোমার জন্য কী করতে পারি?</string>
+    <string name="call_greet_4">শুনছি, বলো।</string>
+    <string name="call_hang_up">কল কাটুন</string>
     <string name="call_listening">শুনছে… (কল)</string>
+    <string name="call_mute">মিউট</string>
+    <string name="call_muted">মিউট — মাইক বন্ধ</string>
     <string name="call_new_chat">ঠিক আছে, নতুন করে শুরু।</string>
     <string name="call_say_app">খুলছি।</string>
     <string name="call_say_message">এখনই পাঠাচ্ছি।</string>
@@ -300,6 +307,7 @@
     <string name="call_stopped">থামিয়ে দিয়েছি।</string>
     <string name="call_text">আপনি বলুন, শুনছে। শেষ করতে “bye” বলুন বা End চাপুন।</string>
     <string name="call_title">কল চলছে</string>
+    <string name="call_unmute">আনমিউট</string>
     <string name="call_words_end">bye,goodbye,bye bye,end call,end the call,hang up,that\'s all,stop listening,বাই,ঠিক আছে বাই,কল কাটো,রাখছি,বাস</string>
     <string name="call_words_new_chat">new chat,clear chat,start over,new conversation,নতুন চ্যাট,চ্যাট মুছে দাও,নতুন করে শুরু</string>
     <string name="call_words_stop">stop,cancel,stop it,wait stop,থামো,থাক,বন্ধ করো</string>
@@ -483,6 +491,11 @@
     <string name="companion_conversation">সঙ্গী</string>
     <string name="companion_listening">শুনছি… ছেড়ে দিলে পাঠানো হবে</string>
     <string name="companion_mic_needed">আগে Your Friend-এ মাইক্রোফোন অনুমতি দিন, তারপর আমাকে চেপে ধরে বলুন।</string>
+    <string name="companion_mood_back">তুমি ফিরে এসেছ!</string>
+    <string name="companion_mood_dizzy">উফ… সব ঘুরছে…</string>
+    <string name="companion_mood_ignored">তুমি আমাকে ভুলে গেছ…</string>
+    <string name="companion_mood_poked">বারবার খোঁচা দিও না! হুঁ।</string>
+    <string name="companion_mood_shaken">আরে! আমাকে এভাবে ঝাঁকিও না!</string>
     <string name="companion_notification_text">কিছুর দিকে ইঙ্গিত করতে ক্যারেক্টারে ডাবল-ট্যাপ করুন। সরাতে Hide চাপুন।</string>
     <string name="companion_notification_title">Your Friend স্ক্রিনে আছে</string>
     <string name="companion_understanding">বুঝছি…</string>
@@ -968,6 +981,10 @@
     <string name="settings_companion_brain">জীবন্ত সঙ্গী (AI)</string>
     <string name="settings_companion_brain_desc">ভাসমান ক্যারেক্টার স্ক্রিনে যা আছে দেখে নিজেই মাঝে মাঝে মুড, বসা, দাঁড়ানো, কোথাও হাঁটা, ঘুমানো ঠিক করবে। প্রতি এক-দুই মিনিটে আপনার AI প্রোভাইডারে একটা ছোট আলাদা অনুরোধ যায় (টোকেন খরচ হয়)। যা সরে যায় তার উপর থেকে সে সবসময় নিচে পড়ে যায়।</string>
     <string name="settings_context_trigger">কনটেক্সট সংক্ষেপ হবে</string>
+    <string name="settings_dance">গানের তালে নাচ</string>
+    <string name="settings_dance_ai">AI নাচের মুভ বাছবে</string>
+    <string name="settings_dance_ai_desc">গান চলার সময় প্রতি ৩০ সেকেন্ডে AI গান ও তার টেম্পো দেখে পরের মুভ বাছে (মিনিটে প্রায় ২টি ছোট অনুরোধ)। বন্ধ থাকলে: টেম্পো দেখে মুভ বাছা হয়।</string>
+    <string name="settings_dance_desc">যেকোনো অ্যাপে গান বাজলে ভাসমান চরিত্রটি তালে তালে নাচে। গানের নামের জন্য নোটিফিকেশন অ্যাক্সেস লাগে; তালের জন্য মাইক্রোফোন অনুমতি লাগে (শুধু বেসের জোর পড়া হয়, কিছু রেকর্ড হয় না)।</string>
     <string name="settings_developer">ডেভেলপার</string>
     <string name="settings_device">ডিভাইস</string>
     <string name="settings_export_config">সেটিংস এক্সপোর্ট</string>

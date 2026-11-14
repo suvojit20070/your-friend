@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Voice input, hands-free mode, recording a voice reference -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Reading the bass loudness of music that plays (the companion dances to the beat); nothing is recorded. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- camera_capture tool (only when the user allows camera use) -->
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Task progress, approvals, notify tool -->

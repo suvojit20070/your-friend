@@ -1485,6 +1485,23 @@ S = {
 "stt_download_busy": "Ek aur model download ho raha hai",
 "stt_downloading": "Download ho raha hai… %1$s",
 "stt_download_done": "Model ready hai",
+"call_hang_up": "Call kaato",
+"call_mute": "Mute karo",
+"call_unmute": "Unmute karo",
+"call_muted": "Mute hai — mic band hai",
+"call_greet_1": "Haan, bolo?",
+"call_greet_2": "Main yahin hoon. Kya hua?",
+"call_greet_3": "Hi! Kya karun tumhare liye?",
+"call_greet_4": "Sun rahi hoon, bolo.",
+"settings_dance": "Music pe dance",
+"settings_dance_desc": "Kisi bhi app mein music chale to floating character beat pe dance karta hai. Gaane ka naam notification access se aata hai; beat ke liye mic permission chahiye (sirf bass ki loudness padhi jati hai, kuch record nahi hota).",
+"settings_dance_ai": "AI dance moves chune",
+"settings_dance_ai_desc": "Music chalte waqt har 30 second pe AI gaane aur uske tempo se agle moves chunta hai (minute mein ~2 chhoti requests). Off: moves tempo se chune jate hain.",
+"companion_mood_back": "Aa gaye tum!",
+"companion_mood_ignored": "Tum mujhe bhool gaye…",
+"companion_mood_poked": "Baar baar mat chuo! Hmph.",
+"companion_mood_dizzy": "Uff… sab ghoom raha hai…",
+"companion_mood_shaken": "Arre! Aise mat hilao mujhe!",
 }
 
 P = {
