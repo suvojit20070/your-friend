@@ -216,6 +216,12 @@ public class GlassDrawable extends Drawable {
     protected void onBoundsChange(Rect b) {
         super.onBoundsChange(b);
         rect.set(b);
+        if (pal.terminal) {
+            // Terminal theme: a flat black block with a thin grey line, square corners.
+            path.reset();
+            path.addRect(rect, Path.Direction.CW);
+            return;
+        }
         float r = radius < 0 ? Math.min(rect.width(), rect.height()) / 2f : Math.min(radius, Math.min(rect.width(), rect.height()) / 2f);
         float[] radii = topOnly ? new float[]{r, r, 0, 0} : new float[]{r, r, r, r};
         Squircle.build(path, rect, radii, Squircle.SMOOTHING);
@@ -231,6 +237,20 @@ public class GlassDrawable extends Drawable {
 
     @Override
     public void draw(Canvas c) {
+        if (pal.terminal) {
+            fill.setShader(null);
+            fill.setColor(0xFF000000);
+            fill.setAlpha(alpha);
+            c.drawRect(rect, fill);
+            Paint line = topLine;
+            line.setShader(null);
+            line.setColor(pal.outlineVariant);
+            line.setAlpha(alpha);
+            float h = line.getStrokeWidth() / 2f;
+            if (preset == Preset.TOPBAR) c.drawLine(rect.left, rect.bottom - h, rect.right, rect.bottom - h, line);
+            else c.drawRect(rect.left + h, rect.top + h, rect.right - h, rect.bottom - h, line);
+            return;
+        }
         int f = fixedFill != 0 ? fixedFill : disabled ? Palette.alpha(pal.surfaceHigh, 0.42f) : live ? surface() : fallbackSurface();
         if (preset.hueTint > 0 && !disabled && Build.VERSION.SDK_INT >= 29) {
             tint.setColor(tintColor);
@@ -257,6 +277,11 @@ public class GlassDrawable extends Drawable {
     @Override
     public void getOutline(Outline outline) {
         Rect b = getBounds();
+        if (pal.terminal) {
+            outline.setRect(b);
+            outline.setAlpha(0f);
+            return;
+        }
         float r = radius < 0 ? Math.min(b.width(), b.height()) / 2f : Math.min(radius, Math.min(b.width(), b.height()) / 2f);
         if (topOnly) outline.setRoundRect(b.left, b.top, b.right, b.bottom + (int) r, r);
         else outline.setRoundRect(b, r);

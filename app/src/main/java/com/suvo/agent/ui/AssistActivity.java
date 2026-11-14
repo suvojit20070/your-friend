@@ -91,6 +91,10 @@ public final class AssistActivity extends BaseActivity {
     private TextView caption;
     private View scrim;
     private LinearLayout headRow;
+    /** The input row (text field, mic, send) and the answer frame, for the compact "pill" style. */
+    private LinearLayout inputRow;
+    private View answerFrame;
+    private boolean pillOpen;
 
     // ---------------------------------------------------------------- default assistant helpers
 
@@ -197,7 +201,8 @@ public final class AssistActivity extends BaseActivity {
         int maxH = Math.round(getResources().getDisplayMetrics().heightPixels * 0.45f);
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         ap.setMargins(Ui.dp(this, 20), Ui.dp(this, 6), Ui.dp(this, 20), 0);
-        card.addView(new GlassDialog.MaxHeightFrame(this, maxH, answerScroll), ap);
+        answerFrame = new GlassDialog.MaxHeightFrame(this, maxH, answerScroll);
+        card.addView(answerFrame, ap);
 
         // Status: "Listening…", what you said, "Using a tool…".
         status = new TextView(this, null, 0, R.style.YF_Caption);
@@ -210,6 +215,7 @@ public final class AssistActivity extends BaseActivity {
 
         // Input row: text field, mic, send.
         LinearLayout row = new LinearLayout(this);
+        inputRow = row;
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         input = new EditText(this, null, 0, R.style.YF_Input);
@@ -245,7 +251,10 @@ public final class AssistActivity extends BaseActivity {
         card.addView(row, rp);
 
         FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                "top".equals(style) ? Gravity.TOP : Gravity.BOTTOM);
+                "top".equals(style) ? Gravity.TOP : "side".equals(style) ? Gravity.END | Gravity.CENTER_VERTICAL
+                        : "pill".equals(style) ? Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL : Gravity.BOTTOM);
+        if ("side".equals(style)) cp.width = Math.round(getResources().getDisplayMetrics().widthPixels * 0.84f);
+        if ("pill".equals(style)) cp.width = ViewGroup.LayoutParams.WRAP_CONTENT;
         root.addView(card, cp);
         applyStyle(root, pal);
         // Insets (system bars, keyboard) go into the card's own margins.
@@ -264,6 +273,9 @@ public final class AssistActivity extends BaseActivity {
             int top = Build.VERSION.SDK_INT >= 30 ? in.getInsets(WindowInsets.Type.statusBars()).top : in.getSystemWindowInsetTop();
             FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) card.getLayoutParams();
             if ("top".equals(style)) lp.setMargins(l + Ui.dp(this, 10), top + Ui.dp(this, 8), r + Ui.dp(this, 10), 0);
+            else if ("side".equals(style)) lp.setMargins(0, top + Ui.dp(this, 16), r, b + Ui.dp(this, 16));
+            else if ("bubble".equals(style)) lp.setMargins(l + Ui.dp(this, 12), 0, r + Ui.dp(this, 56), b + Ui.dp(this, 18));
+            else if ("minimal".equals(style)) lp.setMargins(l, 0, r, b);
             else lp.setMargins(l + Ui.dp(this, 10), 0, r + Ui.dp(this, 10), b + Ui.dp(this, 10));
             card.setLayoutParams(lp);
             if (caption != null) {
@@ -276,10 +288,17 @@ public final class AssistActivity extends BaseActivity {
         setContentView(root);
         Ui.tintAccent(this, root);
 
-        conversation = g.agent.activeConversation();
+        // Settings → assistant chat: its own chat (default), a new one each time, or the current chat.
+        conversation = g.agent.assistConversation(true);
         // Kept for the card's whole life (also while it steps aside for a task).
         g.agent.addListener(listener);
-        if (!"glow".equals(style)) {
+        if ("side".equals(style)) {
+            // Slides in from the right edge.
+            card.setTranslationX(Ui.dp(this, 120));
+            card.setAlpha(0f);
+            card.animate().translationX(0).alpha(1f).setDuration(280)
+                    .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f)).start();
+        } else if (!"glow".equals(style)) {
             card.setTranslationY(Ui.dp(this, "top".equals(style) ? -80 : 80));
             card.setAlpha(0f);
             card.animate().translationY(0).alpha(1f).setDuration(260)
@@ -319,6 +338,82 @@ public final class AssistActivity extends BaseActivity {
             case "top":
                 scrim.setBackgroundColor(Color.TRANSPARENT);
                 break;
+            case "terminal": {
+                // A black terminal box: square, a thin accent line, monospace text, a blinking cursor.
+                scrim.setBackgroundColor(Color.TRANSPARENT);
+                android.graphics.drawable.GradientDrawable box = new android.graphics.drawable.GradientDrawable();
+                box.setColor(0xF2000000);
+                box.setStroke(Math.max(1, Ui.dp(this, 1)), Palette.alpha(pal.primary, 0.8f));
+                card.setBackground(box);
+                card.setElevation(0f);
+                card.setOutlineProvider(null);
+                monospace(card);
+                answer.setTextColor(0xFFE8E8E8);
+                status.setTextColor(pal.primary);
+                startCursor();
+                break;
+            }
+            case "bubble": {
+                // A round speech bubble with its tail at the bottom-start, toward the character.
+                scrim.setBackgroundColor(Color.TRANSPARENT);
+                float r = Ui.dp(this, 30);
+                card.setBackground(new TonalDrawable(pal.surfaceHigh, new float[]{r, r, r, Ui.dp(this, 6)}, Ui.dp(this, 9), Ui.dp(this, 12)));
+                card.setElevation(Ui.dp(this, 6));
+                headRow.setVisibility(View.GONE);
+                break;
+            }
+            case "minimal": {
+                // No box: the words over a soft dark fade at the bottom of the screen.
+                android.graphics.drawable.GradientDrawable fade = new android.graphics.drawable.GradientDrawable(
+                        android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP, new int[]{0xE6000000, 0x99000000, 0x00000000});
+                scrim.setBackground(fade);
+                FrameLayout.LayoutParams slp = (FrameLayout.LayoutParams) scrim.getLayoutParams();
+                slp.height = Math.round(getResources().getDisplayMetrics().heightPixels * 0.55f);
+                slp.gravity = Gravity.BOTTOM;
+                scrim.setLayoutParams(slp);
+                root.setOnClickListener(v -> finish()); // a tap above the fade closes it too
+                card.setBackground(null);
+                card.setElevation(0f);
+                card.setOutlineProvider(null);
+                headRow.setVisibility(View.GONE);
+                answer.setTextColor(Color.WHITE);
+                answer.setShadowLayer(Ui.dp(this, 4), 0, Ui.dp(this, 1), 0xAA000000);
+                status.setTextColor(0xCCFFFFFF);
+                break;
+            }
+            case "side": {
+                // A panel from the right edge, rounded on the left only.
+                scrim.setBackgroundColor(Palette.alpha(Color.BLACK, 0.18f));
+                float r = Ui.dp(this, 28);
+                card.setBackground(new TonalDrawable(pal.surfaceContainer, new float[]{r, 0, 0, r}, 0, 0));
+                card.setElevation(Ui.dp(this, 8));
+                break;
+            }
+            case "pill": {
+                // A small pill (status + mic); it opens into the full card on a tap or with the answer.
+                scrim.setBackgroundColor(Color.TRANSPARENT);
+                card.setBackground(new GlassDrawable(this, GlassDrawable.Preset.DIALOG, -1));
+                headRow.setVisibility(View.GONE);
+                answerFrame.setVisibility(View.GONE);
+                input.setVisibility(View.GONE);
+                for (int i = 0; i < inputRow.getChildCount(); i++) {
+                    View c = inputRow.getChildAt(i);
+                    if (c != mic) c.setVisibility(View.GONE);
+                }
+                inputRow.setOrientation(LinearLayout.HORIZONTAL);
+                ((ViewGroup) status.getParent()).removeView(status);
+                status.setMaxLines(1);
+                status.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                status.setMaxWidth(Math.round(getResources().getDisplayMetrics().widthPixels * 0.55f));
+                LinearLayout.LayoutParams stl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                stl.setMargins(Ui.dp(this, 6), 0, Ui.dp(this, 12), 0);
+                inputRow.addView(status, 0, stl);
+                LinearLayout.LayoutParams rl = (LinearLayout.LayoutParams) inputRow.getLayoutParams();
+                rl.setMargins(Ui.dp(this, 10), Ui.dp(this, 8), Ui.dp(this, 10), Ui.dp(this, 8));
+                inputRow.setLayoutParams(rl);
+                card.setOnClickListener(v -> openPill());
+                break;
+            }
             case "glow": {
                 scrim.setBackgroundColor(Color.TRANSPARENT);
                 card.setVisibility(View.GONE);
@@ -346,6 +441,63 @@ public final class AssistActivity extends BaseActivity {
             default:
                 break;
         }
+    }
+
+    /** Pill style: opens into the full card (tap, or when an answer starts). */
+    private void openPill() {
+        if (!"pill".equals(style) || pillOpen) return;
+        pillOpen = true;
+        ((ViewGroup) status.getParent()).removeView(status);
+        status.setMaxLines(Integer.MAX_VALUE);
+        status.setMaxWidth(Integer.MAX_VALUE);
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        sp.setMargins(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), 0);
+        card.addView(status, card.indexOfChild(inputRow), sp);
+        for (int i = 0; i < inputRow.getChildCount(); i++) inputRow.getChildAt(i).setVisibility(View.VISIBLE);
+        LinearLayout.LayoutParams rl = (LinearLayout.LayoutParams) inputRow.getLayoutParams();
+        rl.setMargins(Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 16), Ui.dp(this, 16));
+        inputRow.setLayoutParams(rl);
+        headRow.setVisibility(View.VISIBLE);
+        answerFrame.setVisibility(View.VISIBLE);
+        card.setBackground(new GlassDrawable(this, GlassDrawable.Preset.DIALOG, Ui.dp(this, 32)));
+        card.setOnClickListener(null);
+        FrameLayout.LayoutParams cp = (FrameLayout.LayoutParams) card.getLayoutParams();
+        cp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+        card.setLayoutParams(cp);
+        if (android.os.Build.VERSION.SDK_INT >= 19) {
+            android.transition.TransitionManager.beginDelayedTransition((ViewGroup) card.getParent());
+        }
+    }
+
+    /** Terminal style: every text in the card in monospace. */
+    private void monospace(View v) {
+        if (v instanceof TextView) {
+            TextView t = (TextView) v;
+            t.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE,
+                    t.getTypeface() == null ? android.graphics.Typeface.NORMAL : t.getTypeface().getStyle()));
+        }
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) monospace(g.getChildAt(i));
+        }
+    }
+
+    /** Terminal style: a blinking block cursor after the status line. */
+    private void startCursor() {
+        final boolean[] on = {true};
+        Runnable blink = new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing() || status == null) return;
+                CharSequence t = status.getText();
+                String s = t == null ? "" : t.toString();
+                if (s.endsWith(" \u2588")) s = s.substring(0, s.length() - 2);
+                status.setText(on[0] ? s + " \u2588" : s);
+                on[0] = !on[0];
+                status.postDelayed(this, 530);
+            }
+        };
+        status.post(blink);
     }
 
     /** Glow style: the user wants to type or read more — the full card comes up. */
@@ -639,6 +791,7 @@ public final class AssistActivity extends BaseActivity {
         glowState(AssistGlow.THINKING);
         answer.setVisibility(View.VISIBLE);
         answer.setText("");
+        openPill();
     }
 
     private final AgentListener listener = new AgentListener() {

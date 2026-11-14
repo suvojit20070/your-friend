@@ -51,6 +51,8 @@ public final class HandsFreeService extends Service {
 
     /** Wake words are matched case-insensitively; empty = every sentence is a command. */
     private long followUpUntil;
+    /** The chat hands-free talks in (chosen once per session, see AgentRuntime.assistConversation). */
+    private long handsFreeConversation = -1;
     private long lastLevelAt;
 
     private static volatile boolean running;
@@ -259,7 +261,15 @@ public final class HandsFreeService extends Service {
                 publish("“" + text + "”");
                 waitingForAgent = true;
                 gate.pause(true);
-                String err = g.agent.submit(g.agent.activeConversation(), text, null);
+                // Settings → assistant chat ("new": a fresh chat once per hands-free session).
+                if ("current".equals(g.settings.str(com.suvo.agent.agent.AgentRuntime.ASSIST_CHAT, "separate"))) {
+                    handsFreeConversation = g.agent.activeConversation();
+                } else if (handsFreeConversation < 0) {
+                    handsFreeConversation = g.agent.assistConversation(true);
+                } else if (g.conversations.get(handsFreeConversation) == null) {
+                    handsFreeConversation = g.agent.assistConversation(false);
+                }
+                String err = g.agent.submit(handsFreeConversation, text, null);
                 if (err != null) {
                     waitingForAgent = false;
                     publish(err);

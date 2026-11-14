@@ -33,6 +33,7 @@ public final class SettingsActivity extends BaseActivity {
     private static final int REQ_IMPORT = 72;
     private static final int REQ_VRM = 73;
     private static final int REQ_TONE_SYSTEM = 74;
+    private static final int REQ_WALLPAPER = 76;
     private static final int REQ_TONE_FILE = 75;
     private String vrmInfo = "";
     private EditText search;
@@ -269,8 +270,13 @@ public final class SettingsActivity extends BaseActivity {
                 v -> AssistActivity.openDefaultSettings(this));
         r.choiceRow(R.drawable.ic_character, R.string.assist_style, AssistActivity.STYLE, "card",
                 new String[]{getString(R.string.assist_style_card), getString(R.string.assist_style_bar), getString(R.string.assist_style_top),
-                        getString(R.string.assist_style_glow)},
-                new String[]{"card", "bar", "top", "glow"}, null);
+                        getString(R.string.assist_style_glow), getString(R.string.assist_style_terminal), getString(R.string.assist_style_bubble),
+                        getString(R.string.assist_style_minimal), getString(R.string.assist_style_side), getString(R.string.assist_style_pill)},
+                new String[]{"card", "bar", "top", "glow", "terminal", "bubble", "minimal", "side", "pill"}, null);
+        // Which chat the card and hands-free talk in.
+        r.choiceRow(R.drawable.ic_chat, R.string.assist_chat, com.suvo.agent.agent.AgentRuntime.ASSIST_CHAT, "separate",
+                new String[]{getString(R.string.assist_chat_separate), getString(R.string.assist_chat_new), getString(R.string.assist_chat_current)},
+                new String[]{"separate", "new", "current"}, null);
         r.row(R.drawable.ic_play, getString(R.string.assist_style_try), null, null,
                 v -> startActivity(new Intent(this, AssistActivity.class).putExtra(AssistActivity.EXTRA_LISTEN, false)));
         r.link(R.drawable.ic_screen, R.string.section_screen, R.string.settings_screen_desc, ScreenControlActivity.class);
@@ -287,9 +293,31 @@ public final class SettingsActivity extends BaseActivity {
         r.section(R.string.settings_appearance);
         r.choiceRow(R.drawable.ic_eye, R.string.settings_theme, Settings.THEME, "dark",
                 new String[]{getString(R.string.theme_system), getString(R.string.theme_dark), getString(R.string.theme_light),
-                        getString(R.string.theme_dim)},
-                new String[]{"system", "dark", "light", "dim"}, v -> restartApp());
+                        getString(R.string.theme_dim), getString(R.string.theme_terminal)},
+                new String[]{"system", "dark", "light", "dim", "terminal"}, v -> restartApp());
         seedRow(r);
+        // Chat wallpaper (one picture behind every chat).
+        boolean wp = ChatWallpaper.isSet(this);
+        r.row(R.drawable.ic_eye, getString(R.string.chat_wallpaper), getString(wp ? R.string.chat_wallpaper_on : R.string.chat_wallpaper_off), null, v -> {
+            if (!ChatWallpaper.isSet(this)) {
+                ChatWallpaper.pick(this, REQ_WALLPAPER);
+                return;
+            }
+            Ui.show(Ui.dialog(this).setTitle(R.string.chat_wallpaper).setItems(new CharSequence[]{getString(R.string.chat_wallpaper_choose),
+                    getString(R.string.chat_wallpaper_remove)}, (d, w) -> {
+                if (w == 0) ChatWallpaper.pick(this, REQ_WALLPAPER);
+                else {
+                    ChatWallpaper.clear(this);
+                    build();
+                }
+            }));
+        });
+        if (wp) {
+            r.sliderRow(R.drawable.ic_eye, R.string.chat_wallpaper_dim, ChatWallpaper.DIM, 35, 0, 90, "%", null);
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                r.sliderRow(R.drawable.ic_eye, R.string.chat_wallpaper_blur, ChatWallpaper.BLUR, 0, 0, 25, "", null);
+            }
+        }
         // Chat text size, with a live Markdown preview.
         r.row(R.drawable.ic_chat, getString(R.string.md_scale), MarkdownScaleActivity.scalePercent(this) + "%", null,
                 v -> open(MarkdownScaleActivity.class));
@@ -602,6 +630,10 @@ public final class SettingsActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_WALLPAPER) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) ChatWallpaper.save(this, data.getData(), this::build);
+            return;
+        }
         if (requestCode == REQ_TONE_SYSTEM) {
             if (resultCode == RESULT_OK) {
                 NotificationTone.onSystemPicked(this, data);

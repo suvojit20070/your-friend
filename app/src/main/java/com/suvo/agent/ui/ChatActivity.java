@@ -55,6 +55,9 @@ public final class ChatActivity extends BaseActivity {
     private static final int REQ_FILE = 24;
     private static final int REQ_FOLDER = 25;
     private static final int REQ_CAMERA_PERMISSION = 26;
+    private static final int REQ_WALLPAPER = 27;
+    /** The wallpaper as last drawn (file + dim + blur); redrawn when Settings changed it. */
+    private String wallpaperKey;
     private static final int MAX_IMAGES = 8;
     /** Biggest text placed directly in the message (per file / all files together). */
     private static final int INLINE_MAX = 60_000, INLINE_TOTAL = 120_000;
@@ -401,6 +404,7 @@ public final class ChatActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat);
+        applyWallpaper();
         browserPanel = new AgentBrowserPanel(this);
         findViewById(R.id.chat_browser_open).setOnClickListener(v -> {
             if (!com.suvo.agent.connectors.WebSession.openWindow(this)) startActivity(new Intent(this, BrowserActivity.class));
@@ -729,6 +733,10 @@ public final class ChatActivity extends BaseActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK) return;
+        if (requestCode == REQ_WALLPAPER && data != null && data.getData() != null) {
+            ChatWallpaper.save(this, data.getData(), this::applyWallpaper);
+            return;
+        }
         if (requestCode == REQ_CAMERA) {
             attachAny(android.net.Uri.fromFile(com.suvo.agent.files.CaptureProvider.file(this)));
         } else if ((requestCode == REQ_IMAGE || requestCode == REQ_FILE) && data != null) {
@@ -1120,6 +1128,7 @@ public final class ChatActivity extends BaseActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        if (!ChatWallpaper.stateKey(this).equals(wallpaperKey)) applyWallpaper();
         g.agent.addListener(agentListener);
         browserPanel.start();
         com.suvo.agent.connectors.WebSession.addTabsListener(browserBarWatch);
@@ -2197,7 +2206,31 @@ public final class ChatActivity extends BaseActivity {
         d.item(R.drawable.ic_lesson, getString(R.string.chat_thinking) + (p == null ? "" : ": " + thinkingLabel(p.reasoningEffort)),
                 false, this::pickThinking);
         d.item(R.drawable.ic_provider, getString(R.string.section_providers), false, this::pickProvider);
+        d.item(R.drawable.ic_eye, getString(R.string.chat_wallpaper), false, this::wallpaperMenu);
         Nav.addSections(this, d).show();
+    }
+
+    /** One wallpaper for every chat: choose, remove, or adjust dim / blur in Settings. */
+    private void wallpaperMenu() {
+        List<String> items = new ArrayList<>();
+        List<Runnable> does = new ArrayList<>();
+        items.add(getString(R.string.chat_wallpaper_choose));
+        does.add(() -> ChatWallpaper.pick(this, REQ_WALLPAPER));
+        if (ChatWallpaper.isSet(this)) {
+            items.add(getString(R.string.chat_wallpaper_adjust));
+            does.add(() -> startActivity(new Intent(this, SettingsActivity.class)));
+            items.add(getString(R.string.chat_wallpaper_remove));
+            does.add(() -> {
+                ChatWallpaper.clear(this);
+                applyWallpaper();
+            });
+        }
+        Ui.show(Ui.dialog(this).setTitle(R.string.chat_wallpaper).setItems(items.toArray(new CharSequence[0]), (dlg, w) -> does.get(w).run()));
+    }
+
+    private void applyWallpaper() {
+        wallpaperKey = ChatWallpaper.stateKey(this);
+        ChatWallpaper.apply(this);
     }
 
     static final String[] THINKING_VALUES = {"", "none", "low", "medium", "high"};
@@ -2506,6 +2539,14 @@ public final class ChatActivity extends BaseActivity {
             bubble.setBackgroundTintList(null);
             switch (it.type) {
                 case USER:
+                    if (pal.terminal) {
+                        // Terminal theme: your message is a command line, not a bubble.
+                        bubble.setBackground(null);
+                        bubble.setPadding(Ui.dp(ChatActivity.this, 2), 0, Ui.dp(ChatActivity.this, 2), 0);
+                        text.setTextSize(15f * Math.max(0.5f, textScale));
+                        text.setLineSpacing(Ui.dp(ChatActivity.this, 3) * Math.max(0.5f, textScale), 1f);
+                        break;
+                    }
                     // Soft primary-tinted bubble on the right with a small tail at the bottom-end.
                     row.setGravity(Gravity.END);
                     bubble.setBackground(TonalDrawable.userBubble(ChatActivity.this));
@@ -2566,7 +2607,8 @@ public final class ChatActivity extends BaseActivity {
                 if (it.header) {
                     // The companion's name above the first answer of a turn, in the theme's primary.
                     title.setVisibility(View.VISIBLE);
-                    title.setText("\u2726  " + companionName());
+                    title.setText(pal.terminal ? companionName().toLowerCase(java.util.Locale.ROOT).replace(' ', '_') + "@yourfriend:~>"
+                            : "\u2726  " + companionName());
                     title.setTextColor(pal.primary);
                     title.setTextSize(13f);
                 }
@@ -2597,7 +2639,17 @@ public final class ChatActivity extends BaseActivity {
                             it.type != STREAM, selectionHook);
                 }
             } else if (it.type != TOOLS) {
-                text.setText(it.text);
+                if (pal.terminal && it.type == USER) {
+                    // you@yourfriend:~$ message
+                    android.text.SpannableStringBuilder line = new android.text.SpannableStringBuilder();
+                    line.append("you@yourfriend:~$ ");
+                    line.setSpan(new android.text.style.ForegroundColorSpan(pal.primary), 0, line.length(),
+                            android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    line.append(it.text);
+                    text.setText(line);
+                } else {
+                    text.setText(it.text);
+                }
             }
             // Message text (answers and your own messages) can be selected and copied; links in
             // answers still open on a tap.

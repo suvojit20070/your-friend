@@ -112,6 +112,29 @@ public final class AgentRuntime {
         activeConversation = id;
     }
 
+    /** Settings → which chat the assistant card and hands-free use: "separate" (default), "new", "current". */
+    public static final String ASSIST_CHAT = "assist_chat";
+    private static final String ASSIST_CONVERSATION = "assist_conversation_id";
+
+    /**
+     * The chat for the assistant card / hands-free. "separate": one chat of their own ("Assistant"),
+     * so the main chat stays clean; "new": a fresh chat each time the card opens or hands-free starts
+     * ({@code startNew}), then that one until the next time; "current": the chat open in the app.
+     * Never changes which chat the app itself shows.
+     */
+    public long assistConversation(boolean startNew) {
+        String mode = g.settings.str(ASSIST_CHAT, "separate");
+        if ("current".equals(mode)) return activeConversation();
+        long id = g.settings.lng(ASSIST_CONVERSATION, -1L);
+        boolean exists = id >= 0 && g.conversations.get(id) != null;
+        if (!exists || ("new".equals(mode) && startNew)) {
+            id = g.conversations.create("separate".equals(mode) ? g.ctx.getString(com.suvo.agent.R.string.assist_chat_title) : "",
+                    g.characters.active().id);
+            g.settings.put(ASSIST_CONVERSATION, id);
+        }
+        return id;
+    }
+
     public long newConversation() {
         activeConversation = g.conversations.create("", g.characters.active().id);
         return activeConversation;

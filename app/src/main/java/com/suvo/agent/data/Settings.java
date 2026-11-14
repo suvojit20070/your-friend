@@ -184,6 +184,18 @@ public final class Settings {
         prefs.edit().putInt(k, v).apply();
     }
 
+    public long lng(String k, long def) {
+        try {
+            return prefs.getLong(k, def);
+        } catch (ClassCastException e) {
+            return def;
+        }
+    }
+
+    public void put(String k, long v) {
+        prefs.edit().putLong(k, v).apply();
+    }
+
     public void put(String k, float v) {
         prefs.edit().putFloat(k, v).apply();
     }

@@ -20,6 +20,9 @@ import android.graphics.drawable.Drawable;
  */
 public final class TonalDrawable extends Drawable {
 
+    /** Terminal theme: every tonal shape is a plain square-cornered block (set by Palette.of). */
+    public static volatile boolean flat;
+
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final RectF rect = new RectF();
@@ -89,6 +92,12 @@ public final class TonalDrawable extends Drawable {
     @Override
     protected void onBoundsChange(Rect b) {
         super.onBoundsChange(b);
+        if (flat) {
+            rect.set(b.left, b.top, b.right, b.bottom);
+            path.reset();
+            path.addRect(rect, Path.Direction.CW);
+            return;
+        }
         rect.set(b.left, b.top, b.right - tailW, b.bottom);
         float budget = Math.min(rect.width(), rect.height()) / 2f;
         float[] r = new float[4];
@@ -119,6 +128,10 @@ public final class TonalDrawable extends Drawable {
     @Override
     public void getOutline(Outline outline) {
         Rect b = getBounds();
+        if (flat) {
+            outline.setRect(b);
+            return;
+        }
         float r = radii[0] < 0 ? Math.min(b.width(), b.height()) / 2f : radii[0];
         outline.setRoundRect(b.left, b.top, b.right - (int) tailW, b.bottom, r);
     }

@@ -59,13 +59,20 @@ public final class Splash {
         }
     }
 
-    private static final int[] SEED_THEMES = {R.style.Theme_YourFriend_Splash_S0, R.style.Theme_YourFriend_Splash_S1,
-            R.style.Theme_YourFriend_Splash_S2, R.style.Theme_YourFriend_Splash_S3, R.style.Theme_YourFriend_Splash_S4,
-            R.style.Theme_YourFriend_Splash_S5, R.style.Theme_YourFriend_Splash_S6, R.style.Theme_YourFriend_Splash_S7,
-            R.style.Theme_YourFriend_Splash_S8, R.style.Theme_YourFriend_Splash_S9, R.style.Theme_YourFriend_Splash_S10,
-            R.style.Theme_YourFriend_Splash_S11};
+    private static final int[] SEED_THEMES = {
+            R.style.Theme_YourFriend_Splash_S0, R.style.Theme_YourFriend_Splash_S1, R.style.Theme_YourFriend_Splash_S2,
+            R.style.Theme_YourFriend_Splash_S3, R.style.Theme_YourFriend_Splash_S4, R.style.Theme_YourFriend_Splash_S5,
+            R.style.Theme_YourFriend_Splash_S6, R.style.Theme_YourFriend_Splash_S7, R.style.Theme_YourFriend_Splash_S8,
+            R.style.Theme_YourFriend_Splash_S9, R.style.Theme_YourFriend_Splash_S10, R.style.Theme_YourFriend_Splash_S11,
+            R.style.Theme_YourFriend_Splash_S12, R.style.Theme_YourFriend_Splash_S13, R.style.Theme_YourFriend_Splash_S14,
+            R.style.Theme_YourFriend_Splash_S15, R.style.Theme_YourFriend_Splash_S16, R.style.Theme_YourFriend_Splash_S17,
+            R.style.Theme_YourFriend_Splash_S18, R.style.Theme_YourFriend_Splash_S19, R.style.Theme_YourFriend_Splash_S20,
+            R.style.Theme_YourFriend_Splash_S21, R.style.Theme_YourFriend_Splash_S22, R.style.Theme_YourFriend_Splash_S23,
+            R.style.Theme_YourFriend_Splash_S24, R.style.Theme_YourFriend_Splash_S25, R.style.Theme_YourFriend_Splash_S26,
+            R.style.Theme_YourFriend_Splash_S27, R.style.Theme_YourFriend_Splash_S28, R.style.Theme_YourFriend_Splash_S29};
 
     static int themeFor(String theme, String accent) {
+        if ("terminal".equals(theme)) return R.style.Theme_YourFriend_Splash_Terminal;
         if ("dim".equals(theme)) return R.style.Theme_YourFriend_Splash_Dim;
         for (int i = 0; i < Palette.SEEDS.length && i < SEED_THEMES.length; i++) {
             if (Palette.SEEDS[i].equalsIgnoreCase(accent)) return SEED_THEMES[i];

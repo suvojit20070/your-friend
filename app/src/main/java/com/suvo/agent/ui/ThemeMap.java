@@ -120,7 +120,30 @@ final class ThemeMap {
 
     static void apply(View root) {
         if (root == null) return;
-        walk(root, cache(root.getContext()));
+        Cache c = cache(root.getContext());
+        walk(root, c);
+        // Terminal theme: monospace text everywhere (the chat too, which themes its own colours).
+        if (c.pal.terminal) mono(root);
+    }
+
+    private static final android.graphics.Typeface MONO = android.graphics.Typeface.MONOSPACE;
+    private static final android.graphics.Typeface MONO_BOLD = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE,
+            android.graphics.Typeface.BOLD);
+
+    private static void mono(View v) {
+        if (v instanceof TextView) {
+            TextView t = (TextView) v;
+            android.graphics.Typeface cur = t.getTypeface();
+            if (cur != MONO && cur != MONO_BOLD) {
+                boolean bold = cur != null && cur.isBold();
+                t.setTypeface(bold ? MONO_BOLD : MONO);
+                t.setLetterSpacing(0f);
+            }
+        }
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) mono(g.getChildAt(i));
+        }
     }
 
     /** Lists seen on screen; re-themed as they scroll (rows appear without a layout pass). */

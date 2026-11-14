@@ -20,11 +20,21 @@ import com.suvo.agent.data.Settings;
  */
 public final class Palette {
 
-    /** Preset seeds (pastel / mid-tone) — the names are string resources {@code accent_<name>}. */
+    /**
+     * Preset seeds — the names are string resources {@code accent_<name>}. The first twelve are the
+     * app's pastel / mid-tone set; then the Material colour palette (500 tones). After changing the
+     * list, run tools/theme/gen_splash.py (launch-screen colours) and add the Splash themes.
+     */
     public static final String[] SEED_NAMES = {"rose", "blossom", "lavender", "blue", "sky", "cyan", "mint", "green", "lime",
-            "lemon", "amber", "apricot"};
+            "lemon", "amber", "apricot",
+            "md_red", "md_pink", "md_purple", "md_deep_purple", "md_indigo", "md_blue", "md_light_blue", "md_cyan", "md_teal",
+            "md_green", "md_light_green", "md_lime", "md_yellow", "md_amber", "md_orange", "md_deep_orange", "md_brown",
+            "md_blue_grey"};
     public static final String[] SEEDS = {"#FEB4A7", "#FFB3C0", "#FCAAFF", "#B9C3FF", "#62D3FF", "#44D9F1", "#52DBC9",
-            "#78DD77", "#9FD75C", "#C1D02D", "#FABD00", "#FFB86E"};
+            "#78DD77", "#9FD75C", "#C1D02D", "#FABD00", "#FFB86E",
+            "#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5", "#2196F3", "#03A9F4", "#00BCD4", "#009688",
+            "#4CAF50", "#8BC34A", "#CDDC39", "#FFEB3B", "#FFC107", "#FF9800", "#FF5722", "#795548",
+            "#607D8B"};
     public static final String DEFAULT_SEED = "#FABD00";
 
     // {hue offset from the seed's hue, HSL saturation, HSL lightness} for each role.
@@ -71,14 +81,24 @@ public final class Palette {
     /** Dim: the dark scheme on pure black (#000000), with darker surfaces. */
     public final boolean dim;
 
-    private Palette(float seedHue, boolean dark, boolean dim) {
-        this.dark = dark;
-        this.dim = dim && dark;
+    /**
+     * Terminal: black and white like a real terminal, the accent only for highlights; flat (no
+     * cards or rounded blocks — see {@link TonalDrawable#flat}) and monospace everywhere.
+     */
+    public final boolean terminal;
+
+    private Palette(float seedHue, float chroma, boolean dark, boolean dim, boolean terminal) {
+        this.terminal = terminal;
+        this.dark = dark || terminal;
+        this.dim = (dim && dark) || terminal;
+        dark = this.dark;
         float[][] t = dark ? DARK : LIGHT;
         int[] c = new int[t.length];
         for (int i = 0; i < t.length; i++) {
             float h = ((seedHue + t[i][0]) % 360f + 360f) % 360f;
-            c[i] = Color.HSVToColor(hslToHsv(h, t[i][1], t[i][2]));
+            // Greyish seeds (brown, blue grey) tone every role down; onPrimary stays as it is.
+            float sat = i == 5 ? t[i][1] : t[i][1] * chroma;
+            c[i] = Color.HSVToColor(hslToHsv(h, sat, t[i][2]));
         }
         if (this.dim) {
             // Same hues, pulled down toward black: the page itself is true black.
@@ -87,6 +107,23 @@ public final class Palette {
             c[2] = shade(seedHue, t[2], 0.098f);
             c[3] = shade(seedHue, t[3], 0.135f);
             c[13] = shade(seedHue, t[13], 0.068f);
+        }
+        if (terminal) {
+            // Black page, white / grey text, accent highlights; surfaces stay black (flat).
+            int accent = c[4];
+            c[0] = 0xFF000000;
+            c[1] = 0xFF000000;
+            c[2] = 0xFF141414;
+            c[3] = 0xFF1E1E1E;
+            c[5] = 0xFF000000;
+            c[6] = 0xFF1A1A1A;
+            c[7] = 0xFF161616;
+            c[8] = accent;
+            c[9] = 0xFFE6E6E6;
+            c[10] = 0xFF9E9E9E;
+            c[11] = 0xFF3A3A3A;
+            c[12] = accent;
+            c[13] = 0xFF000000;
         }
         background = c[0];
         surfaceLow = c[1];
@@ -128,20 +165,41 @@ public final class Palette {
             dark = !"light".equals(theme);
         }
         boolean dim = "dim".equals(theme);
+        boolean terminal = "terminal".equals(theme);
         String seed = st.str(Settings.ACCENT, "dynamic");
         int seedColor = seedColor(ctx, seed);
-        String key = seedColor + "/" + dark + "/" + dim;
+        boolean preset = !"dynamic".equals(seed) && seed != null && !seed.isEmpty();
+        String key = seedColor + "/" + dark + "/" + dim + "/" + terminal + "/" + preset;
+        TonalDrawable.flat = terminal;
         synchronized (CACHE) {
             Palette p = CACHE.get(key);
             if (p == null) {
                 float[] hsv = new float[3];
                 Color.colorToHSV(seedColor, hsv);
                 if (CACHE.size() > 8) CACHE.clear();
-                p = new Palette(hsv[0], dark, dim);
+                p = new Palette(hsv[0], preset ? chromaFor(seedColor) : 1f, dark, dim, terminal);
                 CACHE.put(key, p);
             }
             return p;
         }
+    }
+
+    /** True when the app is in the Terminal theme (flat, monospace). */
+    public static boolean terminal(Context ctx) {
+        return "terminal".equals(Settings.get(ctx).str(Settings.THEME, "dark"));
+    }
+
+    /**
+     * How colourful the scheme is for a preset seed: 1 for every colourful seed (the scheme keeps
+     * its calm template); greyish ones (Material brown, blue grey) are toned down so they look like
+     * themselves instead of their hue's bright twin. Same rule as tools/theme/gen_splash.py.
+     */
+    static float chromaFor(int seedColor) {
+        float r = Color.red(seedColor) / 255f, g = Color.green(seedColor) / 255f, b = Color.blue(seedColor) / 255f;
+        float max = Math.max(r, Math.max(g, b)), min = Math.min(r, Math.min(g, b));
+        float l = (max + min) / 2f;
+        float sat = max == min ? 0f : (max - min) / (1f - Math.abs(2f * l - 1f));
+        return sat >= 0.4f ? 1f : Math.max(0.15f, sat / 0.4f);
     }
 
     static int seedColor(Context ctx, String seed) {
