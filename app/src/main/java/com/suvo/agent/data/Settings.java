@@ -106,8 +106,7 @@ public final class Settings {
     public static final String VERIFY_DONE = "verify_done";           // check "done" answers against tool results
     public static final String COMPANION_BRAIN = "companion_brain";   // floating character decides moves with the AI
     public static final String COMPANION_ASKS_AGENT = "companion_asks_agent"; // that brain may ask the agent for small things
-    public static final String COMPANION_DANCE = "companion_dance";       // the floating character dances when music plays
-    public static final String COMPANION_DANCE_AI = "companion_dance_ai"; // the AI picks the dance moves from the song (every 30 s)
+    public static final String COMPANION_DANCE = "companion_dance";       // the floating character dances to songs (the AI writes the dance for each song)
     public static final String SYSTEM_INSTRUCTIONS = "system_instructions"; // user's standing instructions
     public static final String WORK_GUIDE_TEXT = "work_guide_text";         // "" = built-in guide
     public static final String INCLUDE_WORK_GUIDE = "include_work_guide";

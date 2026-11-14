@@ -225,9 +225,9 @@ public class CharacterView extends FrameLayout implements Choreographer.FrameCal
 
     private int vrmQuality = 1;
 
-    /** Dance a move ({@code DanceMoves}, -1 = stop) to the music's beat. */
-    public void setDance(int move, float bpm, float energy, long beatAnchorNs) {
-        if (vrm != null) vrm.setDance(move, bpm, energy, beatAnchorNs);
+    /** Dance the AI's recording for the song (null = stop) to the music's beat. */
+    public void setDance(com.suvo.agent.core.character.DanceRecord rec, float bpm, long beatAnchorNs) {
+        if (vrm != null) vrm.setDance(rec, bpm, beatAnchorNs);
     }
 
     public void setActivity(CharacterAnimator.Activity a) {

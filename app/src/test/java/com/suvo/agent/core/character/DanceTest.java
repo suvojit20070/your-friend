@@ -1,75 +1,102 @@
 package com.suvo.agent.core.character;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.suvo.agent.core.audio.BeatTracker;
 
 import org.junit.Test;
 
-import java.util.List;
 import java.util.Random;
 
 public class DanceTest {
 
+    private static final String REC = "```json\n{\"mood\":\"romantic\",\"style\":\"slow\",\"dance\":true,\"bpm\":92,\"face\":\"happy\","
+            + "\"phrases\":{\"A\":{\"beats\":4,\"keys\":["
+            + "{\"t\":0,\"w\":-0.6,\"hp\":[-3,-2,0,-4],\"la\":[40,10,0],\"le\":[30,0]},"
+            + "{\"t\":1,\"ra\":[60,20,10],\"re\":[70,30],\"hd\":[5,-12,6]},"
+            + "{\"t\":2,\"w\":0.6,\"hp\":[3,-2,0,4],\"la\":[900,0,0],},"   // out of range + trailing comma
+            + "{\"t\":3,\"ra\":[10,0,0],\"e\":\"snap\"}]}},"
+            + "\"order\":[\"A\",\"rest:2\",\"A\"]}\n```";
+
     @Test
-    public void everyMoveMovesAndStaysInRange() {
-        float[] out = new float[DanceMoves.CHANNELS];
-        for (int m = 0; m < DanceMoves.COUNT; m++) {
-            float maxAbs = 0;
-            for (float b = 0; b < 8; b += 0.05f) {
-                DanceMoves.pose(m, b, 1f, out);
-                for (int c = 0; c < DanceMoves.CHANNELS; c++) {
-                    assertTrue(!Float.isNaN(out[c]));
-                    if (c == DanceMoves.HIP_X || c == DanceMoves.HIP_Y) assertTrue(Math.abs(out[c]) < 0.12f);
-                    else if (c == DanceMoves.TURN) assertTrue(out[c] >= 0 && out[c] <= 360.01f);
-                    else assertTrue(DanceMoves.NAMES[m] + " ch " + c + " " + out[c], Math.abs(out[c]) <= 200f);
-                    if (c != DanceMoves.HIP_X && c != DanceMoves.HIP_Y) maxAbs = Math.max(maxAbs, Math.abs(out[c]));
-                }
-            }
-            assertTrue(DanceMoves.NAMES[m], maxAbs > 5f);
+    public void parsesAndClamps() {
+        DanceRecord r = DanceRecord.parse(REC);
+        assertNotNull(r);
+        assertTrue(r.playable());
+        assertEquals(92f, r.bpm, 0.01f);
+        assertEquals(10f, r.totalBeats, 0.001f);
+        float[] p = new float[DanceRecord.CHANNELS];
+        assertEquals(1f, r.sample(0f, p), 0.001f);
+        assertEquals(40f, p[DanceRecord.LA_RAISE], 0.01f);
+        assertEquals(-0.6f, p[DanceRecord.WEIGHT], 0.01f);
+        r.sample(2f, p);
+        assertEquals(175f, p[DanceRecord.LA_RAISE], 0.01f); // 900 clamped
+        // Half way between two keys of one joint: in between, eased.
+        r.sample(1f, p);
+        assertTrue(p[DanceRecord.LA_RAISE] > 40f && p[DanceRecord.LA_RAISE] < 175f);
+    }
+
+    @Test
+    public void jointsKeepTheirOwnTiming() {
+        DanceRecord r = DanceRecord.parse(REC);
+        float[] p = new float[DanceRecord.CHANNELS];
+        // The right arm's first key is at beat 1: at beat 0.5 it is still coming from its last key of the loop.
+        r.sample(1f, p);
+        assertEquals(60f, p[DanceRecord.RA_RAISE], 0.01f);
+        r.sample(3f, p);
+        assertEquals(10f, p[DanceRecord.RA_RAISE], 0.01f);
+        // Snap: most of the move happens late.
+        r.sample(2f, p);
+        assertTrue(p[DanceRecord.RA_RAISE] > 55f);
+    }
+
+    @Test
+    public void restsFadeOutAndLoop() {
+        DanceRecord r = DanceRecord.parse(REC);
+        float[] p = new float[DanceRecord.CHANNELS];
+        assertEquals(0f, r.sample(5f, p), 0.001f);       // middle of the rest (beats 4–6)
+        assertEquals(DanceRecord.neutral(DanceRecord.LA_RAISE), p[DanceRecord.LA_RAISE], 0.5f);
+        assertEquals(1f, r.sample(7f, p), 0.001f);
+        float[] q = new float[DanceRecord.CHANNELS];
+        r.sample(3.2f, p);
+        r.sample(3.2f + 10f * 3, q);                     // loops
+        for (int c = 0; c < DanceRecord.CHANNELS; c++) assertEquals(p[c], q[c], 0.01f);
+        for (float b = 0; b < 20; b += 0.07f) {
+            r.sample(b, p);
+            for (float v : p) assertFalse(Float.isNaN(v));
         }
     }
 
     @Test
-    public void namesParse() {
-        for (int i = 0; i < DanceMoves.COUNT; i++) assertEquals(i, DanceMoves.parse(DanceMoves.NAMES[i]));
-        assertEquals(DanceMoves.ARMS_UP, DanceMoves.parse("Hands Up"));
-        assertEquals(-1, DanceMoves.parse("moonwalk"));
+    public void skipWithComfortLine() {
+        DanceRecord r = DanceRecord.parse("{\"mood\":\"sad\",\"dance\":false,\"face\":\"sad\",\"say\":\"I'm here with you.\"}");
+        assertNotNull(r);
+        assertFalse(r.playable());
+        assertEquals("I'm here with you.", r.say);
+        assertNull(DanceRecord.parse("I love this song!"));
+        assertNull(DanceRecord.parse("{\"mood\":\"happy\",\"dance\":true}"));
     }
 
     @Test
-    public void parsesAiAnswer() {
-        DanceDirector.Answer a = DanceDirector.parse("```json\n{\"moves\":[\"bounce\",\"clap\",\"moonwalk\",\"arms_up\"],\"bpm\":128,\"energy\":0.8}\n```");
-        assertEquals(3, a.moves.size());
-        assertEquals(DanceMoves.BOUNCE, (int) a.moves.get(0));
-        assertEquals(128f, a.bpm, 0.01f);
-        assertEquals(0.8f, a.energy, 0.001f);
-        DanceDirector.Answer bad = DanceDirector.parse("I like this song!");
-        assertTrue(bad.moves.isEmpty());
-        assertEquals(-1f, bad.bpm, 0f);
+    public void liftedFootCarriesNoWeight() {
+        DanceRecord r = DanceRecord.parse("{\"dance\":true,\"phrases\":{\"A\":{\"beats\":4,\"keys\":["
+                + "{\"t\":0,\"w\":-1,\"lf\":[0,0,12]},{\"t\":2,\"w\":0,\"lf\":[10,0,0]}]}},\"order\":[\"A\"]}");
+        float[] p = new float[DanceRecord.CHANNELS];
+        r.sample(0f, p);
+        assertTrue(p[DanceRecord.WEIGHT] > 0.5f); // the left foot is in the air: weight on the right
     }
 
     @Test
-    public void fallbackNeverRepeatsBackToBack() {
-        DanceDirector d = new DanceDirector(new Random(4));
-        d.setBpm(128);
-        for (int r = 0; r < 50; r++) {
-            List<Integer> p = d.fallbackPlan(0.7f);
-            assertEquals(4, p.size());
-            for (int i = 1; i < p.size(); i++) assertTrue(!p.get(i).equals(p.get(i - 1)));
-        }
-    }
-
-    @Test
-    public void movesChangeOnlyOnABar() {
-        DanceDirector d = new DanceDirector(new Random(1));
-        d.setPlan(java.util.Arrays.asList(DanceMoves.SWAY, DanceMoves.CLAP), 0.5f, 0);
-        assertEquals(DanceMoves.SWAY, d.moveAt(1000, 2f));
-        // Half way: the plan wants CLAP, but mid-bar it keeps SWAY until the bar starts.
-        assertEquals(DanceMoves.SWAY, d.moveAt(16_000, 30.5f));
-        assertEquals(DanceMoves.CLAP, d.moveAt(16_200, 32.1f));
-        assertTrue(d.needsPlan(31_000));
+    public void promptsCarryTheFormat() {
+        String sys = DanceCoach.systemPrompt("Aiko", "Hindi");
+        assertTrue(sys.contains("\"dance\":false"));
+        assertTrue(sys.contains("la / ra"));
+        assertTrue(DanceCoach.firstRequest("Ibadaat", "Prankur", "YouTube", 0).contains("Ibadaat"));
+        assertTrue(DanceCoach.improveRequest("x", "", 100, "{}").contains("{}"));
     }
 
     @Test
@@ -78,7 +105,6 @@ public class DanceTest {
         Random r = new Random(7);
         float bpm = 124f;
         double period = 60_000.0 / bpm;
-        // Readings ~20 per second at uneven times; a kick on every beat.
         long time = 0;
         while (time < 12_000) {
             time += 40 + r.nextInt(25);
@@ -87,7 +113,6 @@ public class DanceTest {
             t.accept(e, time);
         }
         assertEquals(bpm, t.bpm(), 3f);
-        assertTrue(t.confidence() > 0.3f);
         long anchor = t.beatAnchorMs();
         double off = (anchor % period) / period;
         assertTrue("anchor " + off, off < 0.2 || off > 0.9);

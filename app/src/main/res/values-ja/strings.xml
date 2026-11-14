@@ -981,10 +981,8 @@
     <string name="settings_companion_brain">生き生きコンパニオン (AI)</string>
     <string name="settings_companion_brain_desc">フローティングキャラクターが画面の内容を見て、気分・座る・立つ・歩く・眠るを時々自分で決めます。1〜2分ごとにAIプロバイダーへ小さな別リクエストを送ります（トークンを使います）。乗っている物が消えると必ず下へ落ちます。</string>
     <string name="settings_context_trigger">コンテキスト圧縮の開始</string>
-    <string name="settings_dance">音楽に合わせて踊る</string>
-    <string name="settings_dance_ai">AIがダンスの動きを選ぶ</string>
-    <string name="settings_dance_ai_desc">音楽の再生中、30秒ごとにAIが曲とテンポから次の動きを選びます（1分に約2回の小さなリクエスト）。オフ：テンポで動きを選びます。</string>
-    <string name="settings_dance_desc">どのアプリでも音楽が流れると、フローティングキャラクターがビートに合わせて踊ります。曲名には通知へのアクセス、ビートにはマイクの許可が必要です（低音の大きさだけを読み、録音はしません）。</string>
+    <string name="settings_dance">曲に合わせて踊る</string>
+    <string name="settings_dance_desc">どのアプリでも曲が流れると、AIがその曲で人がどう踊るかを考え、フローティングキャラクターのダンスを書きます（曲ごとに端末に保存され、再生中に数回改善されます）。悲しい曲では踊らず、そばにいてくれます。曲名には通知へのアクセス、ビートにはマイクの許可が必要です（低音の大きさだけを読み、録音はしません）。</string>
     <string name="settings_developer">開発者</string>
     <string name="settings_device">端末</string>
     <string name="settings_export_config">設定をエクスポート</string>

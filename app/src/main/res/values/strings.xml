@@ -1026,10 +1026,8 @@
     <string name="settings_companion_brain">Lively companion (AI)</string>
     <string name="settings_companion_brain_desc">The floating character decides on its own now and then — mood, sit, stand, walk somewhere, sleep — from what is on screen. Sends a small separate request to your AI provider every minute or two (uses tokens). It always falls off things that disappear.</string>
     <string name="settings_context_trigger">Compact context at</string>
-    <string name="settings_dance">Dance to music</string>
-    <string name="settings_dance_ai">AI picks the dance moves</string>
-    <string name="settings_dance_ai_desc">Every 30 seconds while music plays, the AI chooses the next moves from the song and its tempo (about 2 small requests a minute). Off: moves are picked by tempo.</string>
-    <string name="settings_dance_desc">When music plays in any app, the floating character dances to the beat. Song names need notification access; the beat needs the microphone permission (only the bass loudness is read, nothing is recorded).</string>
+    <string name="settings_dance">Dance to songs</string>
+    <string name="settings_dance_desc">When a song plays in any app, the AI thinks how people dance to that song and writes a dance for the floating character (saved on the phone per song; it is improved a few times while the song plays). For sad songs she keeps you company instead. Needs notification access for the song\'s name; the beat needs the microphone permission (only the bass loudness is read, nothing is recorded).</string>
     <string name="settings_developer">Developer</string>
     <string name="settings_device">Device</string>
     <string name="settings_export_config">Export settings</string>

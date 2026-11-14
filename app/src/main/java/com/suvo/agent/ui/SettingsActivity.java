@@ -374,8 +374,6 @@ public final class SettingsActivity extends BaseActivity {
                 Settings.COMPANION_ASKS_AGENT, true, null);
         r.switchRow(R.drawable.ic_character, R.string.settings_dance, R.string.settings_dance_desc,
                 Settings.COMPANION_DANCE, true, null);
-        r.switchRow(R.drawable.ic_character, R.string.settings_dance_ai, R.string.settings_dance_ai_desc,
-                Settings.COMPANION_DANCE_AI, true, null);
         r.switchRow(R.drawable.ic_screen, R.string.settings_tap_cursor, R.string.settings_tap_cursor_desc,
                 com.suvo.agent.device.TapIndicator.SETTING, true, null);
 

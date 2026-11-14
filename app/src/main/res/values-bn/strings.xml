@@ -981,10 +981,8 @@
     <string name="settings_companion_brain">জীবন্ত সঙ্গী (AI)</string>
     <string name="settings_companion_brain_desc">ভাসমান ক্যারেক্টার স্ক্রিনে যা আছে দেখে নিজেই মাঝে মাঝে মুড, বসা, দাঁড়ানো, কোথাও হাঁটা, ঘুমানো ঠিক করবে। প্রতি এক-দুই মিনিটে আপনার AI প্রোভাইডারে একটা ছোট আলাদা অনুরোধ যায় (টোকেন খরচ হয়)। যা সরে যায় তার উপর থেকে সে সবসময় নিচে পড়ে যায়।</string>
     <string name="settings_context_trigger">কনটেক্সট সংক্ষেপ হবে</string>
-    <string name="settings_dance">গানের তালে নাচ</string>
-    <string name="settings_dance_ai">AI নাচের মুভ বাছবে</string>
-    <string name="settings_dance_ai_desc">গান চলার সময় প্রতি ৩০ সেকেন্ডে AI গান ও তার টেম্পো দেখে পরের মুভ বাছে (মিনিটে প্রায় ২টি ছোট অনুরোধ)। বন্ধ থাকলে: টেম্পো দেখে মুভ বাছা হয়।</string>
-    <string name="settings_dance_desc">যেকোনো অ্যাপে গান বাজলে ভাসমান চরিত্রটি তালে তালে নাচে। গানের নামের জন্য নোটিফিকেশন অ্যাক্সেস লাগে; তালের জন্য মাইক্রোফোন অনুমতি লাগে (শুধু বেসের জোর পড়া হয়, কিছু রেকর্ড হয় না)।</string>
+    <string name="settings_dance">গানে নাচ</string>
+    <string name="settings_dance_desc">যেকোনো অ্যাপে গান বাজলে AI ভাবে ওই গানে মানুষ কীভাবে নাচে এবং ভাসমান চরিত্রের জন্য নাচ লেখে (প্রতি গানের নাচ ফোনে সেভ হয়; গান চলাকালীন কয়েকবার উন্নত করা হয়)। দুঃখের গানে সে নাচে না, আপনার পাশে থাকে। গানের নামের জন্য নোটিফিকেশন অ্যাক্সেস লাগে; তালের জন্য মাইক্রোফোন অনুমতি (শুধু বেসের জোর পড়া হয়, কিছু রেকর্ড হয় না)।</string>
     <string name="settings_developer">ডেভেলপার</string>
     <string name="settings_device">ডিভাইস</string>
     <string name="settings_export_config">সেটিংস এক্সপোর্ট</string>

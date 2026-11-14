@@ -999,10 +999,8 @@
     <string name="settings_companion_brain">Zinda companion (AI)</string>
     <string name="settings_companion_brain_desc">Floating character khud se mood, baithna, khada hona, kahin chalna, sona tay karega — screen par jo hai uske hisaab se. Har minute-do minute AI provider ko ek chhoti alag request jaati hai (tokens lagte hain). Jo cheez gayab ho jaye usse woh hamesha neeche gir jaata hai.</string>
     <string name="settings_context_trigger">Context compact kab ho</string>
-    <string name="settings_dance">Music pe dance</string>
-    <string name="settings_dance_ai">AI dance moves chune</string>
-    <string name="settings_dance_ai_desc">Music chalte waqt har 30 second pe AI gaane aur uske tempo se agle moves chunta hai (minute mein ~2 chhoti requests). Off: moves tempo se chune jate hain.</string>
-    <string name="settings_dance_desc">Kisi bhi app mein music chale to floating character beat pe dance karta hai. Gaane ka naam notification access se aata hai; beat ke liye mic permission chahiye (sirf bass ki loudness padhi jati hai, kuch record nahi hota).</string>
+    <string name="settings_dance">Gaanon pe dance</string>
+    <string name="settings_dance_desc">Kisi bhi app mein gaana chale to AI sochta hai ki us gaane pe log kaise nachte hain aur floating character ke liye dance likhta hai (har gaane ka dance phone pe save hota hai; gaana chalte waqt kuch baar behtar kiya jata hai). Udaas gaanon pe wo dance nahi karti, aapka saath deti hai. Gaane ke naam ke liye notification access chahiye; beat ke liye mic permission (sirf bass ki loudness padhi jati hai, kuch record nahi hota).</string>
     <string name="settings_developer">Developer</string>
     <string name="settings_device">Device</string>
     <string name="settings_export_config">Settings export karo</string>

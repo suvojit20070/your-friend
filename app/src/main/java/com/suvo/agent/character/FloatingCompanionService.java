@@ -128,11 +128,18 @@ public final class FloatingCompanionService extends Service {
 
     // Dancing to music.
     private MusicWatch music;
-    private final com.suvo.agent.core.character.DanceDirector director = new com.suvo.agent.core.character.DanceDirector(new Random());
-    private boolean dancing;
-    private boolean askingDance;
-    private long danceStartNs;
+    /** The song playing now ("" = none, or its name is not known: then nothing happens). */
+    private String songKey = "";
     private String songTitle = "", songArtist = "", songApp = "";
+    /** The AI's recording for this song (null while it is being written, or when the AI said "not a song to dance to"). */
+    private com.suvo.agent.core.character.DanceRecord danceRecord;
+    private String danceJson;
+    private int danceRev, danceTries;
+    private boolean askingDance;
+    private long danceStartNs, lastDanceAsk;
+    /** The AI looks at its own recording again every 30 s of the same song, this many times in all. */
+    private static final int DANCE_REVISIONS = 3;
+    private static final long DANCE_REVIEW_MS = 30_000;
 
     public static boolean isRunning() {
         return running;
@@ -820,7 +827,7 @@ public final class FloatingCompanionService extends Service {
         public void run() {
             if (character == null) return;
             AppGraph g = AppGraph.get();
-            boolean busy = g.agent.isRunning() || g.speech.isActive() || com.suvo.agent.voice.CallService.active() || dancing;
+            boolean busy = g.agent.isRunning() || g.speech.isActive() || com.suvo.agent.voice.CallService.active() || danceRecord != null;
             if (busy) lastNoticed = SystemClock.uptimeMillis();
             // The dance switch may have changed in Settings.
             boolean danceOn = g.settings.bool(com.suvo.agent.data.Settings.COMPANION_DANCE, true);
@@ -904,103 +911,207 @@ public final class FloatingCompanionService extends Service {
 
     // ------------------------------------------------------------------ dancing to music
 
-    /** MusicWatch: music started / stopped / the song changed. */
+    /**
+     * MusicWatch: a song started, changed or stopped. Nothing is danced from fixed steps: the AI is
+     * asked how people dance to THIS song and writes a recording (every joint, every beat), which
+     * is played and kept on the phone for the next time. While it is being written she simply
+     * stays as she is.
+     */
     private void onMusic(boolean playing, String title, String artist, String app) {
         if (character == null) return;
+        String key = playing ? (title.trim() + "|" + artist.trim()).toLowerCase(java.util.Locale.ROOT) : "";
+        if (title.trim().isEmpty()) key = ""; // no song name: as if no music played
+        if (key.equals(songKey)) return;
+        // Another song (or none): the old dance stops.
+        songKey = key;
         songTitle = title;
         songArtist = artist;
         songApp = app;
-        if (playing) {
-            noticed();
-            if (!dancing) {
-                dancing = true;
-                danceStartNs = System.nanoTime();
-                director.setBpm(com.suvo.agent.core.character.DanceDirector.DEFAULT_BPM);
-                wake(false);
-                ensureArmRoom();
-                main.removeCallbacks(danceTick);
-                main.post(danceTick);
-            } else {
-                // A new song: plan again at once.
-                planDance(true);
-            }
+        danceRecord = null;
+        danceJson = null;
+        danceRev = 0;
+        danceTries = 0;
+        main.removeCallbacks(danceTick);
+        character.setDance(null, 0, 0);
+        if (key.isEmpty()) return;
+        noticed();
+        danceStartNs = System.nanoTime();
+        lastDanceAsk = SystemClock.uptimeMillis();
+        String[] saved = loadDance(key);
+        if (saved != null) {
+            danceRev = Math.max(1, parseInt(saved[0]));
+            danceJson = saved[1];
+            useRecord(com.suvo.agent.core.character.DanceRecord.parse(saved[1]), key);
         } else {
-            dancing = false;
-            main.removeCallbacks(danceTick);
-            character.setDance(-1, 0, 0, 0);
+            askDance(false);
+        }
+        main.postDelayed(danceTick, 300);
+    }
+
+    private static int parseInt(String s) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** A recording for the song arrived (from the AI or from the phone). */
+    private void useRecord(com.suvo.agent.core.character.DanceRecord rec, String key) {
+        if (rec == null || character == null || !key.equals(songKey)) return;
+        if (!rec.playable()) {
+            // Not a song to dance to (very sad, a prayer…): she keeps you company instead.
+            danceRecord = null;
+            character.setDance(null, 0, 0);
+            wake(false);
+            setMoodAndFace(rec.face.equals("sad") ? "sad" : "calm", rec.face);
+            if (!rec.say.isEmpty()) say(rec.say);
+            return;
+        }
+        boolean first = danceRecord == null;
+        danceRecord = rec;
+        if (first) {
+            wake(false);
+            if (!rec.face.isEmpty()) setMoodAndFace("happy".equals(rec.face) ? "happy" : mood, rec.face);
+            ensureArmRoom();
         }
     }
 
     private final Runnable danceTick = new Runnable() {
         @Override
         public void run() {
-            if (!dancing || character == null) return;
+            if (songKey.isEmpty() || character == null) return;
             boolean shown = container != null && container.getVisibility() == View.VISIBLE;
-            if (!shown || moving || character.isAsleep()) {
-                // Hidden (the app is open), held or asleep: no dancing (and no AI questions).
-                character.setDance(-1, 0, 0, 0);
+            com.suvo.agent.core.character.DanceRecord rec = danceRecord;
+            long now = SystemClock.uptimeMillis();
+            if (rec == null || !shown || moving || character.isAsleep()) {
+                // No recording yet, hidden (the app is open), held or asleep: she is just herself.
+                character.setDance(null, 0, 0);
+                // The first answer was unusable: ask again a few times, 30 s apart.
+                if (rec == null && danceJson == null && shown && !askingDance && danceTries < 3 && now - lastDanceAsk > DANCE_REVIEW_MS) askDance(false);
                 main.postDelayed(this, 1000);
                 return;
             }
             float measured = music != null ? music.bpm() : 0f;
-            if (measured > 0) director.setBpm(measured);
+            float bpm = measured > 0 ? measured : rec.bpm > 0 ? rec.bpm : 100f;
             long anchor = music != null ? music.beatAnchorNs() : 0;
             if (anchor == 0) anchor = danceStartNs;
-            long now = SystemClock.uptimeMillis();
-            if (director.needsPlan(now) && !askingDance) planDance(false);
-            float beats = (float) ((System.nanoTime() - anchor) / 1e9 * director.bpm() / 60.0);
-            int move = director.moveAt(now, beats);
-            character.setDance(move, director.bpm(), director.energy(), anchor);
-            main.postDelayed(this, 250);
+            character.setDance(rec, bpm, anchor);
+            // Same song, 30 s later: the AI looks at its own recording and improves it.
+            if (danceRev < DANCE_REVISIONS && !askingDance && now - lastDanceAsk > DANCE_REVIEW_MS) askDance(true);
+            main.postDelayed(this, 300);
         }
     };
 
+    private String appLanguage() {
+        java.util.Locale loc = getResources().getConfiguration().getLocales().get(0);
+        if ("hi".equals(loc.getLanguage()) && "Latn".equals(loc.getScript())) return "Hinglish (Hindi written in Latin letters)";
+        return loc.getDisplayLanguage(java.util.Locale.ENGLISH);
+    }
+
     /**
-     * The next ~30 s of moves: asked from the AI (song, tempo) when that is on, else picked here.
-     * Until the AI answers, a picked plan keeps her dancing.
+     * Asks the AI for the song's dance recording ({@code improve}: shows it the one it wrote and
+     * asks for a better, longer one). The answer is played and saved for this song.
      */
-    private void planDance(boolean force) {
+    private void askDance(boolean improve) {
         AppGraph g = AppGraph.get();
-        long now = SystemClock.uptimeMillis();
-        float loud = music != null ? music.loudness() : 0.5f;
-        if (director.needsPlan(now) || force) director.setPlan(director.fallbackPlan(loud), -1, now);
-        if (!g.settings.bool(com.suvo.agent.data.Settings.COMPANION_DANCE_AI, true) || askingDance) return;
+        lastDanceAsk = SystemClock.uptimeMillis();
+        if (askingDance || songKey.isEmpty()) return;
         com.suvo.agent.core.llm.ProviderConfig p = com.suvo.agent.agent.RoleModels.provider(g, com.suvo.agent.agent.RoleModels.BRAIN);
         if (p == null) p = g.providers.active();
         if (p == null || p.validate() != null) return;
         askingDance = true;
+        if (!improve) danceTries++;
         final com.suvo.agent.core.llm.ProviderConfig provider = p;
-        final java.util.List<Integer> previous = director.plan();
+        final String key = songKey, t = songTitle, a = songArtist, app = songApp, previous = danceJson;
         final float measured = music != null ? music.bpm() : 0f;
-        final String t = songTitle, a = songArtist, app = songApp;
+        final String name = g.characters.active() == null ? "" : g.characters.active().name;
+        final String language = appLanguage();
         g.io.execute(() -> {
-            com.suvo.agent.core.character.DanceDirector.Answer ans = null;
+            String json = null;
             try {
                 com.suvo.agent.core.llm.ChatRequest req = new com.suvo.agent.core.llm.ChatRequest();
                 req.forceNoStream = true;
                 req.tools = new org.json.JSONArray();
                 req.toolChoice = null;
-                req.temperatureOverride = 0.9;
-                req.maxTokensOverride = 200;
-                req.messages.add(com.suvo.agent.core.llm.ChatMessage.system(com.suvo.agent.core.character.DanceDirector.systemPrompt()));
-                req.messages.add(com.suvo.agent.core.llm.ChatMessage.user(
-                        com.suvo.agent.core.character.DanceDirector.userMessage(t, a, app, measured, loud, previous)));
+                req.temperatureOverride = 0.8;
+                req.maxTokensOverride = 6000;
+                req.messages.add(com.suvo.agent.core.llm.ChatMessage.system(com.suvo.agent.core.character.DanceCoach.systemPrompt(name, language)));
+                req.messages.add(com.suvo.agent.core.llm.ChatMessage.user(improve && previous != null
+                        ? com.suvo.agent.core.character.DanceCoach.improveRequest(t, a, measured, previous)
+                        : com.suvo.agent.core.character.DanceCoach.firstRequest(t, a, app, measured)));
                 com.suvo.agent.core.llm.LlmClient llm = com.suvo.agent.agent.TrackedLlm.wrap(this,
                         new com.suvo.agent.core.llm.OpenAiCompatClient(provider));
                 com.suvo.agent.core.llm.ChatResponse resp = llm.chat(req, com.suvo.agent.core.llm.StreamListener.NONE,
                         new com.suvo.agent.core.util.CancellationToken());
-                ans = com.suvo.agent.core.character.DanceDirector.parse(resp == null ? null : resp.content);
+                String text = resp == null || resp.content == null ? "" : com.suvo.agent.core.llm.ThinkTags.split(resp.content)[1];
+                int s0 = text.indexOf('{'), e0 = text.lastIndexOf('}');
+                if (s0 >= 0 && e0 > s0) json = text.substring(s0, e0 + 1);
             } catch (Exception e) {
-                android.util.Log.i("YF.Dance", "AI moves failed: " + e.getMessage());
+                android.util.Log.i("YF.Dance", "AI recording failed: " + e.getMessage());
             }
-            final com.suvo.agent.core.character.DanceDirector.Answer fa = ans;
+            final String fj = json;
+            final com.suvo.agent.core.character.DanceRecord rec = com.suvo.agent.core.character.DanceRecord.parse(json);
             main.post(() -> {
                 askingDance = false;
-                if (fa == null || !dancing) return;
-                if (!fa.moves.isEmpty()) director.setPlan(fa.moves, fa.energy, SystemClock.uptimeMillis());
-                // The AI's tempo only when none could be measured.
-                if (fa.bpm > 0 && (music == null || music.bpm() <= 0)) director.setBpm(fa.bpm);
+                lastDanceAsk = SystemClock.uptimeMillis();
+                if (rec == null || character == null || !key.equals(songKey)) return;
+                // An "improved" answer that lost the dance is not an improvement: keep the old one.
+                if (improve && !rec.playable()) {
+                    danceRev = DANCE_REVISIONS;
+                    return;
+                }
+                danceJson = fj;
+                danceRev++;
+                saveDance(key, danceRev, fj);
+                useRecord(rec, key);
             });
+        });
+    }
+
+    private java.io.File danceFile(String key) {
+        String name;
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-1").digest(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder b = new StringBuilder();
+            for (byte x : d) b.append(String.format(java.util.Locale.ROOT, "%02x", x));
+            name = b.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            name = Integer.toHexString(key.hashCode());
+        }
+        return new java.io.File(new java.io.File(getFilesDir(), "dance"), name + ".json");
+    }
+
+    /** {revision, recording JSON} saved for this song, or null. */
+    private String[] loadDance(String key) {
+        java.io.File f = danceFile(key);
+        if (!f.isFile()) return null;
+        try {
+            byte[] data = java.nio.file.Files.readAllBytes(f.toPath());
+            org.json.JSONObject o = new org.json.JSONObject(new String(data, java.nio.charset.StandardCharsets.UTF_8));
+            String json = o.optString("record", "");
+            return json.isEmpty() ? null : new String[]{String.valueOf(o.optInt("rev", 1)), json};
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void saveDance(String key, int rev, String json) {
+        final String title = songTitle, artist = songArtist;
+        AppGraph.get().io.execute(() -> {
+            try {
+                java.io.File f = danceFile(key);
+                //noinspection ResultOfMethodCallIgnored
+                f.getParentFile().mkdirs();
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("title", title);
+                o.put("artist", artist);
+                o.put("rev", rev);
+                o.put("record", json);
+                java.nio.file.Files.write(f.toPath(), o.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                android.util.Log.i("YF.Dance", "Saving the recording failed: " + e.getMessage());
+            }
         });
     }
 
@@ -1397,7 +1508,7 @@ public final class FloatingCompanionService extends Service {
 
         @Override
         public CompanionPlan.State state() {
-            if (character == null || container == null || container.getVisibility() != View.VISIBLE || moving || restTop < 0 || dancing) return null;
+            if (character == null || container == null || container.getVisibility() != View.VISIBLE || moving || restTop < 0 || danceRecord != null) return null;
             CompanionPlan.State st = new CompanionPlan.State();
             DisplayMetrics dm = getResources().getDisplayMetrics();
             st.screenW = dm.widthPixels;
@@ -1486,7 +1597,8 @@ public final class FloatingCompanionService extends Service {
         brain = null;
         if (music != null) music.stop();
         music = null;
-        dancing = false;
+        songKey = "";
+        danceRecord = null;
         cancelMotion();
         main.removeCallbacksAndMessages(null);
         try {

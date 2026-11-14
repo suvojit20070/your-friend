@@ -25,9 +25,9 @@ import java.util.List;
  *
  * Notices music playing on the phone (any app) so the companion can dance:
  * <ul>
- *   <li>Playing or not: the system's "music is active" flag; with notification access (the
- *       auto-reply permission) the playing media session too, which also gives the song title,
- *       artist and app.</li>
+ *   <li>Playing or not, and which song: the playing media session (title, artist, app). This
+ *       needs notification access (the auto-reply permission); without it, or without a song
+ *       title, nothing is reported at all — the companion dances only to songs it can name.</li>
  *   <li>Tempo: the system audio visualizer's bass energy goes to a {@link BeatTracker}. This needs
  *       the microphone permission (Android's rule for the visualizer; nothing is recorded or
  *       kept, only the loudness of the bass is read). Phones that block it: no measured tempo,
@@ -133,6 +133,8 @@ final class MusicWatch {
             active = am != null && am.isMusicActive() && !own;
         }
         if (own && session == null) active = playing; // keep the current state while it talks
+        // Without the song's name (no notification access) there is nothing to dance to: as if silent.
+        if (meta[0] == null || meta[0].trim().isEmpty()) active = false;
         if (active) {
             playingPolls++;
             silentPolls = 0;

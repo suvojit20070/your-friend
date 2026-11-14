@@ -50,17 +50,16 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
     private volatile float walking;
     private volatile int sitStyle = -1;
     private volatile float headroom;
-    private volatile int danceMove = -1;
-    private volatile float danceBpm = 110f, danceEnergy = 0.6f;
+    private volatile com.suvo.agent.core.character.DanceRecord danceRec;
+    private volatile float danceBpm = 110f;
     private volatile long danceAnchorNs;
     /** 0 low · 1 medium · 2 high (high also smooths the edges with 4× multisampling). */
     private volatile int quality = 1;
 
-    /** Dance a {@code DanceMoves} move (-1 = stop) to {@code bpm}; a beat fell at {@code anchorNs} (System.nanoTime). */
-    public void setDance(int move, float bpm, float energy, long anchorNs) {
-        danceMove = move;
+    /** Dance the AI's recording (null = stop) to {@code bpm}; a beat fell at {@code anchorNs} (System.nanoTime). */
+    public void setDance(com.suvo.agent.core.character.DanceRecord rec, float bpm, long anchorNs) {
+        danceRec = rec;
         danceBpm = bpm;
-        danceEnergy = energy;
         danceAnchorNs = anchorNs;
     }
 
@@ -268,7 +267,7 @@ public final class VrmView extends TextureView implements TextureView.SurfaceTex
                     r.setWalking(walking);
                     r.setSitStyle(sitStyle);
                     r.setWind(windX, -windY, 0f);
-                    r.setDance(danceMove, danceBpm, danceEnergy, danceAnchorNs);
+                    r.setDance(danceRec, danceBpm, danceAnchorNs);
                     r.setQuality(quality);
                     r.draw(local, (t0 - start) / 1e9f);
                     if (!EGL14.eglSwapBuffers(display, eglSurface)) {
