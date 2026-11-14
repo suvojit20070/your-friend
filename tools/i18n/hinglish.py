@@ -1453,6 +1453,23 @@ S = {
 "unlock_pattern_draw": "Apna lock pattern banao",
 "unlock_pattern_again": "Confirm ke liye phir se banao",
 "unlock_saved": "Unlock save ho gaya",
+"voice_engine_fish": "Fish Audio (cloud, streaming)",
+"voice_fish": "Fish Audio",
+"voice_fish_intro": "Aapka apna Fish Audio account: API key, voice (reference_id) aur model daalo. Audio stream hokar turant bajne lagta hai.",
+"voice_fish_base": "Base URL",
+"voice_fish_key": "API key",
+"voice_fish_key_set": "Save hai (encrypted)",
+"voice_fish_key_hint": "sk-fish-…",
+"voice_fish_key_remove": "Hatao",
+"voice_fish_voice": "Voice (reference_id)",
+"voice_fish_voice_empty": "Set nahi — fish.audio se voice ki ID copy karo",
+"voice_fish_model": "Model",
+"voice_fish_model_empty": "Set nahi (server ka default) — jaise s2.1-pro-free",
+"voice_fish_latency": "Latency",
+"voice_fish_latency_low": "Low (sabse tez)",
+"voice_fish_latency_balanced": "Balanced",
+"voice_fish_latency_normal": "Normal (best quality)",
+"voice_fish_note": "Speed aur language neeche Voice style se aate hain. Key is phone mein encrypted rehti hai aur sirf base URL ko bheji jaati hai.",
 }
 
 P = {

@@ -1495,6 +1495,23 @@ S = {
 "unlock_pattern_draw": "Draw your lock pattern",
 "unlock_pattern_again": "Draw it again to confirm",
 "unlock_saved": "Unlock saved",
+"voice_engine_fish": "Fish Audio (cloud, streaming)",
+"voice_fish": "Fish Audio",
+"voice_fish_intro": "Your own Fish Audio account: add your API key, the voice (reference_id) and the model. Audio streams in and starts playing right away.",
+"voice_fish_base": "Base URL",
+"voice_fish_key": "API key",
+"voice_fish_key_set": "Saved (encrypted)",
+"voice_fish_key_hint": "sk-fish-…",
+"voice_fish_key_remove": "Remove",
+"voice_fish_voice": "Voice (reference_id)",
+"voice_fish_voice_empty": "Not set — copy the voice's ID from fish.audio",
+"voice_fish_model": "Model",
+"voice_fish_model_empty": "Not set (server default) — e.g. s2.1-pro-free",
+"voice_fish_latency": "Latency",
+"voice_fish_latency_low": "Low (fastest)",
+"voice_fish_latency_balanced": "Balanced",
+"voice_fish_latency_normal": "Normal (best quality)",
+"voice_fish_note": "Speed and language come from the Voice style settings below. The key is stored encrypted on this phone and sent only to the base URL.",
 }
 
 P = {

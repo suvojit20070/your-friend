@@ -68,8 +68,9 @@ public final class VoiceActivity extends BaseActivity {
         r.section(R.string.voice_output);
         r.switchRow(R.drawable.ic_voice, R.string.voice_speak_replies, R.string.voice_speak_replies_desc, Settings.VOICE_OUTPUT, false, null);
         r.choiceRow(R.drawable.ic_voice, R.string.voice_engine, Settings.VOICE_ENGINE, "system",
-                new String[]{getString(R.string.voice_engine_space), getString(R.string.voice_engine_server), getString(R.string.voice_engine_system)},
-                new String[]{"hf_space", "omnivoice_server", "system"}, v -> build());
+                new String[]{getString(R.string.voice_engine_space), getString(R.string.voice_engine_server), getString(R.string.voice_engine_fish),
+                        getString(R.string.voice_engine_system)},
+                new String[]{"hf_space", "omnivoice_server", "fish_audio", "system"}, v -> build());
         String why = g.speech.engine().notReadyReason();
         r.note(why == null ? getString(R.string.voice_engine_ready) : getString(R.string.voice_engine_not_ready, why));
         r.button(R.string.voice_test, true, v -> test());
@@ -78,6 +79,7 @@ public final class VoiceActivity extends BaseActivity {
 
         String engine = g.settings.str(Settings.VOICE_ENGINE, "system");
         if ("omnivoice_server".equals(engine)) serverSection(r);
+        else if ("fish_audio".equals(engine)) fishSection(r);
         else if ("hf_space".equals(engine)) spaceSection(r);
         else r.note(getString(R.string.voice_system_note));
 
@@ -279,6 +281,43 @@ public final class VoiceActivity extends BaseActivity {
             Ui.toast(this, R.string.handsfree_mic_needed);
             build();
         }
+    }
+
+    /** Fish Audio (cloud): only the base URL is preset; key, voice and model are the user's. */
+    private void fishSection(Rows r) {
+        r.section(R.string.voice_fish);
+        r.note(getString(R.string.voice_fish_intro));
+        r.textRow(R.drawable.ic_provider, R.string.voice_fish_base, com.suvo.agent.voice.FishAudioEngine.BASE_URL,
+                com.suvo.agent.voice.FishAudioEngine.DEFAULT_BASE, false, R.string.not_set, v -> build());
+        boolean hasKey = g.speech.fishEngine().hasKey();
+        r.row(R.drawable.ic_shield, getString(R.string.voice_fish_key), getString(hasKey ? R.string.voice_fish_key_set : R.string.not_set), null, v -> {
+            android.widget.EditText e = new android.widget.EditText(this, null, 0, R.style.YF_Input);
+            e.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+            e.setHint(R.string.voice_fish_key_hint);
+            android.widget.FrameLayout wrap = new android.widget.FrameLayout(this);
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(-1, -2);
+            lp.setMargins(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 20), Ui.dp(this, 4));
+            wrap.addView(e, lp);
+            Ui.show(Ui.dialog(this).setTitle(R.string.voice_fish_key).setView(wrap)
+                    .setPositiveButton(R.string.save, (d, w) -> {
+                        com.suvo.agent.voice.FishAudioEngine.saveKey(g.settings, e.getText().toString());
+                        build();
+                    })
+                    .setNeutralButton(R.string.voice_fish_key_remove, (d, w) -> {
+                        com.suvo.agent.voice.FishAudioEngine.saveKey(g.settings, "");
+                        build();
+                    })
+                    .setNegativeButton(android.R.string.cancel, null));
+        });
+        r.textRow(R.drawable.ic_character, R.string.voice_fish_voice, com.suvo.agent.voice.FishAudioEngine.REFERENCE_ID, "", false,
+                R.string.voice_fish_voice_empty, v -> build());
+        r.textRow(R.drawable.ic_settings, R.string.voice_fish_model, com.suvo.agent.voice.FishAudioEngine.MODEL, "", false,
+                R.string.voice_fish_model_empty, null);
+        r.choiceRow(R.drawable.ic_refresh, R.string.voice_fish_latency, com.suvo.agent.voice.FishAudioEngine.LATENCY, "balanced",
+                new String[]{getString(R.string.voice_fish_latency_low), getString(R.string.voice_fish_latency_balanced),
+                        getString(R.string.voice_fish_latency_normal)},
+                new String[]{"low", "balanced", "normal"}, null);
+        r.note(getString(R.string.voice_fish_note));
     }
 
     private void serverSection(Rows r) {

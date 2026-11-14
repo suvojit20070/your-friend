@@ -1412,6 +1412,23 @@ S = {
 "unlock_pattern_draw": "আপনার লক প্যাটার্ন আঁকুন",
 "unlock_pattern_again": "নিশ্চিত করতে আবার আঁকুন",
 "unlock_saved": "আনলক সেভ হয়েছে",
+"voice_engine_fish": "Fish Audio (ক্লাউড, স্ট্রিমিং)",
+"voice_fish": "Fish Audio",
+"voice_fish_intro": "আপনার নিজের Fish Audio অ্যাকাউন্ট: API key, ভয়েস (reference_id) আর মডেল দিন। অডিও স্ট্রিম হয়ে সঙ্গে সঙ্গে বাজতে শুরু করে।",
+"voice_fish_base": "বেস URL",
+"voice_fish_key": "API key",
+"voice_fish_key_set": "সেভ করা (এনক্রিপ্টেড)",
+"voice_fish_key_hint": "sk-fish-…",
+"voice_fish_key_remove": "সরান",
+"voice_fish_voice": "ভয়েস (reference_id)",
+"voice_fish_voice_empty": "সেট নেই — fish.audio থেকে ভয়েসের ID কপি করুন",
+"voice_fish_model": "মডেল",
+"voice_fish_model_empty": "সেট নেই (সার্ভারের ডিফল্ট) — যেমন s2.1-pro-free",
+"voice_fish_latency": "লেটেন্সি",
+"voice_fish_latency_low": "কম (সবচেয়ে দ্রুত)",
+"voice_fish_latency_balanced": "ব্যালান্সড",
+"voice_fish_latency_normal": "নরমাল (সেরা মান)",
+"voice_fish_note": "গতি আর ভাষা নিচের ভয়েস স্টাইল থেকে নেওয়া হয়। কী এই ফোনে এনক্রিপ্ট করে রাখা হয় আর শুধু বেস URL-এ পাঠানো হয়।",
 }
 
 P = {

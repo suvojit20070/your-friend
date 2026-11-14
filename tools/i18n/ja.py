@@ -1412,6 +1412,23 @@ S = {
 "unlock_pattern_draw": "ロックパターンを描いてください",
 "unlock_pattern_again": "確認のためもう一度",
 "unlock_saved": "保存しました",
+"voice_engine_fish": "Fish Audio（クラウド・ストリーミング）",
+"voice_fish": "Fish Audio",
+"voice_fish_intro": "ご自身のFish Audioアカウント：APIキー、ボイス（reference_id）、モデルを入力。音声はストリーミングですぐ再生されます。",
+"voice_fish_base": "ベースURL",
+"voice_fish_key": "APIキー",
+"voice_fish_key_set": "保存済み（暗号化）",
+"voice_fish_key_hint": "sk-fish-…",
+"voice_fish_key_remove": "削除",
+"voice_fish_voice": "ボイス（reference_id）",
+"voice_fish_voice_empty": "未設定 — fish.audioでボイスのIDをコピー",
+"voice_fish_model": "モデル",
+"voice_fish_model_empty": "未設定（サーバーの既定）— 例: s2.1-pro-free",
+"voice_fish_latency": "レイテンシー",
+"voice_fish_latency_low": "低（最速）",
+"voice_fish_latency_balanced": "バランス",
+"voice_fish_latency_normal": "標準（最高品質）",
+"voice_fish_note": "速度と言語は下の音声スタイル設定を使います。キーはこの端末に暗号化して保存され、ベースURLにだけ送られます。",
 }
 
 P = {

@@ -52,6 +52,7 @@ public final class SpeechController {
     private final OmniVoiceServerEngine omniServer;
     private final SystemTtsEngine system;
     private final HfSpaceEngine hfSpace;
+    private final FishAudioEngine fish;
     private volatile CancellationToken current;
     private volatile State state = State.IDLE;
     private volatile String lastError = "";
@@ -65,6 +66,7 @@ public final class SpeechController {
         if ("omnivoice_native".equals(eng) || "woof".equals(eng)) settings.put(Settings.VOICE_ENGINE, "system");
         omniServer = new OmniVoiceServerEngine(settings);
         hfSpace = new HfSpaceEngine(settings);
+        fish = new FishAudioEngine(settings);
         system = new SystemTtsEngine(ctx, settings);
     }
 
@@ -95,6 +97,10 @@ public final class SpeechController {
         return e != system && settings.bool(FALLBACK_KEY, true) && system.notReadyReason() == null;
     }
 
+    public FishAudioEngine fishEngine() {
+        return fish;
+    }
+
     public OmniVoiceServerEngine serverEngine() {
         return omniServer;
     }
@@ -105,6 +111,8 @@ public final class SpeechController {
                 return omniServer;
             case "hf_space":
                 return hfSpace;
+            case "fish_audio":
+                return fish;
             default:
                 return system;
         }
@@ -173,6 +181,15 @@ public final class SpeechController {
             }
             chosen = system;
         }
+        if (chosen == fish) {
+            speakStreaming(clean);
+            return;
+        }
+        speakChunks(chosen, clean);
+    }
+
+    /** The usual way: each chunk is made in full, then played (the next one is made meanwhile). */
+    private void speakChunks(TtsEngine chosen, String clean) {
         final TtsEngine[] engineRef = {chosen};
         CancellationToken token = new CancellationToken();
         current = token;
@@ -236,6 +253,76 @@ public final class SpeechController {
                 if (current == token) current = null;
             }
         }, "tts-play");
+        producer.start();
+        consumer.start();
+    }
+
+    private static final Object FALLBACK = new Object();
+
+    /**
+     * Fish Audio: the audio streams in and plays as it arrives, on one audio track (no gaps). If it
+     * fails before any sound, the reply is said with the phone's voice instead (when allowed).
+     */
+    private void speakStreaming(String clean) {
+        CancellationToken token = new CancellationToken();
+        current = token;
+        LinkedBlockingQueue<Object> q = new LinkedBlockingQueue<>();
+        Object end = new Object();
+        final boolean[] gotAudio = {false};
+        Thread producer = new Thread(() -> {
+            try {
+                setState(State.SYNTHESIZING, fish.id());
+                for (String c : chunk(clean, 600)) {
+                    if (token.isCancelled()) break;
+                    fish.stream(c, token, (samples, rate) -> {
+                        gotAudio[0] = true;
+                        q.put(samples);
+                    });
+                }
+            } catch (CancellationToken.CancelledException ignored) {
+            } catch (Exception e) {
+                Log.w(TAG, "Fish Audio failed", e);
+                lastError = fish.id() + ": " + e.getMessage();
+                if (!token.isCancelled() && !gotAudio[0] && fallbackAllowed(fish)) q.offer(FALLBACK);
+                else if (!token.isCancelled()) q.offer(e);
+            } finally {
+                q.offer(end);
+            }
+        }, "tts-fish");
+        Thread consumer = new Thread(() -> {
+            boolean focused = requestFocus();
+            final Exception[] error = {null};
+            final boolean[] fallback = {false};
+            try {
+                playback.playStream(FishAudioEngine.RATE, () -> {
+                    while (!token.isCancelled()) {
+                        Object o = q.poll(200, TimeUnit.MILLISECONDS);
+                        if (o == null) continue;
+                        if (o == end) return null;
+                        if (o == FALLBACK) {
+                            fallback[0] = true;
+                            return null;
+                        }
+                        if (o instanceof Exception) {
+                            error[0] = (Exception) o;
+                            return null;
+                        }
+                        if (state != State.SPEAKING) setState(State.SPEAKING, "");
+                        return (float[]) o;
+                    }
+                    return null;
+                }, token, mouthCb);
+                if (error[0] != null) setState(State.ERROR, error[0].getMessage());
+                else if (!fallback[0]) setState(State.IDLE, "");
+            } catch (InterruptedException e) {
+                setState(State.IDLE, "");
+            } finally {
+                mouth(0f, 0.5f);
+                if (focused) abandonFocus();
+                if (current == token) current = null;
+            }
+            if (fallback[0] && !token.isCancelled()) speakChunks(system, clean);
+        }, "tts-fish-play");
         producer.start();
         consumer.start();
     }

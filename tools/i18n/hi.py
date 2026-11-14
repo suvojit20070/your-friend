@@ -1412,6 +1412,23 @@ S = {
 "unlock_pattern_draw": "अपना लॉक पैटर्न बनाएँ",
 "unlock_pattern_again": "पक्का करने के लिए फिर से बनाएँ",
 "unlock_saved": "अनलॉक सेव हो गया",
+"voice_engine_fish": "Fish Audio (क्लाउड, स्ट्रीमिंग)",
+"voice_fish": "Fish Audio",
+"voice_fish_intro": "आपका अपना Fish Audio खाता: API key, आवाज़ (reference_id) और मॉडल डालें। ऑडियो स्ट्रीम होकर तुरंत बजने लगता है।",
+"voice_fish_base": "बेस URL",
+"voice_fish_key": "API key",
+"voice_fish_key_set": "सेव है (एन्क्रिप्टेड)",
+"voice_fish_key_hint": "sk-fish-…",
+"voice_fish_key_remove": "हटाएँ",
+"voice_fish_voice": "आवाज़ (reference_id)",
+"voice_fish_voice_empty": "सेट नहीं — fish.audio से आवाज़ की ID कॉपी करें",
+"voice_fish_model": "मॉडल",
+"voice_fish_model_empty": "सेट नहीं (सर्वर का डिफ़ॉल्ट) — जैसे s2.1-pro-free",
+"voice_fish_latency": "लेटेंसी",
+"voice_fish_latency_low": "कम (सबसे तेज़)",
+"voice_fish_latency_balanced": "संतुलित",
+"voice_fish_latency_normal": "सामान्य (सबसे अच्छी गुणवत्ता)",
+"voice_fish_note": "गति और भाषा नीचे वॉइस स्टाइल से आती हैं। की इस फ़ोन में एन्क्रिप्ट रहती है और सिर्फ़ बेस URL को भेजी जाती है।",
 }
 
 P = {
