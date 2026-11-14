@@ -1470,6 +1470,21 @@ S = {
 "voice_fish_latency_balanced": "Balanced",
 "voice_fish_latency_normal": "Normal (best quality)",
 "voice_fish_note": "Speed aur language neeche Voice style se aate hain. Key is phone mein encrypted rehti hai aur sirf base URL ko bheji jaati hai.",
+"stt_engine": "Speech recognition (calls)",
+"stt_engine_google": "Phone ka recognizer (Google)",
+"stt_engine_whisper": "Whisper offline (call jaisa)",
+"stt_whisper_intro": "Bina internet ke chalta hai. Pure call mein mic phone call ki tarah khula rehta hai (echo cancelling ke saath), isliye companion bolta rehta hai aur aap beech mein bol sakte ho. Neeche ek model download karo.",
+"stt_model_tiny": "Whisper Tiny — sabse tez",
+"stt_model_base": "Whisper Base — balanced (recommended)",
+"stt_model_small": "Whisper Small — sabse sahi, dheema",
+"stt_model_ready": "Download hai · %1$s",
+"stt_model_missing": "Download nahi — download ke liye tap karo",
+"stt_model_needed": "Chuna hua model abhi download nahi hai: tab tak calls phone ka recognizer use karengi.",
+"stt_use_model": "Ye model use karo",
+"stt_download": "Download karo",
+"stt_download_busy": "Ek aur model download ho raha hai",
+"stt_downloading": "Download ho raha hai… %1$s",
+"stt_download_done": "Model ready hai",
 }
 
 P = {

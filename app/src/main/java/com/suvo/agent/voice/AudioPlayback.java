@@ -51,7 +51,7 @@ public final class AudioPlayback {
         if (minBuf <= 0) minBuf = rate;
         AudioTrack t = new AudioTrack.Builder()
                 .setAudioAttributes(new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .setUsage(com.suvo.agent.voice.stt.CallAudio.active() ? AudioAttributes.USAGE_VOICE_COMMUNICATION : AudioAttributes.USAGE_ASSISTANT)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setAudioFormat(new AudioFormat.Builder()
                         .setSampleRate(rate)
@@ -149,7 +149,7 @@ public final class AudioPlayback {
         if (minBuf <= 0) minBuf = rate; // fallback ~0.25 s of floats
         AudioTrack t = new AudioTrack.Builder()
                 .setAudioAttributes(new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .setUsage(com.suvo.agent.voice.stt.CallAudio.active() ? AudioAttributes.USAGE_VOICE_COMMUNICATION : AudioAttributes.USAGE_ASSISTANT)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setAudioFormat(new AudioFormat.Builder()
                         .setSampleRate(rate)

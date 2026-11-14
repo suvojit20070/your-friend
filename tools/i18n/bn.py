@@ -1429,6 +1429,21 @@ S = {
 "voice_fish_latency_balanced": "ব্যালান্সড",
 "voice_fish_latency_normal": "নরমাল (সেরা মান)",
 "voice_fish_note": "গতি আর ভাষা নিচের ভয়েস স্টাইল থেকে নেওয়া হয়। কী এই ফোনে এনক্রিপ্ট করে রাখা হয় আর শুধু বেস URL-এ পাঠানো হয়।",
+"stt_engine": "কথা চেনা (কল)",
+"stt_engine_google": "ফোনের রিকগনাইজার (Google)",
+"stt_engine_whisper": "Whisper অফলাইন (কলের মতো)",
+"stt_whisper_intro": "ইন্টারনেট ছাড়াই চলে। পুরো কলে মাইক ফোন কলের মতো খোলা থাকে (ইকো ক্যানসেলিং সহ), তাই সঙ্গী কথা বলতে থাকে আর আপনি মাঝে বলতে পারেন। নিচে একটি মডেল ডাউনলোড করুন।",
+"stt_model_tiny": "Whisper Tiny — সবচেয়ে দ্রুত",
+"stt_model_base": "Whisper Base — ভারসাম্যপূর্ণ (প্রস্তাবিত)",
+"stt_model_small": "Whisper Small — সবচেয়ে নির্ভুল, ধীর",
+"stt_model_ready": "ডাউনলোড করা · %1$s",
+"stt_model_missing": "ডাউনলোড হয়নি — ডাউনলোড করতে ট্যাপ করুন",
+"stt_model_needed": "বাছাই করা মডেল এখনো ডাউনলোড হয়নি: ততক্ষণ কল ফোনের রিকগনাইজার ব্যবহার করবে।",
+"stt_use_model": "এই মডেল ব্যবহার করুন",
+"stt_download": "ডাউনলোড",
+"stt_download_busy": "আরেকটি মডেল ডাউনলোড হচ্ছে",
+"stt_downloading": "ডাউনলোড হচ্ছে… %1$s",
+"stt_download_done": "মডেল তৈরি",
 }
 
 P = {

@@ -104,6 +104,7 @@ public final class VoiceActivity extends BaseActivity {
         r.section(R.string.voice_input);
         r.note(getString(SpeechInput.isAvailable(this) ? R.string.voice_stt_available : R.string.voice_stt_unavailable));
         r.textRow(R.drawable.ic_mic, R.string.voice_stt_language, Settings.STT_LANGUAGE, "", false, R.string.voice_language_auto, null);
+        sttSection(r);
         r.switchRow(R.drawable.ic_mic, R.string.voice_auto_listen, R.string.voice_auto_listen_desc,
                 com.suvo.agent.voice.AutoListen.SETTING, false, null);
         // Voice call in the assistant card.
@@ -281,6 +282,97 @@ public final class VoiceActivity extends BaseActivity {
             Ui.toast(this, R.string.handsfree_mic_needed);
             build();
         }
+    }
+
+    // ---- Speech recognition engine (calls): the phone's (Google) or offline Whisper -----------------
+
+    private static volatile String sttDownloading;
+    private static volatile String sttProgress = "";
+    private static volatile long sttUiAt;
+    private static final java.util.concurrent.atomic.AtomicBoolean sttCancel = new java.util.concurrent.atomic.AtomicBoolean();
+
+    private void sttSection(Rows r) {
+        String engine = g.settings.str(com.suvo.agent.voice.stt.SttModels.ENGINE, "google");
+        r.choiceRow(R.drawable.ic_mic, R.string.stt_engine, com.suvo.agent.voice.stt.SttModels.ENGINE, "google",
+                new String[]{getString(R.string.stt_engine_google), getString(R.string.stt_engine_whisper)},
+                new String[]{"google", "whisper"}, v -> build());
+        if (!"whisper".equals(engine)) return;
+        r.note(getString(R.string.stt_whisper_intro));
+        String chosen = g.settings.str(com.suvo.agent.voice.stt.SttModels.MODEL, "base");
+        int[] names = {R.string.stt_model_tiny, R.string.stt_model_base, R.string.stt_model_small};
+        for (int i = 0; i < com.suvo.agent.voice.stt.SttModels.IDS.length; i++) {
+            String id = com.suvo.agent.voice.stt.SttModels.IDS[i];
+            boolean ready = com.suvo.agent.voice.stt.SttModels.isReady(this, id);
+            String sub;
+            if (id.equals(sttDownloading)) sub = sttProgress;
+            else if (ready) sub = getString(R.string.stt_model_ready, Ui.size(com.suvo.agent.voice.stt.SttModels.sizeOnDisk(this, id)));
+            else sub = getString(R.string.stt_model_missing);
+            String title = getString(names[i]) + (id.equals(chosen) ? "  ✓" : "");
+            r.row(R.drawable.ic_download, title, sub, null, v -> sttModelMenu(id, ready));
+        }
+        if (!com.suvo.agent.voice.stt.SttModels.isReady(this, chosen)) r.note(getString(R.string.stt_model_needed));
+    }
+
+    private void sttModelMenu(String id, boolean ready) {
+        java.util.List<String> items = new java.util.ArrayList<>();
+        java.util.List<Runnable> does = new java.util.ArrayList<>();
+        if (ready) {
+            items.add(getString(R.string.stt_use_model));
+            does.add(() -> {
+                g.settings.put(com.suvo.agent.voice.stt.SttModels.MODEL, id);
+                build();
+            });
+            items.add(getString(R.string.delete));
+            does.add(() -> {
+                com.suvo.agent.voice.stt.SttModels.delete(this, id);
+                build();
+            });
+        } else if (id.equals(sttDownloading)) {
+            items.add(getString(android.R.string.cancel));
+            does.add(() -> sttCancel.set(true));
+        } else {
+            items.add(getString(R.string.stt_download));
+            does.add(() -> downloadStt(id));
+        }
+        Ui.show(Ui.dialog(this).setItems(items.toArray(new CharSequence[0]), (d, w) -> does.get(w).run()));
+    }
+
+    private void downloadStt(String id) {
+        if (sttDownloading != null) {
+            Ui.toast(this, R.string.stt_download_busy);
+            return;
+        }
+        sttDownloading = id;
+        sttCancel.set(false);
+        sttProgress = getString(R.string.stt_downloading, "…");
+        build();
+        android.content.Context app = getApplicationContext();
+        g.io.execute(() -> {
+            String err = null;
+            try {
+                com.suvo.agent.voice.stt.SttModels.download(app, id, sttCancel, (file, done, total) -> {
+                    sttProgress = app.getString(R.string.stt_downloading, file + " · " + Ui.size(done)
+                            + (total > 0 ? " / " + Ui.size(total) : ""));
+                    long now = android.os.SystemClock.uptimeMillis();
+                    if (now - sttUiAt < 1000) return;
+                    sttUiAt = now;
+                    runOnUiThread(() -> {
+                        if (!isFinishing()) build();
+                    });
+                });
+                g.settings.put(com.suvo.agent.voice.stt.SttModels.MODEL, id);
+            } catch (Exception e) {
+                err = e.getMessage();
+            }
+            sttDownloading = null;
+            sttProgress = "";
+            String e2 = err;
+            runOnUiThread(() -> {
+                if (e2 != null) Ui.toast(app, app.getString(R.string.error_prefix, e2));
+                else Ui.toast(app, R.string.stt_download_done);
+                if (!isFinishing()) build();
+            });
+        });
     }
 
     /** Fish Audio (cloud): only the base URL is preset; key, voice and model are the user's. */

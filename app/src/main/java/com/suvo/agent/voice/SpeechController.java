@@ -351,9 +351,12 @@ public final class SpeechController {
         AudioManager am = ctx.getSystemService(AudioManager.class);
         if (am == null) return false;
         focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-                .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
+                .setAudioAttributes(new AudioAttributes.Builder().setUsage(com.suvo.agent.voice.stt.CallAudio.active() ? AudioAttributes.USAGE_VOICE_COMMUNICATION : AudioAttributes.USAGE_ASSISTANT)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setOnAudioFocusChangeListener(change -> {
+                    // On a call the microphone (speech recognizer) takes focus again and again: that must
+                    // not cut the companion off. Only talking over it (CallService) stops it then.
+                    if (CallService.active()) return;
                     if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) stop();
                 })
                 .build();

@@ -1512,6 +1512,21 @@ S = {
 "voice_fish_latency_balanced": "Balanced",
 "voice_fish_latency_normal": "Normal (best quality)",
 "voice_fish_note": "Speed and language come from the Voice style settings below. The key is stored encrypted on this phone and sent only to the base URL.",
+"stt_engine": "Speech recognition (calls)",
+"stt_engine_google": "Phone's recognizer (Google)",
+"stt_engine_whisper": "Whisper offline (call-style)",
+"stt_whisper_intro": "Works without internet. The mic stays open for the whole call like a phone call (with echo cancelling), so the companion keeps talking while you can talk over it. Download one model below.",
+"stt_model_tiny": "Whisper Tiny — fastest",
+"stt_model_base": "Whisper Base — balanced (recommended)",
+"stt_model_small": "Whisper Small — most accurate, slow",
+"stt_model_ready": "Downloaded · %1$s",
+"stt_model_missing": "Not downloaded — tap to download",
+"stt_model_needed": "The chosen model is not downloaded yet: calls use the phone's recognizer until it is.",
+"stt_use_model": "Use this model",
+"stt_download": "Download",
+"stt_download_busy": "Another model is downloading",
+"stt_downloading": "Downloading… %1$s",
+"stt_download_done": "Model ready",
 }
 
 P = {

@@ -17,3 +17,4 @@ secrets.properties
 # Downloaded by CI (tools/editor/fetch_grammars.py)
 /app/src/main/assets/textmate/grammars/
 /app/src/main/assets/textmate/languages.json
+/app/libs/sherpa-onnx.aar

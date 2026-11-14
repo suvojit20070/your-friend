@@ -34,6 +34,8 @@ public final class BeepMuter {
         for (int s : STREAMS) {
             if (muted.contains(s)) continue;
             if (s == AudioManager.STREAM_MUSIC && am.isMusicActive()) continue;
+            // On a call the companion's voice plays on the media stream: never mute it then.
+            if (s == AudioManager.STREAM_MUSIC && CallService.active()) continue;
             try {
                 if (am.isStreamMute(s)) continue;
                 am.adjustStreamVolume(s, AudioManager.ADJUST_MUTE, 0);

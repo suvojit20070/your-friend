@@ -1429,6 +1429,21 @@ S = {
 "voice_fish_latency_balanced": "バランス",
 "voice_fish_latency_normal": "標準（最高品質）",
 "voice_fish_note": "速度と言語は下の音声スタイル設定を使います。キーはこの端末に暗号化して保存され、ベースURLにだけ送られます。",
+"stt_engine": "音声認識（通話）",
+"stt_engine_google": "端末の音声認識（Google）",
+"stt_engine_whisper": "Whisperオフライン（通話式）",
+"stt_whisper_intro": "インターネット不要。通話中はマイクが電話のように開いたまま（エコーキャンセル付き）なので、コンパニオンが話している間も割り込めます。下でモデルを1つダウンロードしてください。",
+"stt_model_tiny": "Whisper Tiny — 最速",
+"stt_model_base": "Whisper Base — バランス（おすすめ）",
+"stt_model_small": "Whisper Small — 最も正確・低速",
+"stt_model_ready": "ダウンロード済み · %1$s",
+"stt_model_missing": "未ダウンロード — タップしてダウンロード",
+"stt_model_needed": "選んだモデルは未ダウンロードです。それまでは端末の音声認識を使います。",
+"stt_use_model": "このモデルを使う",
+"stt_download": "ダウンロード",
+"stt_download_busy": "別のモデルをダウンロード中です",
+"stt_downloading": "ダウンロード中… %1$s",
+"stt_download_done": "モデルの準備ができました",
 }
 
 P = {

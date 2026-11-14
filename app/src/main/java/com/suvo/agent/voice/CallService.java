@@ -76,6 +76,16 @@ public final class CallService extends Service {
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private SpeechInput rec;
+    /** Offline mode (Settings → speech recognition → Whisper): one open mic, our own voice detector. */
+    private com.suvo.agent.voice.stt.ContinuousListener offline;
+    private final SpeechController.Listener speechWatch = new SpeechController.Listener() {
+        @Override
+        public void onSpeechState(SpeechController.State state, String detail) {
+            // While the companion talks, the detector wants clearer speech before it starts.
+            boolean talking = state == SpeechController.State.SPEAKING || state == SpeechController.State.SYNTHESIZING;
+            if (offline != null) offline.setEchoGuard(talking);
+        }
+    };
     private final StringBuilder pending = new StringBuilder();
     /** Said while the agent was still working: sent as soon as it is done. */
     private final StringBuilder queued = new StringBuilder();
@@ -194,7 +204,8 @@ public final class CallService extends Service {
             }
         };
         g.agent.addListener(agentListener);
-        listen();
+        g.speech.addListener(speechWatch);
+        if (!startOffline()) listen();
         main.postDelayed(tick, 1000);
     }
 
@@ -209,7 +220,11 @@ public final class CallService extends Service {
         ended = true;
         main.removeCallbacksAndMessages(null);
         if (rec != null) rec.cancel();
+        if (offline != null) offline.stop();
+        offline = null;
+        com.suvo.agent.voice.stt.CallAudio.exit(this);
         AppGraph g = AppGraph.get();
+        g.speech.removeListener(speechWatch);
         if (agentListener != null) g.agent.removeListener(agentListener);
         for (Listener l : LISTENERS) l.onCallState(State.ENDED, "");
         if (instance == this) instance = null;
@@ -217,7 +232,73 @@ public final class CallService extends Service {
         stopSelf();
     }
 
-    // ---- Listening loop --------------------------------------------------------------------------
+    // ---- Offline listening (Whisper) -------------------------------------------------------------
+
+    /** Uses the offline recognizer when it is chosen and its model is downloaded. */
+    private boolean startOffline() {
+        AppGraph g = AppGraph.get();
+        if (!"whisper".equals(g.settings.str(com.suvo.agent.voice.stt.SttModels.ENGINE, "google"))) return false;
+        String model = g.settings.str(com.suvo.agent.voice.stt.SttModels.MODEL, "base");
+        if (!com.suvo.agent.voice.stt.SttModels.isReady(this, model)) return false;
+        // Call audio: the phone's echo canceller then removes the companion's voice from the mic.
+        com.suvo.agent.voice.stt.CallAudio.enter(this);
+        String lang = com.suvo.agent.voice.stt.WhisperStt.whisperLanguage(g.settings.str(Settings.STT_LANGUAGE, ""));
+        offline = new com.suvo.agent.voice.stt.ContinuousListener(this, model, lang, new com.suvo.agent.voice.stt.ContinuousListener.Callback() {
+            @Override
+            public void onSpeechStart() {
+                if (ended) return;
+                main.removeCallbacks(send);
+                lastActivity = SystemClock.uptimeMillis();
+                // You started talking over the companion: it stops (the detector already asked for
+                // clearer, longer speech while it was talking, so its own voice does not do this).
+                if (g.speech.isActive()) g.speech.stop();
+                state(State.HEARING, pending.toString());
+            }
+
+            @Override
+            public void onTranscribing() {
+                state(State.HEARING, (pending + " …").trim());
+            }
+
+            @Override
+            public void onText(String text) {
+                if (ended) return;
+                lastActivity = SystemClock.uptimeMillis();
+                if (!text.trim().isEmpty() && !isEcho(text)) {
+                    if (pending.length() > 0) pending.append(' ');
+                    pending.append(text.trim());
+                    state(State.HEARING, pending.toString());
+                }
+                // The detector already waited for your pause; a short grace joins a quick follow-on.
+                main.removeCallbacks(send);
+                if (pending.length() > 0) main.postDelayed(send, 450);
+                else state(State.LISTENING, "");
+            }
+
+            @Override
+            public void onLevel(float db) {
+                // Same scale as the phone recognizer's level (about -2 … 10).
+                float level = Math.max(-2f, Math.min(10f, (db + 60f) / 5f));
+                for (Listener l : LISTENERS) l.onLevel(level);
+            }
+
+            @Override
+            public void onError(String message) {
+                if (ended) return;
+                // Offline failed: carry on with the phone's recognizer.
+                if (offline != null) offline.stop();
+                offline = null;
+                com.suvo.agent.voice.stt.CallAudio.exit(CallService.this);
+                if (rec == null) rec = new SpeechInput(CallService.this);
+                listen();
+            }
+        });
+        offline.start();
+        state(State.LISTENING, "");
+        return true;
+    }
+
+    // ---- Listening loop (the phone's recognizer) ------------------------------------------------
 
     private void listen() {
         if (ended) return;
@@ -238,8 +319,8 @@ public final class CallService extends Service {
                 if (text.trim().isEmpty() || isEcho(text)) return;
                 main.removeCallbacks(send);
                 lastActivity = SystemClock.uptimeMillis();
-                // Talking over the companion stops it.
-                if (g.speech.isActive()) g.speech.stop();
+                // Talking over the companion stops it — real words only (2+), not a stray sound.
+                if (g.speech.isActive() && text.trim().split("\\s+").length >= 2) g.speech.stop();
                 state(State.HEARING, (pending + " " + text).trim());
             }
 

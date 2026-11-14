@@ -54,6 +54,9 @@ jobs:
       - name: Fetch code-colour grammars for the file editor
         run: python3 tools/editor/fetch_grammars.py || true
 
+      - name: Fetch sherpa-onnx (offline speech recognition)
+        run: bash tools/stt/fetch_sherpa.sh
+
       - name: Build debug APK
         run: ./gradlew --stacktrace assembleDebug
 
@@ -138,6 +141,10 @@ jobs:
       - name: Fetch code-colour grammars for the file editor
         if: steps.secrets.outputs.present == 'true'
         run: python3 tools/editor/fetch_grammars.py || true
+
+      - name: Fetch sherpa-onnx (offline speech recognition)
+        if: steps.secrets.outputs.present == 'true'
+        run: bash tools/stt/fetch_sherpa.sh
 
       - name: Build signed release APK
         if: steps.secrets.outputs.present == 'true'

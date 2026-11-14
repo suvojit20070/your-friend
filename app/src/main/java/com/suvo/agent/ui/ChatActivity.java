@@ -1244,7 +1244,14 @@ public final class ChatActivity extends BaseActivity {
         });
     }
 
+    /** The last message was spoken (mic): only then the mic opens again after the answer. */
+    private boolean voiceTurn;
+    /** Set right before submit() by the mic; any other send is a typed one. */
+    private boolean nextSubmitByVoice;
+
     private void submit(String raw) {
+        voiceTurn = nextSubmitByVoice;
+        nextSubmitByVoice = false;
         String text = raw.trim();
         List<ChatMessage.Image> pendingImages = new ArrayList<>();
         StringBuilder notes = new StringBuilder();
@@ -2303,6 +2310,8 @@ public final class ChatActivity extends BaseActivity {
 
     /** The answer is done: open the microphone for the reply (setting "Listen after the answer"). */
     private void maybeAutoListen() {
+        // In the chat the mic reopens only when you spoke your last message (typed → you are typing).
+        if (!voiceTurn) return;
         if (!com.suvo.agent.voice.AutoListen.on(g) || speechInput.isListening()) return;
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return;
         if (autoListen != null) autoListen.cancel();
@@ -2333,7 +2342,10 @@ public final class ChatActivity extends BaseActivity {
             public void onFinal(String text) {
                 uiHandler.removeCallbacks(autoListenQuiet);
                 mic.setImageResource(R.drawable.ic_mic);
-                if (!text.trim().isEmpty()) submit(text);
+                if (!text.trim().isEmpty()) {
+                    nextSubmitByVoice = true;
+                    submit(text);
+                }
             }
 
             @Override
