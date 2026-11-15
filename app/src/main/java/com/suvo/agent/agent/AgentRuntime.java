@@ -92,6 +92,12 @@ public final class AgentRuntime {
         return t != null && !t.status.isTerminal();
     }
 
+    /** True when the task running now belongs to this chat (the card and a call only stop their own). */
+    public boolean isRunningIn(long conversationId) {
+        TaskState t = current;
+        return t != null && !t.status.isTerminal() && t.conversationId == conversationId;
+    }
+
     public List<LogLine> log() {
         return new ArrayList<>(log);
     }

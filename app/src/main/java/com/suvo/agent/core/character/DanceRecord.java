@@ -224,7 +224,7 @@ public final class DanceRecord {
         Object root;
         try {
             root = new Json(text.substring(start, end + 1)).value();
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | StackOverflowError e) {
             return null;
         }
         if (!(root instanceof Map)) return null;
@@ -379,6 +379,12 @@ public final class DanceRecord {
             int st = i;
             while (i < s.length() && ",}] \n\r\t".indexOf(s.charAt(i)) < 0) i++;
             String tok = s.substring(st, i);
+            // A stray character where a value should be ("}" or ":" inside a list, from a cut-off
+            // or broken answer): step over it, or the caller would read it again forever.
+            if (i == st) {
+                i++;
+                return null;
+            }
             if (tok.equals("true")) return Boolean.TRUE;
             if (tok.equals("false")) return Boolean.FALSE;
             if (tok.equals("null") || tok.isEmpty()) return null;
@@ -404,10 +410,13 @@ public final class DanceRecord {
                     i++;
                     continue;
                 }
+                int before = i;
                 String k = c == '"' || c == '\'' ? string() : bare();
                 ws();
                 if (i < s.length() && s.charAt(i) == ':') i++;
-                m.put(k, value());
+                Object v = value();
+                if (i == before) i++; // never stand still
+                if (m.size() < 4096) m.put(k, v);
             }
         }
 
@@ -433,7 +442,10 @@ public final class DanceRecord {
                     i++;
                     continue;
                 }
-                l.add(value());
+                int before = i;
+                Object v = value();
+                if (i == before) i++; // never stand still
+                if (l.size() < 4096) l.add(v);
             }
         }
 

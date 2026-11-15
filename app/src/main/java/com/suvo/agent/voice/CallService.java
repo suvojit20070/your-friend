@@ -275,7 +275,16 @@ public final class CallService extends Service {
 
             @Override
             public void onFinished(TaskState task) {
-                if (task.conversationId != conversation) return;
+                if (task.conversationId != conversation) {
+                    // A task of another chat ended: what you said meanwhile can go in now.
+                    main.postDelayed(() -> {
+                        if (ended || queued.length() == 0 || AppGraph.get().agent.isRunning()) return;
+                        String next = queued.toString();
+                        queued.setLength(0);
+                        deliver(next);
+                    }, 400);
+                    return;
+                }
                 main.post(() -> answered(task));
             }
         };
@@ -467,19 +476,29 @@ public final class CallService extends Service {
             return;
         }
         if (matches(low, R.string.call_words_new_chat)) {
-            if (g.agent.isRunning()) g.agent.cancel();
+            // Only the call's own task: one running in another chat goes on.
+            if (g.agent.isRunningIn(conversation)) g.agent.cancel();
             conversation = g.agent.resetAssistConversation();
             say(getString(R.string.call_new_chat));
             state(State.LISTENING, "");
             return;
         }
         if (g.agent.isRunning()) {
+            boolean mine = g.agent.isRunningIn(conversation);
             if (matches(low, R.string.call_words_stop)) {
-                g.agent.cancel();
-                say(getString(R.string.call_stopped));
+                if (mine) {
+                    g.agent.cancel();
+                    say(getString(R.string.call_stopped));
+                } else {
+                    // "Stop" in a call never stops a task of another chat: only her voice goes quiet.
+                    g.speech.stop();
+                    state(State.LISTENING, "");
+                }
                 return;
             }
-            // Busy: it goes in right after the current answer.
+            // Busy: it goes in right after the current answer. A task of another chat is at work:
+            // say so once, so the silence is not a riddle.
+            if (!mine && queued.length() == 0) say(getString(R.string.agent_busy));
             if (queued.length() > 0) queued.append(' ');
             queued.append(text);
             state(State.THINKING, text);

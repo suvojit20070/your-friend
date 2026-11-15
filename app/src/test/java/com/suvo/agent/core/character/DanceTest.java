@@ -81,6 +81,29 @@ public class DanceTest {
         assertNull(DanceRecord.parse("{\"mood\":\"happy\",\"dance\":true}"));
     }
 
+    @Test(timeout = 5000)
+    public void brokenAnswersNeverHang() {
+        // Cut off in the middle, stray braces and colons inside lists: must end, quickly, without a crash.
+        String[] bad = {
+                "{\"dance\":true,\"phrases\":{\"A\":{\"beats\":8,\"keys\":[{\"t\":0,\"la\":[40,10,}]}}}",
+                "{\"phrases\":{\"A\":{\"keys\":[}]}}}",
+                "{\"order\":[:,:]}",
+                "{\"phrases\":{\"A\":{\"beats\":8,\"keys\":[{\"t\":0,\"la\":[40,10",
+                "{[[[[}}}}]]]]}",
+                "{\"a\":[}}}}}}}}}}}}}}}}",
+        };
+        for (String b : bad) DanceRecord.parse(b);
+        java.util.Random r = new java.util.Random(5);
+        String chars = "{}[]:,\"0123456789.-truefalsnA \n";
+        for (int n = 0; n < 3000; n++) {
+            StringBuilder sb = new StringBuilder("{");
+            int len = r.nextInt(60);
+            for (int i = 0; i < len; i++) sb.append(chars.charAt(r.nextInt(chars.length())));
+            sb.append('}');
+            DanceRecord.parse(sb.toString());
+        }
+    }
+
     @Test
     public void liftedFootCarriesNoWeight() {
         DanceRecord r = DanceRecord.parse("{\"dance\":true,\"phrases\":{\"A\":{\"beats\":4,\"keys\":["

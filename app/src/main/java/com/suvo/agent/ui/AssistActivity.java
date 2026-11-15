@@ -266,7 +266,8 @@ public final class AssistActivity extends BaseActivity {
         mic.setImageTintList(android.content.res.ColorStateList.valueOf(pal.primary));
         row.addView(mic, sized(48, 6));
         ImageButton send = iconButton(R.drawable.ic_send, R.string.send, v -> {
-            if (g.agent.isRunning()) g.agent.cancel();
+            // Stop only the card's own task: a task running in another chat is not the card's to stop.
+            if (g.agent.isRunningIn(conversation)) g.agent.cancel();
             else ask(input.getText().toString());
         });
         send.setBackground(new TonalDrawable(pal.primary, -1));
@@ -807,7 +808,7 @@ public final class AssistActivity extends BaseActivity {
 
     /** The card's chat starts over (button, or "new chat" said in a call). */
     private void newChat() {
-        if (g.agent.isRunning() && g.agent.current() != null && g.agent.current().conversationId == conversation) g.agent.cancel();
+        if (g.agent.isRunningIn(conversation)) g.agent.cancel();
         conversation = g.agent.resetAssistConversation();
         com.suvo.agent.voice.CallService.setConversation(conversation);
         asked = false;
