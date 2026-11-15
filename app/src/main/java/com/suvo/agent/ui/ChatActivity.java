@@ -1248,7 +1248,7 @@ public final class ChatActivity extends BaseActivity {
     }
 
     private void showMemoryChip() {
-        AndroidAgentHost host = g.agent.host();
+        AndroidAgentHost host = g.agent.host(conversationId);
         TextView chip = findViewById(R.id.chat_memory_chip);
         if (host == null || host.lastRetrieved.isEmpty()) {
             chip.setVisibility(View.GONE);
@@ -1330,6 +1330,9 @@ public final class ChatActivity extends BaseActivity {
     }
 
     /** Rebuilds the list from the database (the single source of truth). */
+    /** The chat the list shows now: when another one is opened, nothing of the old one stays. */
+    private long shownConversation = Long.MIN_VALUE;
+
     private void reload() {
         uiHandler.removeCallbacks(reloadRunnable);
         if (selecting) {
@@ -1337,7 +1340,19 @@ public final class ChatActivity extends BaseActivity {
             reloadPending = true;
             return;
         }
-        if (streamItem != null && (streamShown < streamFull.length() || fadeLength() > 0)) {
+        boolean switched = shownConversation != conversationId;
+        if (switched) {
+            // Another chat: the old chat's live answer, status and memory chip do not come along
+            // (its agent goes on in the background; this chat shows its own state).
+            uiHandler.removeCallbacks(streamRender);
+            streamItem = null;
+            streamFull = "";
+            streamShown = 0;
+            streamFinishing = false;
+            revealWaitSince = 0;
+            findViewById(R.id.chat_memory_chip).setVisibility(View.GONE);
+        }
+        if (!switched && streamItem != null && (streamShown < streamFull.length() || fadeLength() > 0)) {
             // Let the live text finish appearing first (faster), then swap in the final message.
             long now = android.os.SystemClock.uptimeMillis();
             if (revealWaitSince == 0) revealWaitSince = now;
@@ -1502,6 +1517,12 @@ public final class ChatActivity extends BaseActivity {
             items.add(e);
         }
         assignIds();
+        if (switched) {
+            shownConversation = conversationId;
+            TaskState rt = g.agent.current(conversationId);
+            updateRunState(g.agent.isRunningIn(conversationId) && rt != null ? statusText(rt) : null);
+            showMemoryChip();
+        }
         if (wasStreaming) {
             // The answer just finished writing: its copy / more icons and time come in after it, softly.
             for (int k = items.size() - 1; k >= 0; k--) {

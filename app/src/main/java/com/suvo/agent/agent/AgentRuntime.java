@@ -197,6 +197,12 @@ public final class AgentRuntime {
         return new ArrayList<>(log);
     }
 
+    /** The host of this chat's last task (its memory chip), or null. */
+    public AndroidAgentHost host(long conversationId) {
+        Session s = sessions.get(conversationId);
+        return s == null ? null : s.host;
+    }
+
     /** The host of the task started last (what the memory chips show). */
     public AndroidAgentHost host() {
         Session s = latest;
