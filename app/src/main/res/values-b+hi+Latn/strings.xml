@@ -67,6 +67,7 @@
     <string name="agent_status_idle">Idle</string>
     <string name="agent_status_limit">Safety limit par ruk gaya</string>
     <string name="agent_status_running">Chal raha hai</string>
+    <string name="agent_too_many">%1$d chats pehle se kaam kar rahi hain. Ek ke khatam hone ka intezaar karo, ya ek ko roko.</string>
     <string name="agent_working">Aapke task par kaam ho raha hai…</string>
     <string name="apkscan_again">Dobara scan karo</string>
     <string name="apkscan_auto">Naye apps ko AI se scan karo</string>
@@ -474,6 +475,7 @@
     <string name="chat_switch_locked">Is chat mein task chal raha hai. Chat badalne ke liye use rok do ya poora hone do.</string>
     <string name="chat_team_report">%1$s ki report</string>
     <string name="chat_team_report_failed">%1$s kaam poora nahi kar paaya</string>
+    <string name="chat_team_update">Boss ne %1$s ka kaam dekha</string>
     <string name="chat_thinking">Thinking</string>
     <string name="chat_tool_arguments">Arguments</string>
     <string name="chat_tool_image">Tool ne %1$s image di</string>
@@ -686,6 +688,8 @@
     <string name="lessons_none">Abhi koi lesson nahi. Agent se galti hogi to wo yahan ek chhota rule likhega aur aage ke tasks mein follow karega.</string>
     <string name="lessons_title">Galtiyon se seekh</string>
     <string name="log_error">Error</string>
+    <string name="log_message_added">Naya message — agle step pe padha jayega</string>
+    <string name="log_message_read">Naya message padh liya</string>
     <string name="log_notice">Note</string>
     <string name="log_result">Result</string>
     <string name="log_status">Status</string>

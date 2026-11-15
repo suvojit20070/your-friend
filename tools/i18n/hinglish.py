@@ -1500,6 +1500,10 @@ S = {
 "companion_mood_poked": "Baar baar mat chuo! Hmph.",
 "companion_mood_dizzy": "Uff… sab ghoom raha hai…",
 "companion_mood_shaken": "Arre! Aise mat hilao mujhe!",
+"log_message_added": "Naya message — agle step pe padha jayega",
+"log_message_read": "Naya message padh liya",
+"agent_too_many": "%1$d chats pehle se kaam kar rahi hain. Ek ke khatam hone ka intezaar karo, ya ek ko roko.",
+"chat_team_update": "Boss ne %1$s ka kaam dekha",
 }
 
 P = {

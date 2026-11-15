@@ -212,7 +212,8 @@ public final class Scheduler {
         long now = System.currentTimeMillis();
         // Self check-ins stay quiet at night; real reminders always run.
         boolean skip = "checkin".equals(j.kind) && quietHours(now);
-        if (!skip && g.agent.isRunning()) {
+        // Only the chat it runs in matters: other chats working do not hold a reminder back.
+        if (!skip && g.agent.scheduledBusy("checkin".equals(j.kind))) {
             Job retry = Job.fromJson(j.describe());
             retry.at = now + 3 * 60_000L;
             AlarmManager am = ctx.getSystemService(AlarmManager.class);

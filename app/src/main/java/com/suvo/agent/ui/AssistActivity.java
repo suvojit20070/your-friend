@@ -267,7 +267,8 @@ public final class AssistActivity extends BaseActivity {
         row.addView(mic, sized(48, 6));
         ImageButton send = iconButton(R.drawable.ic_send, R.string.send, v -> {
             // Stop only the card's own task: a task running in another chat is not the card's to stop.
-            if (g.agent.isRunningIn(conversation)) g.agent.cancel();
+            // Nothing written while it works: stop the card's own task. Something written: it goes in at the next step.
+            if (g.agent.isRunningIn(conversation) && input.getText().toString().trim().isEmpty()) g.agent.cancel(conversation);
             else ask(input.getText().toString());
         });
         send.setBackground(new TonalDrawable(pal.primary, -1));
@@ -755,7 +756,7 @@ public final class AssistActivity extends BaseActivity {
             switch (state) {
                 case LISTENING:
                     mic.setImageResource(R.drawable.ic_stop);
-                    if (!g.agent.isRunning()) {
+                    if (!g.agent.isRunningIn(conversation)) {
                         say(getString(R.string.call_listening));
                         glowState(AssistGlow.LISTENING);
                     }
@@ -808,7 +809,7 @@ public final class AssistActivity extends BaseActivity {
 
     /** The card's chat starts over (button, or "new chat" said in a call). */
     private void newChat() {
-        if (g.agent.isRunningIn(conversation)) g.agent.cancel();
+        if (g.agent.isRunningIn(conversation)) g.agent.cancel(conversation);
         conversation = g.agent.resetAssistConversation();
         com.suvo.agent.voice.CallService.setConversation(conversation);
         asked = false;
@@ -834,7 +835,7 @@ public final class AssistActivity extends BaseActivity {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return;
         if (autoListen != null) autoListen.cancel();
         autoListen = com.suvo.agent.voice.AutoListen.afterSpeech(g, () -> {
-            if (isFinishing() || g.agent.isRunning() || speech.isListening()) return;
+            if (isFinishing() || g.agent.isRunningIn(conversation) || speech.isListening()) return;
             if (input != null && !input.getText().toString().trim().isEmpty()) return;
             listen(true);
         });
@@ -947,7 +948,8 @@ public final class AssistActivity extends BaseActivity {
         public void onAssistantMessage(TaskState task, ChatMessage message) {
             if (!asked || task.conversationId != conversation) return;
             String[] parts = com.suvo.agent.core.llm.ThinkTags.split(message.contentOrEmpty());
-            if (!parts[1].trim().isEmpty()) {
+            // NOTHING = the boss looked at a team member's progress and all was well: not an answer.
+            if (!parts[1].trim().isEmpty() && !com.suvo.agent.agent.Scheduler.NOTHING.equals(parts[1].trim())) {
                 answer.setText(Markdown.render(parts[1].trim(), md));
                 if (glow != null) caption.setText(answer.getText().toString());
             }
@@ -987,7 +989,7 @@ public final class AssistActivity extends BaseActivity {
 
     /** Moves the card's own task behind the other app while the agent works. */
     private void hideForTask() {
-        if (isFinishing() || !g.agent.isRunning()) return;
+        if (isFinishing() || !g.agent.isRunningIn(conversation)) return;
         hiddenForTask = true;
         if (!moveTaskToBack(true)) hiddenForTask = false;
     }

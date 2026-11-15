@@ -32,8 +32,10 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Owns the single running agent task. UI components subscribe as {@link AgentListener}s; callbacks
- * are delivered on the main thread. Only one task runs at a time; Stop cancels it immediately.
+ * Runs the agent: one agent per chat, working side by side (up to {@link #MAX_PARALLEL}). UI
+ * components subscribe as {@link AgentListener}s; callbacks are delivered on the main thread and
+ * carry the task, whose conversationId says which chat it is. Writing to a busy chat steers its
+ * agent at the next step; Stop in a chat stops only that chat's agent.
  */
 public final class AgentRuntime {
 
@@ -51,26 +53,79 @@ public final class AgentRuntime {
         }
     }
 
+    /** Messages for a task that is running (taken once by its loop at the next step). */
+    public static final class Inbox {
+        private final List<ChatMessage> items = new ArrayList<>();
+
+        synchronized void add(ChatMessage m) {
+            items.add(m);
+        }
+
+        public synchronized List<ChatMessage> take() {
+            List<ChatMessage> out = new ArrayList<>(items);
+            items.clear();
+            return out;
+        }
+
+        public synchronized boolean has() {
+            return !items.isEmpty();
+        }
+
+        synchronized List<String> texts() {
+            List<String> out = new ArrayList<>();
+            for (ChatMessage m : items) out.add(m.contentOrEmpty());
+            return out;
+        }
+
+        synchronized void clear() {
+            items.clear();
+        }
+    }
+
+    /**
+     * One chat's agent. Every chat has its own: the assistant card's chat, the app's chat and a
+     * scheduled run work side by side and never stop each other. Writing to a chat whose agent is
+     * busy does not wait or fail — the message goes into its {@link Inbox} and is read at the next
+     * step, so the agent can change course mid-task.
+     */
+    private static final class Session {
+        final long conversationId;
+        volatile boolean running;
+        volatile TaskState task;
+        volatile AgentLoop loop;
+        volatile CancellationToken token;
+        volatile AndroidAgentHost host;
+        volatile AgentTree.Node tree;
+        final Inbox inbox = new Inbox();
+
+        Session(long conversationId) {
+            this.conversationId = conversationId;
+        }
+    }
+
+    /** At most this many chats work at the same time (each is a model conversation of its own). */
+    public static final int MAX_PARALLEL = 4;
+
     private final AppGraph g;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final CopyOnWriteArrayList<AgentListener> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<LogLine> log = new CopyOnWriteArrayList<>();
-    private volatile TaskState current;
-    private volatile AgentLoop loop;
-    private volatile CancellationToken token;
-    private volatile AndroidAgentHost host;
+    private final java.util.concurrent.ConcurrentHashMap<Long, Session> sessions = new java.util.concurrent.ConcurrentHashMap<>();
+    /** The task started last (any chat): what the app-wide screens (home, live agent) show. */
+    private volatile Session latest;
     private volatile long activeConversation = -1;
-    private volatile AgentTree.Node treeRoot;
 
     public AgentRuntime(AppGraph g) {
         this.g = g;
         g.approvals.addListener(pending -> {
-            TaskState t = current;
-            if (t == null || t.status.isTerminal()) return;
-            TaskState.Status next = pending.isEmpty() ? TaskState.Status.RUNNING : TaskState.Status.WAITING_APPROVAL;
-            if (t.status != next && t.status != TaskState.Status.PAUSED) {
-                t.status = next;
-                dispatch(l -> l.onStatusChanged(t));
+            for (Session s : sessions.values()) {
+                TaskState t = s.task;
+                if (!s.running || t == null || t.status.isTerminal()) continue;
+                TaskState.Status next = pending.isEmpty() ? TaskState.Status.RUNNING : TaskState.Status.WAITING_APPROVAL;
+                if (t.status != next && t.status != TaskState.Status.PAUSED) {
+                    t.status = next;
+                    dispatch(l -> l.onStatusChanged(t));
+                }
             }
         });
     }
@@ -83,27 +138,69 @@ public final class AgentRuntime {
         listeners.remove(l);
     }
 
+    /** The task started last, in any chat (app-wide status). */
     public TaskState current() {
-        return current;
+        Session s = latest;
+        return s == null ? null : s.task;
     }
 
+    /** The task of this chat (running or the last one), or null. */
+    public TaskState current(long conversationId) {
+        Session s = sessions.get(conversationId);
+        return s == null ? null : s.task;
+    }
+
+    /** True when any chat's agent is working. */
     public boolean isRunning() {
-        TaskState t = current;
-        return t != null && !t.status.isTerminal();
+        for (Session s : sessions.values()) if (s.running) return true;
+        return false;
     }
 
-    /** True when the task running now belongs to this chat (the card and a call only stop their own). */
+    /** True when this chat's agent is working (the card, a call and each chat only stop their own). */
     public boolean isRunningIn(long conversationId) {
-        TaskState t = current;
-        return t != null && !t.status.isTerminal() && t.conversationId == conversationId;
+        Session s = sessions.get(conversationId);
+        return s != null && s.running;
+    }
+
+    /**
+     * What the user wrote to this chat while its agent works, not read yet (the chat shows it as a
+     * waiting message until the agent reads it at its next step). Team messages are left out.
+     */
+    public List<String> waitingMessages(long conversationId) {
+        Session s = sessions.get(conversationId);
+        List<String> out = new ArrayList<>();
+        if (s == null || !s.running) return out;
+        for (String t : s.inbox.texts()) {
+            if (t.startsWith(Team.REPORT_MARKER) || t.startsWith(Team.UPDATE_MARKER)) continue;
+            out.add(t);
+        }
+        return out;
+    }
+
+    private int runningCount() {
+        int n = 0;
+        for (Session s : sessions.values()) if (s.running) n++;
+        return n;
+    }
+
+    /** The chat a running task (boss task id) belongs to, or -1. */
+    public long conversationOfTask(String taskId) {
+        if (taskId == null) return -1;
+        for (Session s : sessions.values()) {
+            TaskState t = s.task;
+            if (t != null && taskId.equals(t.id)) return s.conversationId;
+        }
+        return -1;
     }
 
     public List<LogLine> log() {
         return new ArrayList<>(log);
     }
 
+    /** The host of the task started last (what the memory chips show). */
     public AndroidAgentHost host() {
-        return host;
+        Session s = latest;
+        return s == null ? null : s.host;
     }
 
     public long activeConversation() {
@@ -150,8 +247,7 @@ public final class AgentRuntime {
         if ("current".equals(mode)) return newConversation();
         long old = g.settings.lng(ASSIST_CONVERSATION, -1L);
         // The separate Assistant chat starts over (its old messages go away); "new" just starts another.
-        if ("separate".equals(mode) && old >= 0 && g.conversations.get(old) != null && !(isRunning() && current != null
-                && current.conversationId == old)) {
+        if ("separate".equals(mode) && old >= 0 && g.conversations.get(old) != null && !isRunningIn(old)) {
             g.conversations.delete(old);
         }
         long id = g.conversations.create("separate".equals(mode) ? g.ctx.getString(com.suvo.agent.R.string.assist_chat_title) : "",
@@ -184,7 +280,7 @@ public final class AgentRuntime {
     public void externalLog(String kind, String text, String detail) {
         addLog(kind, text, detail);
         dispatch(l -> {
-            TaskState t = current;
+            TaskState t = current();
             if (t != null) l.onToolProgress(t, CHILD_CALL, text);
         });
     }
@@ -196,103 +292,101 @@ public final class AgentRuntime {
      * in their own conversation so they do not fill the main chat.
      */
     public String submitScheduled(String text, boolean checkin) {
-        long conv;
-        if (checkin) {
-            long id = g.settings.raw().getLong("checkin_conversation", -1);
-            if (id < 0 || g.conversations.get(id) == null) {
-                id = g.conversations.create(g.ctx.getString(R.string.checkin_conversation), g.characters.active().id);
-                g.settings.raw().edit().putLong("checkin_conversation", id).apply();
-            }
-            conv = id;
-        } else {
-            conv = activeConversation();
+        long conv = scheduledConversation(checkin);
+        // A scheduled run never slips into a chat that is busy: it waits for its turn (the caller retries).
+        if (isRunningIn(conv)) return g.ctx.getString(R.string.agent_busy);
+        Start st = new Start();
+        st.scheduled = true;
+        st.quiet = checkin;
+        return start(conv, ChatMessage.user(text), text, st);
+    }
+
+    /** True when the chat a scheduled run would use is busy now (then it is retried later). */
+    public boolean scheduledBusy(boolean checkin) {
+        return isRunningIn(scheduledConversation(checkin));
+    }
+
+    private long scheduledConversation(boolean checkin) {
+        if (!checkin) return activeConversation();
+        long id = g.settings.raw().getLong("checkin_conversation", -1);
+        if (id < 0 || g.conversations.get(id) == null) {
+            id = g.conversations.create(g.ctx.getString(R.string.checkin_conversation), g.characters.active().id);
+            g.settings.raw().edit().putLong("checkin_conversation", id).apply();
         }
-        quietResult = checkin;
-        scheduledNext = true;
-        String why = submit(conv, text, null);
-        scheduledNext = false;
-        if (why != null) quietResult = false;
-        return why;
+        return id;
     }
 
     // ------------------------------------------------------------------ team reports (background members)
 
-    private final java.util.ArrayList<Team.Job> pendingReports = new java.util.ArrayList<>();
-
     /**
-     * A team member finished in the background: its report goes to the boss as a message, at once
-     * when the boss is free, else right after the turn it is in. The boss then tells the user.
+     * A team member finished in the background: its report goes to the boss of the chat that gave
+     * the job — read at the next step when that chat's agent is busy, else as a new turn at once.
      */
     public void teamReport(Team.Job job) {
-        synchronized (pendingReports) {
-            pendingReports.add(job);
-        }
         addLog(Team.DONE.equals(job.status) ? "result" : "error", job.employee + " — job #" + job.id + " " + job.status,
                 Team.DONE.equals(job.status) ? job.report : job.error);
-        main.post(this::flushTeamReports);
+        int still = Team.runningCount();
+        String text = Team.reportText(job) + "\n\n(" + (still == 0 ? "No team member is working now." : still + " team member(s) are still working; their reports come later.")
+                + " Tell the user the result now, in your own words, short and clear, with the facts, paths or links that matter."
+                + " If the job failed or more work is needed, assign it again with what was learnt.)";
+        main.post(() -> {
+            long conv = job.conversationId;
+            if (g.conversations.get(conv) == null) conv = activeConversation();
+            if (deliver(conv, text, false) != null) {
+                // No provider to tell it with: at least the live log has the report.
+                teamIdleCheck();
+            }
+        });
     }
 
-    /** No member and no boss turn left: the "working" notification goes away. */
+    /**
+     * A member needs the boss: it asked a question, keeps failing, repeats itself, or reached a
+     * check-in point. The boss looks at its progress and steers it (tell / stop / let it go on).
+     * When all is well it answers NOTHING and the chat shows only a short line.
+     */
+    public void teamUpdate(Team.Job job, String why) {
+        addLog("notice", job.employee + " — job #" + job.id + ": " + why, "");
+        String text = Team.updateText(job, why);
+        main.post(() -> {
+            long conv = job.conversationId;
+            if (g.conversations.get(conv) == null) conv = activeConversation();
+            deliver(conv, text, true);
+        });
+    }
+
+    /** Into a busy chat's inbox, or a new turn of an idle one. Null = done, else why not. */
+    private String deliver(long conv, String text, boolean quiet) {
+        Session s = sessions.get(conv);
+        if (s != null) {
+            synchronized (s) {
+                if (s.running) {
+                    // It is in the middle of another task: deal with this, then carry on with that task.
+                    s.inbox.add(ChatMessage.user(quiet ? text + "\n(You are in the middle of another task: steer the member "
+                            + "with a tool call if needed, then continue that task. Do not answer NOTHING to it.)" : text));
+                    return null;
+                }
+            }
+        }
+        Start st = new Start();
+        st.quiet = quiet;
+        return start(conv, ChatMessage.user(text), text, st);
+    }
+
+    /** No member and no chat at work: the "working" notification goes away. */
     public void teamIdleCheck() {
         if (!isRunning() && Team.runningCount() == 0) AgentForegroundService.stop(g.ctx);
     }
 
-    private void flushTeamReports() {
-        if (isRunning()) return; // afterTask() calls this again
-        java.util.List<Team.Job> batch;
-        synchronized (pendingReports) {
-            if (pendingReports.isEmpty()) {
-                teamIdleCheck();
-                return;
-            }
-            batch = new java.util.ArrayList<>(pendingReports);
-            pendingReports.clear();
-        }
-        // One conversation per turn: the reports of the first job's chat now, the others next.
-        long conv = batch.get(0).conversationId;
-        StringBuilder sb = new StringBuilder();
-        java.util.List<Team.Job> later = new java.util.ArrayList<>();
-        for (Team.Job j : batch) {
-            if (j.conversationId != conv) {
-                later.add(j);
-                continue;
-            }
-            if (sb.length() > 0) sb.append("\n\n");
-            sb.append(Team.reportText(j));
-        }
-        int still = Team.runningCount();
-        sb.append("\n\n(").append(still == 0 ? "No team member is working now." : still + " team member(s) are still working; their reports come later.")
-                .append(" Tell the user the result now, in your own words, short and clear, with the facts, paths or links that matter."
-                        + " If the job failed or more work is needed, assign it again with what was learnt.)");
-        if (g.conversations.get(conv) == null) conv = activeConversation();
-        String why = submit(conv, sb.toString(), null);
-        synchronized (pendingReports) {
-            pendingReports.addAll(later);
-            if (why != null) {
-                // Could not start (busy again, or no provider): keep them for the next chance.
-                for (Team.Job j : batch) if (!later.contains(j)) pendingReports.add(0, j);
-            }
-        }
-        if (why != null && !isRunning()) {
-            // No provider to tell it with: at least the live log has the report.
-            synchronized (pendingReports) {
-                pendingReports.clear();
-            }
-            teamIdleCheck();
-        }
-    }
-
-    /** Stops the boss's turn and every team member (the notification's Stop). */
+    /** Stops every chat's agent and every team member (the notification's Stop). */
     public void cancelAll() {
         Team.stopAll();
         cancel();
     }
 
-    /** The next submit() is a scheduled run (its host then checks the screen). */
-    private volatile boolean scheduledNext;
-
-    /** Set for a self check-in: a reply of exactly NOTHING is not spoken or notified. */
-    private volatile boolean quietResult;
+    /** How a turn starts: a scheduled run (its host checks the screen), quiet (NOTHING is not shown). */
+    private static final class Start {
+        boolean scheduled, quiet;
+    }
 
     /** A line in the live log from elsewhere (team tools). */
     public void addNotice(String text, String detail) {
@@ -305,26 +399,52 @@ public final class AgentRuntime {
     }
 
     /**
-     * Starts a task. Returns null on success or a user-facing reason (no provider, already busy).
+     * Sends a message to a chat's agent. Returns null on success or a user-facing reason (no
+     * provider, too many chats at work). When that chat's agent is already working, the message is
+     * not refused: it is read at the agent's next step (it may change course), like writing to a
+     * person who is busy.
      */
     public String submit(long conversationId, String text, List<ChatMessage.Image> images) {
-        if (isRunning()) return g.ctx.getString(R.string.agent_busy);
+        ChatMessage user = images == null || images.isEmpty() ? ChatMessage.user(text) : ChatMessage.user(text, images);
+        Session s = sessions.get(conversationId);
+        if (s != null) {
+            synchronized (s) {
+                if (s.running) {
+                    s.inbox.add(user);
+                    addLog("status", g.ctx.getString(R.string.log_message_added), text);
+                    return null;
+                }
+            }
+        }
+        return start(conversationId, user, text, new Start());
+    }
+
+    private String start(long conversationId, ChatMessage user, String text, Start how) {
         ProviderConfig p = g.providers.active();
         if (p == null) return g.ctx.getString(R.string.agent_no_provider);
         String invalid = p.validate();
         if (invalid != null) return invalid;
-        activeConversation = conversationId;
-        g.speech.stop();
-        final boolean scheduledRun = scheduledNext;
+        Session s = sessions.computeIfAbsent(conversationId, Session::new);
+        synchronized (s) {
+            if (s.running) {
+                s.inbox.add(user);
+                return null;
+            }
+            if (runningCount() >= MAX_PARALLEL) return g.ctx.getString(R.string.agent_too_many, MAX_PARALLEL);
+            s.running = true;
+        }
+        // The assistant card's own chat never becomes the chat the app shows.
+        if (conversationId != g.settings.lng(ASSIST_CONVERSATION, -1L)) activeConversation = conversationId;
+        final boolean scheduledRun = how.scheduled;
         // Said aloud while it streams in: replies on, a call in this chat, hands-free, or the card asked.
-        final com.suvo.agent.voice.SpeechController.Talk talk = !scheduledRun && speakAloud(conversationId) ? g.speech.startTalk() : null;
+        final com.suvo.agent.voice.SpeechController.Talk talk = !scheduledRun && !how.quiet && speakAloud(conversationId) ? g.speech.startTalk() : null;
         CancellationToken tk = new CancellationToken();
-        token = tk;
         TaskState task = new TaskState(conversationId, text);
-        current = task;
-        if (Team.runningCount() == 0) log.clear(); // members still at work keep their lines
+        s.token = tk;
+        s.task = task;
+        latest = s;
+        if (Team.runningCount() == 0 && runningCount() <= 1) log.clear(); // members still at work keep their lines
         addLog("status", g.ctx.getString(R.string.log_task_started), text);
-        ChatMessage user = images == null || images.isEmpty() ? ChatMessage.user(text) : ChatMessage.user(text, images);
         // Everything heavier (database, prompt host, foreground service) happens on the task's own
         // thread, so the send button's press animation never stutters.
         Thread t = new Thread(() -> {
@@ -340,62 +460,92 @@ public final class AgentRuntime {
                 dispatch(l -> l.onNotice(task, n));
             });
             h.scheduled = scheduledRun;
-            host = h;
+            h.inbox = s.inbox;
+            s.host = h;
             com.suvo.agent.core.tools.ResourceGuard.SHARED.name(task.id, g.characters.active().name);
             g.settings.applyTo(g.policy);
             AgentConfig cfg = g.settings.agentConfig();
-            AgentLoop lp = new AgentLoop(llm, g.executor, h, cfg, new InternalListener(talk), tk);
-            loop = lp;
+            AgentLoop lp = new AgentLoop(llm, g.executor, h, cfg, new InternalListener(talk, s), tk);
+            s.loop = lp;
             AgentForegroundService.start(g.ctx, text);
-            treeRoot = AgentTree.startRoot(g.characters.active().name, text);
+            s.tree = AgentTree.startRoot(g.characters.active().name, text);
             try {
                 lp.run(task, user);
             } finally {
                 if (talk != null) talk.finish();
             }
-            afterTask(task, llm, conversationId, talk);
-        }, "agent-task");
+            // Anything written in the last moment (after the final step) starts the next turn now.
+            List<ChatMessage> late;
+            synchronized (s) {
+                late = tk.isCancelled() ? java.util.Collections.emptyList() : s.inbox.take();
+                s.running = false;
+            }
+            if (!late.isEmpty()) {
+                StringBuilder all = new StringBuilder();
+                List<ChatMessage.Image> imgs = new ArrayList<>();
+                for (ChatMessage m : late) {
+                    if (all.length() > 0) all.append("\n\n");
+                    all.append(m.contentOrEmpty());
+                    if (m.images != null) imgs.addAll(m.images);
+                }
+                String next = all.toString();
+                main.post(() -> submit(conversationId, next, imgs.isEmpty() ? null : imgs));
+            }
+            afterTask(task, llm, conversationId, talk, how.quiet);
+        }, "agent-task-" + conversationId);
         t.start();
         return null;
     }
 
+    /** Stops every chat's agent (the app-wide Stop: home screen, live agent, notification). */
     public void cancel() {
-        CancellationToken t = token;
-        if (t != null) t.cancel("user");
+        for (Session s : sessions.values()) stop(s);
         g.speech.stop();
     }
 
+    /** Stops only this chat's agent; other chats and team members go on. */
+    public void cancel(long conversationId) {
+        Session s = sessions.get(conversationId);
+        if (s != null) stop(s);
+        g.speech.stop();
+    }
+
+    private void stop(Session s) {
+        s.inbox.clear();
+        CancellationToken t = s.token;
+        if (t != null && s.running) t.cancel("user");
+    }
+
     public void pause() {
-        AgentLoop l = loop;
+        Session s = latest;
+        AgentLoop l = s == null ? null : s.loop;
         if (l != null) l.pause();
     }
 
     public void resume() {
-        AgentLoop l = loop;
+        Session s = latest;
+        AgentLoop l = s == null ? null : s.loop;
         if (l != null) l.resume();
     }
 
     public boolean isPaused() {
-        AgentLoop l = loop;
+        Session s = latest;
+        AgentLoop l = s == null ? null : s.loop;
         return l != null && l.isPaused();
     }
 
-    private void afterTask(TaskState task, LlmClient llm, long conversationId, com.suvo.agent.voice.SpeechController.Talk talk) {
+    private void afterTask(TaskState task, LlmClient llm, long conversationId, com.suvo.agent.voice.SpeechController.Talk talk, boolean quietTurn) {
         com.suvo.agent.core.tools.ResourceGuard.SHARED.releaseAll(task.id);
-        // Team members may still be working in the background: the notification then stays.
+        // Other chats or team members may still be working: the notification then stays.
         int working = Team.runningCount();
-        if (working == 0) AgentForegroundService.stop(g.ctx);
-        else AgentForegroundService.update(g.ctx, g.ctx.getResources().getQuantityString(R.plurals.team_working, working, working));
-        try {
-            afterTask0(task, llm, conversationId, talk);
-        } finally {
-            main.post(this::flushTeamReports);
-        }
+        if (working == 0 && !isRunning()) AgentForegroundService.stop(g.ctx);
+        else if (working > 0) AgentForegroundService.update(g.ctx, g.ctx.getResources().getQuantityString(R.plurals.team_working, working, working));
+        afterTask0(task, llm, conversationId, talk, quietTurn);
     }
 
-    private void afterTask0(TaskState task, LlmClient llm, long conversationId, com.suvo.agent.voice.SpeechController.Talk talk) {
-        boolean quiet = quietResult && com.suvo.agent.agent.Scheduler.NOTHING.equals(task.finalText.trim());
-        quietResult = false;
+    private void afterTask0(TaskState task, LlmClient llm, long conversationId, com.suvo.agent.voice.SpeechController.Talk talk, boolean quietTurn) {
+        // NOTHING: a check-in or a look at a member's progress found nothing to say — nothing is shown or said.
+        boolean quiet = com.suvo.agent.agent.Scheduler.NOTHING.equals(task.finalText.trim());
         if (task.status == TaskState.Status.COMPLETED && !task.finalText.isEmpty() && !quiet) {
             com.suvo.agent.launch.AssistantWidget.lastReply(g.ctx, task.finalText);
             // Normally said while streaming; a provider that sent no text pieces gets it said now.
@@ -458,16 +608,24 @@ public final class AgentRuntime {
     private final class InternalListener implements AgentListener {
         /** The answer being said aloud as it streams (null = not spoken). */
         private final com.suvo.agent.voice.SpeechController.Talk talk;
+        private final Session session;
 
-        InternalListener(com.suvo.agent.voice.SpeechController.Talk talk) {
+        InternalListener(com.suvo.agent.voice.SpeechController.Talk talk, Session session) {
             this.talk = talk;
+            this.session = session;
+        }
+
+        @Override
+        public void onIncoming(TaskState task, ChatMessage message) {
+            addLog("status", g.ctx.getString(R.string.log_message_read), message.contentOrEmpty());
+            dispatch(l -> l.onIncoming(task, message));
         }
 
         @Override
         public void onStatusChanged(TaskState task) {
             addLog("status", task.status.name(), task.error);
-            if (task.status == TaskState.Status.WAITING_APPROVAL) AgentTree.state(treeRoot, AgentTree.State.WAITING);
-            else if (task.status == TaskState.Status.RUNNING) AgentTree.state(treeRoot, AgentTree.State.RUNNING);
+            if (task.status == TaskState.Status.WAITING_APPROVAL) AgentTree.state(session.tree, AgentTree.State.WAITING);
+            else if (task.status == TaskState.Status.RUNNING) AgentTree.state(session.tree, AgentTree.State.RUNNING);
             dispatch(l -> l.onStatusChanged(task));
         }
 
@@ -484,7 +642,7 @@ public final class AgentRuntime {
 
         @Override
         public void onToolCallPreparing(TaskState task, String toolName) {
-            AgentTree.action(treeRoot, toolName + "…");
+            AgentTree.action(session.tree, toolName + "…");
             dispatch(l -> l.onToolCallPreparing(task, toolName));
         }
 
@@ -499,7 +657,7 @@ public final class AgentRuntime {
             // The assistant card steps aside first when this tool reads or operates the screen.
             ScreenGate.beforeTool(call.name);
             addLog("tool", call.name, com.suvo.agent.core.tools.ToolExecutor.redact(call.argumentsJson));
-            AgentTree.toolCall(treeRoot, "delegate_task".equals(call.name) ? "delegating" : call.name);
+            AgentTree.toolCall(session.tree, "delegate_task".equals(call.name) ? "delegating" : call.name);
             AgentForegroundService.update(g.ctx, g.ctx.getString(R.string.agent_running_tool, call.name));
             dispatch(l -> l.onToolExecuting(task, call));
         }
@@ -528,7 +686,7 @@ public final class AgentRuntime {
             AgentTree.State end = task.status == TaskState.Status.COMPLETED ? AgentTree.State.DONE
                     : task.status == TaskState.Status.CANCELLED ? AgentTree.State.STOPPED : AgentTree.State.FAILED;
             String res = task.status == TaskState.Status.COMPLETED ? task.finalText : task.error;
-            AgentTree.finish(treeRoot, end, res.length() > 300 ? res.substring(0, 300) + "…" : res);
+            AgentTree.finish(session.tree, end, res.length() > 300 ? res.substring(0, 300) + "…" : res);
             dispatch(l -> l.onFinished(task));
         }
     }

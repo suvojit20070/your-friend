@@ -164,25 +164,38 @@ public final class AndroidAgentHost implements AgentHost {
 
     /** What the boss keeps for itself while it has a team: handing out work, remembering, planning ahead. */
     private static final String BOSS_RULES = "\n\n# How you work: you are the BOSS of a team\n"
-            + "Small things you do YOURSELF, right away, with your own tools: anything that takes one or a few tool calls — "
-            + "one web search (the weather, a quick fact), playing a song, opening an app, looking at the screen, a reminder, "
-            + "reading or writing one file, one message. Handing those out only makes the user wait.\n"
-            + "BIG jobs go to the team: many steps or a long time (research across many sources, a coding project, a long run "
-            + "on the phone's screen, a report), or several independent parts that can run side by side. Then:\n"
-            + "1. delegate_task action=assign to the member whose role fits best, with a complete brief: they cannot see this "
-            + "chat, so put in every fact they need, the exact goal and what to send back. One member takes one job at a time.\n"
-            + "2. assign returns at once and the member works in the background. Tell the user in one or two short sentences "
-            + "who is doing what, then END your turn. Never wait for the member, never poll status, never make up a result.\n"
-            + "3. A finished member's report reaches you as a message that starts with [Team report]: tell the user the "
-            + "result in your own words, or assign the next step. Meanwhile keep talking with the user and doing small things "
-            + "yourself; action=status / tell / stop manage running jobs.\n"
-            + "4. The phone's screen, the camera and the browser can be used by one agent at a time (you included): while a "
+            + "You are the one the user talks to. Stay free for them: hand long work to the team, keep your own turns short.\n"
+            + "SIZE THE WORK FIRST:\n"
+            + "- Small (one or a few tool calls: one search, a song, opening an app, a look at the screen, a reminder, one file, "
+            + "one message): do it YOURSELF, right away. Handing it out only makes the user wait.\n"
+            + "- One big job that is one piece (a long research question, a long run on the phone): ONE member.\n"
+            + "- Big job with parts that do not depend on each other (compare 3 products, research 4 topics, check several "
+            + "sites): one member per part, all at once (up to the free members), then you put the results together.\n"
+            + "- Building something (an app, a website, a script project): parts that are built separately do not fit together "
+            + "(different styles, names, files). So: (1) write a short SPEC file first in the workspace (goal, pages/screens, "
+            + "look and style, file layout, names of the main functions and data) — this is your plan; (2) give the building to "
+            + "ONE lead member with the spec path; (3) side work that does not touch the same files goes to others at the same "
+            + "time (research, content/texts, images, test cases), each told the spec path; (4) when the lead reports, give a "
+            + "reviewer/tester the finished work against the spec; (5) fix rounds go back to the lead.\n"
+            + "BRIEFS: members cannot see this chat. Every delegate_task action=assign brief has: the goal, all facts and file "
+            + "paths they need, the boundaries (what NOT to do / touch), and exactly what to send back. Vague briefs make them "
+            + "guess and waste work. One member takes one job at a time.\n"
+            + "WHILE THEY WORK: assign returns at once. Tell the user in one or two sentences who is doing what, then END your "
+            + "turn — never wait or poll (the app stops it). The user can keep talking to you meanwhile.\n"
+            + "- [Team update] messages come when a member is stuck, keeps failing, repeats itself, asks you something, or at "
+            + "a check-in. Read its recent steps like a manager: on track → reply exactly NOTHING; wrong way or wasted steps → "
+            + "delegate_task action=tell job=N with a clear correction (or action=stop and assign again with a better brief); "
+            + "a question → answer it with action=tell. Bother the user only when they must know or decide.\n"
+            + "- [Team report] = a member finished: check it critically against the brief, then tell the user the result in "
+            + "your own words, or assign the next step.\n"
+            + "- You can also steer at any time: action=tell sends a working member new instructions, action=status shows "
+            + "what everyone is doing (at most once a minute), action=stop stops a job.\n"
+            + "- The phone's screen, the camera and the browser can be used by one agent at a time (you included): while a "
             + "member uses one, do not use it yourself.\n"
-            + "5. You are responsible for your team's quality. Read every report critically. When a member got something wrong "
-            + "(made-up or unchecked results, ignored the brief, broke a rule, wasted steps), correct it so it never happens "
-            + "again: delegate_task action=coach with the mistake and ONE clear rule — it is written into that member's own "
-            + "instructions. Then assign the job again if it still has to be done. Do not coach for problems that were not "
-            + "the member's fault (a site was down, the user denied something).";
+            + "QUALITY: when a member got something wrong (made-up or unchecked results, ignored the brief, broke a rule, "
+            + "wasted steps), correct it for good: delegate_task action=coach with the mistake and ONE clear rule — it is "
+            + "written into that member's own instructions. Do not coach for problems that were not the member's fault "
+            + "(a site was down, the user denied something).";
 
     /** Code mode with the compact tool list (both switches on). */
     private boolean compactTools() {
@@ -192,6 +205,21 @@ public final class AndroidAgentHost implements AgentHost {
 
     /** Set for a run started by a schedule / self check-in (no one is looking at the phone). */
     public volatile boolean scheduled;
+
+    /** Messages that arrive while this task runs (see {@link AgentRuntime}); null = none. */
+    volatile AgentRuntime.Inbox inbox;
+
+    @Override
+    public List<ChatMessage> takeIncoming() {
+        AgentRuntime.Inbox in = inbox;
+        return in == null ? java.util.Collections.emptyList() : in.take();
+    }
+
+    @Override
+    public boolean hasIncoming() {
+        AgentRuntime.Inbox in = inbox;
+        return in != null && in.has();
+    }
 
     /** Tools that need the screen on (UI control, screen pictures, opening apps, camera). */
     private static final java.util.Set<String> SCREEN_TOOLS = new java.util.HashSet<>(java.util.Arrays.asList(
@@ -337,13 +365,14 @@ public final class AndroidAgentHost implements AgentHost {
             }
             all = keep;
         }
-        if (!g.employees.enabled().isEmpty()) return all;
-        // No employees: do not offer delegation at all.
+        // ask_boss is the members' tool; with no employees there is no delegation either.
+        boolean team = !g.employees.enabled().isEmpty();
         JSONArray out = new JSONArray();
         for (int i = 0; i < all.length(); i++) {
             org.json.JSONObject t = all.optJSONObject(i);
             org.json.JSONObject fn = t == null ? null : t.optJSONObject("function");
-            if (fn != null && "delegate_task".equals(fn.optString("name"))) continue;
+            String n = fn == null ? "" : fn.optString("name");
+            if ("ask_boss".equals(n) || (!team && "delegate_task".equals(n))) continue;
             out.put(t);
         }
         return out;

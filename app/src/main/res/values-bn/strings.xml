@@ -66,6 +66,7 @@
     <string name="agent_status_idle">অলস</string>
     <string name="agent_status_limit">নিরাপত্তা সীমায় থেমেছে</string>
     <string name="agent_status_running">চলছে</string>
+    <string name="agent_too_many">%1$dটি চ্যাট ইতিমধ্যে কাজ করছে। একটি শেষ হওয়া পর্যন্ত অপেক্ষা করুন, বা একটি থামান।</string>
     <string name="agent_working">আপনার টাস্কে কাজ চলছে…</string>
     <string name="apkscan_again">আবার স্ক্যান করুন</string>
     <string name="apkscan_auto">নতুন অ্যাপ AI দিয়ে স্ক্যান করুন</string>
@@ -465,6 +466,7 @@
     <string name="chat_switch_locked">এই চ্যাটে কাজ চলছে। চ্যাট বদলাতে কাজটা থামান বা শেষ হতে দিন।</string>
     <string name="chat_team_report">%1$s-এর রিপোর্ট</string>
     <string name="chat_team_report_failed">%1$s কাজ শেষ করতে পারেনি</string>
+    <string name="chat_team_update">বস %1$s-এর কাজের অগ্রগতি দেখল</string>
     <string name="chat_thinking">থিঙ্কিং</string>
     <string name="chat_tool_arguments">আর্গুমেন্ট</string>
     <string name="chat_tool_image">টুল %1$sটি ছবি দিয়েছে</string>
@@ -669,6 +671,8 @@
     <string name="lessons_none">এখনও কোনো শিক্ষা নেই। এজেন্ট ভুল করলে এখানে একটি ছোট নিয়ম লিখে রাখে এবং পরের কাজে মেনে চলে।</string>
     <string name="lessons_title">ভুল থেকে শিক্ষা</string>
     <string name="log_error">ত্রুটি</string>
+    <string name="log_message_added">নতুন মেসেজ — পরের ধাপে পড়া হবে</string>
+    <string name="log_message_read">নতুন মেসেজ পড়া হলো</string>
     <string name="log_notice">নোট</string>
     <string name="log_result">ফলাফল</string>
     <string name="log_status">অবস্থা</string>

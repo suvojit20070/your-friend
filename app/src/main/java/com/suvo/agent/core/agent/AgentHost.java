@@ -33,4 +33,18 @@ public interface AgentHost {
 
     /** Whether images from tool results may be forwarded to the model. */
     boolean visionEnabled();
+
+    /**
+     * Messages that arrived while the task runs (the user wrote again, a team member reported):
+     * taken once, and added to the conversation before the next model call — the agent reads them
+     * and can change course without stopping. Default: none.
+     */
+    default List<ChatMessage> takeIncoming() {
+        return java.util.Collections.emptyList();
+    }
+
+    /** True when {@link #takeIncoming} has something (checked before an answer ends the task). */
+    default boolean hasIncoming() {
+        return false;
+    }
 }

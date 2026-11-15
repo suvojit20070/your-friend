@@ -43,6 +43,15 @@ public final class WaitTool extends BaseTool {
     public ToolResult execute(ToolInvocation inv) throws Exception {
         int seconds = (int) Math.max(1, Math.min(MAX_SECONDS, inv.num("seconds", 10)));
         String reason = inv.str("reason").trim();
+        // The boss never sits waiting for its team: members report and send updates by themselves,
+        // and meanwhile the user can talk to the boss. (Members, and short waits for a page, are fine.)
+        boolean boss = com.suvo.agent.agent.Team.jobForTask(inv.taskId) == null;
+        long conv = g.agent.conversationOfTask(inv.taskId);
+        if (boss && seconds > 15 && conv >= 0 && com.suvo.agent.agent.Team.runningIn(conv) > 0) {
+            return ToolResult.fail("Do not wait for your team members: their progress updates and reports reach you by "
+                    + "themselves as messages. End your turn now (tell the user who is doing what), or do other work. "
+                    + "To wait for something else (a page loading), wait 15 s or less.");
+        }
         long end = System.currentTimeMillis() + seconds * 1000L;
         long lastShown = -1;
         while (true) {

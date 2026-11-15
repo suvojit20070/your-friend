@@ -1542,6 +1542,10 @@ S = {
 "companion_mood_poked": "Stop poking me! Hmph.",
 "companion_mood_dizzy": "Whoa… everything is spinning…",
 "companion_mood_shaken": "Hey! Don't shake me like that!",
+"log_message_added": "New message — read at the next step",
+"log_message_read": "Read the new message",
+"agent_too_many": "%1$d chats are already working. Wait for one to finish, or stop one.",
+"chat_team_update": "The boss checked on %1$s's progress",
 }
 
 P = {

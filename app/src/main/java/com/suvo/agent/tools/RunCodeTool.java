@@ -40,7 +40,7 @@ public final class RunCodeTool extends BaseTool {
     private static final Set<String> NOT_IN_SCRIPTS = new HashSet<>(Arrays.asList("run_code", "use_tool", "delegate_task"));
 
     /** Always offered as real tools, also in compact mode. */
-    public static final Set<String> ALWAYS_NATIVE = new HashSet<>(Arrays.asList("run_code", "delegate_task", "load_skill", "memory",
+    public static final Set<String> ALWAYS_NATIVE = new HashSet<>(Arrays.asList("run_code", "delegate_task", "ask_boss", "load_skill", "memory",
             "record_mistake", "view_image", "list_tools", "wait", "use_tool", "schedule_task"));
 
     public RunCodeTool(AppGraph g) {

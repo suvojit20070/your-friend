@@ -580,6 +580,7 @@ public final class SpeechController {
                 if (com.suvo.agent.core.audio.SpeakableText.looksLikeMarkup(piece)) continue;
                 String clean = forSpeech(piece);
                 if (clean.isEmpty() || !clean.matches("(?s).*[\\p{L}\\p{N}].*")) continue;
+                if (clean.trim().equals("NOTHING")) continue; // "all is well" to the app, not words for the user
                 enqueue(clean);
             }
         }

@@ -50,7 +50,7 @@ public final class ChildAgent {
     public static final Set<String> BOSS_ONLY = new HashSet<>(Arrays.asList("delegate_task", "schedule_task"));
 
     /** Helpers every member gets, whatever its tool list says. */
-    private static final Set<String> ALWAYS_FOR_MEMBERS = new HashSet<>(Arrays.asList("list_tools", "use_tool", "run_code", "wait"));
+    private static final Set<String> ALWAYS_FOR_MEMBERS = new HashSet<>(Arrays.asList("list_tools", "use_tool", "run_code", "wait", "ask_boss"));
 
     public static final class Outcome {
         public TaskState task;
@@ -135,6 +135,8 @@ public final class ChildAgent {
                 if (job != null) {
                     job.action = "thinking";
                     Team.changed();
+                    // The boss hears about trouble and at check-in points (and can steer).
+                    Team.afterStep(g, job, call.name, result, t.progressSummary(8));
                 }
                 g.agent.externalLog(result.succeeded() ? "result" : "error", e.name + " · " + call.name + " — "
                         + result.status.name().toLowerCase(Locale.ROOT), result.message);
@@ -207,6 +209,9 @@ public final class ChildAgent {
                     + "You do not talk to the user directly: do the work with your tools, verify it, then answer with a concise report "
                     + "for the boss — what you did, the verified results (paths, numbers, findings) and anything left open. "
                     + "If you are missing information only the user has, stop and say exactly what you need. "
+                    + "The boss watches your progress and may send you a message while you work ([Message from the boss while you "
+                    + "work]): follow it, it overrides the brief where they differ. When the brief is unclear, a choice changes the "
+                    + "result a lot, or you find the plan cannot work, call ask_boss with a short, specific question instead of guessing. "
                     + "Other team members may be working at the same time: the phone screen, the camera and the browser can be "
                     + "used by one member at a time. When a tool answers that another member is using it, do your other steps "
                     + "first or wait and try again; never look for a way around it.";

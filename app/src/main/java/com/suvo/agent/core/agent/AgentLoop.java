@@ -84,6 +84,11 @@ public final class AgentLoop {
                 if (cancel.isCancelled()) {
                     return end(task, TaskState.Status.CANCELLED, "", "Stopped by the user");
                 }
+                // Written meanwhile (by the user, or a team member's report/update): read it now.
+                for (ChatMessage in : host.takeIncoming()) {
+                    host.persist(task, in);
+                    listener.onIncoming(task, in);
+                }
                 if (!config.stepsUnlimited() && steps >= config.maxSteps) {
                     return end(task, TaskState.Status.LIMIT_REACHED, "",
                             "Reached the maximum of " + config.maxSteps + " steps. You can continue the task with a new message.");
@@ -129,6 +134,8 @@ public final class AgentLoop {
                             continue;
                         }
                     }
+                    // Something new arrived while it was answering: answer that too, in the same task.
+                    if (host.hasIncoming() && !cancel.isCancelled()) continue;
                     return end(task, TaskState.Status.COMPLETED, resp.content, "");
                 }
 

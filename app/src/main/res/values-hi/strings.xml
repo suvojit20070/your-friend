@@ -66,6 +66,7 @@
     <string name="agent_status_idle">निष्क्रिय</string>
     <string name="agent_status_limit">सुरक्षा सीमा पर रुका</string>
     <string name="agent_status_running">चल रहा है</string>
+    <string name="agent_too_many">%1$d चैट पहले से काम कर रही हैं। एक के ख़त्म होने का इंतज़ार करें, या एक को रोकें।</string>
     <string name="agent_working">आपके कार्य पर काम हो रहा है…</string>
     <string name="apkscan_again">फिर से स्कैन करें</string>
     <string name="apkscan_auto">नए ऐप AI से स्कैन करें</string>
@@ -465,6 +466,7 @@
     <string name="chat_switch_locked">इस चैट में काम चल रहा है। चैट बदलने के लिए उसे रोकें या पूरा होने दें।</string>
     <string name="chat_team_report">%1$s की रिपोर्ट</string>
     <string name="chat_team_report_failed">%1$s काम पूरा नहीं कर पाया</string>
+    <string name="chat_team_update">बॉस ने %1$s का काम देखा</string>
     <string name="chat_thinking">थिंकिंग</string>
     <string name="chat_tool_arguments">आर्ग्युमेंट</string>
     <string name="chat_tool_image">टूल ने %1$s छवि दी</string>
@@ -669,6 +671,8 @@
     <string name="lessons_none">अभी कोई सीख नहीं। एजेंट से ग़लती होगी तो वह यहाँ एक छोटा नियम लिखेगा और आगे के कामों में मानेगा।</string>
     <string name="lessons_title">ग़लतियों से सीख</string>
     <string name="log_error">त्रुटि</string>
+    <string name="log_message_added">नया मैसेज — अगले स्टेप पर पढ़ा जाएगा</string>
+    <string name="log_message_read">नया मैसेज पढ़ लिया</string>
     <string name="log_notice">नोट</string>
     <string name="log_result">परिणाम</string>
     <string name="log_status">स्थिति</string>

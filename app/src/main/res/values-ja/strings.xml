@@ -66,6 +66,7 @@
     <string name="agent_status_idle">待機中</string>
     <string name="agent_status_limit">安全上の上限で停止</string>
     <string name="agent_status_running">実行中</string>
+    <string name="agent_too_many">すでに%1$d件のチャットが作業中です。どれかが終わるのを待つか、止めてください。</string>
     <string name="agent_working">タスクを実行しています…</string>
     <string name="apkscan_again">もう一度スキャン</string>
     <string name="apkscan_auto">新しいアプリをAIでスキャン</string>
@@ -465,6 +466,7 @@
     <string name="chat_switch_locked">このチャットでタスクが実行中です。切り替えるには停止するか完了を待ってください。</string>
     <string name="chat_team_report">%1$s からの報告</string>
     <string name="chat_team_report_failed">%1$s は完了できませんでした</string>
+    <string name="chat_team_update">ボスが%1$sの進み具合を確認しました</string>
     <string name="chat_thinking">思考</string>
     <string name="chat_tool_arguments">引数</string>
     <string name="chat_tool_image">ツールが画像を %1$s 枚返しました</string>
@@ -669,6 +671,8 @@
     <string name="lessons_none">まだ教訓はありません。エージェントが間違えると短いルールをここに記録し、以後のタスクで守ります。</string>
     <string name="lessons_title">失敗からの教訓</string>
     <string name="log_error">エラー</string>
+    <string name="log_message_added">新しいメッセージ — 次のステップで読みます</string>
+    <string name="log_message_read">新しいメッセージを読みました</string>
     <string name="log_notice">メモ</string>
     <string name="log_result">結果</string>
     <string name="log_status">状態</string>

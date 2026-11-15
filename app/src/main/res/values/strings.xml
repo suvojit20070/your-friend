@@ -67,6 +67,7 @@
     <string name="agent_status_idle">Idle</string>
     <string name="agent_status_limit">Stopped at a safety limit</string>
     <string name="agent_status_running">Running</string>
+    <string name="agent_too_many">%1$d chats are already working. Wait for one to finish, or stop one.</string>
     <string name="agent_working">Working on your task…</string>
     <string name="apkscan_again">Scan again</string>
     <string name="apkscan_auto">Scan new apps with AI</string>
@@ -474,6 +475,7 @@
     <string name="chat_switch_locked">A task is running in this chat. Stop it or wait until it finishes to switch chats.</string>
     <string name="chat_team_report">Report from %1$s</string>
     <string name="chat_team_report_failed">%1$s could not finish</string>
+    <string name="chat_team_update">The boss checked on %1$s\'s progress</string>
     <string name="chat_thinking">Thinking</string>
     <string name="chat_tool_arguments">Arguments</string>
     <string name="chat_tool_image">Tool returned %1$s image(s)</string>
@@ -711,6 +713,8 @@
     <string name="lessons_none">No lessons yet. When the agent gets something wrong, it records a short rule here and follows it in later tasks.</string>
     <string name="lessons_title">Lessons from mistakes</string>
     <string name="log_error">Error</string>
+    <string name="log_message_added">New message — read at the next step</string>
+    <string name="log_message_read">Read the new message</string>
     <string name="log_notice">Note</string>
     <string name="log_result">Result</string>
     <string name="log_status">Status</string>

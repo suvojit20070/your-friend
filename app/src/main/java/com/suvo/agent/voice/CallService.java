@@ -477,33 +477,24 @@ public final class CallService extends Service {
         }
         if (matches(low, R.string.call_words_new_chat)) {
             // Only the call's own task: one running in another chat goes on.
-            if (g.agent.isRunningIn(conversation)) g.agent.cancel();
+            if (g.agent.isRunningIn(conversation)) g.agent.cancel(conversation);
             conversation = g.agent.resetAssistConversation();
             say(getString(R.string.call_new_chat));
             state(State.LISTENING, "");
             return;
         }
-        if (g.agent.isRunning()) {
-            boolean mine = g.agent.isRunningIn(conversation);
-            if (matches(low, R.string.call_words_stop)) {
-                if (mine) {
-                    g.agent.cancel();
-                    say(getString(R.string.call_stopped));
-                } else {
-                    // "Stop" in a call never stops a task of another chat: only her voice goes quiet.
-                    g.speech.stop();
-                    state(State.LISTENING, "");
-                }
-                return;
+        if (matches(low, R.string.call_words_stop)) {
+            // "Stop" stops only the call's own chat; other chats and team members go on.
+            if (g.agent.isRunningIn(conversation)) {
+                g.agent.cancel(conversation);
+                say(getString(R.string.call_stopped));
+            } else {
+                g.speech.stop();
+                state(State.LISTENING, "");
             }
-            // Busy: it goes in right after the current answer. A task of another chat is at work:
-            // say so once, so the silence is not a riddle.
-            if (!mine && queued.length() == 0) say(getString(R.string.agent_busy));
-            if (queued.length() > 0) queued.append(' ');
-            queued.append(text);
-            state(State.THINKING, text);
             return;
         }
+        // While it works, what you say goes in at its next step (it can change course).
         deliver(text);
     }
 
@@ -546,7 +537,7 @@ public final class CallService extends Service {
             if (ended) return;
             AppGraph g = AppGraph.get();
             long timeout = Math.max(10, g.settings.integer(TIMEOUT, DEFAULT_TIMEOUT)) * 1000L;
-            boolean busy = g.agent.isRunning() || g.speech.isActive() || pending.length() > 0 || queued.length() > 0;
+            boolean busy = g.agent.isRunningIn(conversation) || g.speech.isActive() || pending.length() > 0 || queued.length() > 0;
             if (busy) lastActivity = SystemClock.uptimeMillis();
             else if (SystemClock.uptimeMillis() - lastActivity > timeout) {
                 finishCall();

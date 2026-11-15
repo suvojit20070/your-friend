@@ -29,6 +29,8 @@ public final class Team {
     public static final String DELEGATE_ONLY = "team_boss_delegates";
     /** Start of the message that carries a member's report to the boss. */
     public static final String REPORT_MARKER = "[Team report]";
+    /** Start of the message that tells the boss how a working member is doing (it may steer it). */
+    public static final String UPDATE_MARKER = "[Team update]";
 
     public static final String RUNNING = "running", DONE = "done", FAILED = "failed", STOPPED = "stopped";
 
@@ -52,6 +54,13 @@ public final class Team {
         public volatile List<com.suvo.agent.core.llm.ChatMessage> transcript = java.util.Collections.emptyList();
         /** The agent task id of this run (the owner in the resource guard). */
         public volatile String taskId = "";
+        /** The member's recent steps (tool, result), for the boss's check-ins. */
+        public volatile String progress = "";
+        // Supervision: failed tool results in a row, and when / at how many calls the boss last looked.
+        volatile int failsInRow;
+        volatile long lastUpdateAt = System.currentTimeMillis();
+        volatile int lastUpdateCalls;
+        public volatile int updates;
         final CancellationToken cancel = new CancellationToken();
         private final List<String> inbox = new ArrayList<>();
 
@@ -248,6 +257,101 @@ public final class Team {
             j.inbox.add(message);
         }
         return true;
+    }
+
+    /** The running job whose member runs as agent task {@code taskId}, or null (the boss, or not a member). */
+    public static Job jobForTask(String taskId) {
+        if (taskId == null || taskId.isEmpty()) return null;
+        for (Job j : JOBS) if (j.running() && taskId.equals(j.taskId)) return j;
+        return null;
+    }
+
+    /** Running jobs given from this chat. */
+    public static int runningIn(long conversationId) {
+        int n = 0;
+        for (Job j : JOBS) if (j.running() && j.conversationId == conversationId) n++;
+        return n;
+    }
+
+    // ---- Supervision: the boss is told when a member needs it, and can steer it ----------------
+
+    private static final long MIN_GAP_MS = 90_000, CHECKIN_MS = 5 * 60_000L;
+    private static final int CHECKIN_CALLS = 15, FAILS_TO_REPORT = 3;
+
+    /**
+     * After each of a member's tool results: tells the boss when the member seems to be in trouble
+     * (several failures in a row, repeating itself) or at a check-in point (every
+     * {@value #CHECKIN_CALLS} tool calls or {@code 5} minutes), so a member going the wrong way is
+     * noticed and redirected instead of running to the end.
+     */
+    static void afterStep(AppGraph g, Job job, String tool, com.suvo.agent.core.tools.ToolResult r, String progress) {
+        if (job == null || !job.running()) return;
+        job.progress = progress;
+        job.failsInRow = r.succeeded() ? 0 : job.failsInRow + 1;
+        long now = System.currentTimeMillis();
+        String why = null;
+        boolean loop = r.status == com.suvo.agent.core.tools.ToolResult.Status.DENIED && r.message != null && r.message.startsWith("Loop detected");
+        if (loop) why = "it is repeating the same action without progress (" + tool + ")";
+        else if (job.failsInRow == FAILS_TO_REPORT) why = FAILS_TO_REPORT + " tool calls failed in a row (last: " + tool + ": "
+                + shorten(r.message, 160) + ")";
+        else if (job.toolCalls - job.lastUpdateCalls >= CHECKIN_CALLS) why = "check-in: " + (job.toolCalls - job.lastUpdateCalls) + " more tool calls since you last looked";
+        else if (now - job.lastUpdateAt >= CHECKIN_MS && job.toolCalls - job.lastUpdateCalls >= 3) why = "check-in: "
+                + (now - job.lastUpdateAt) / 60_000 + " minutes since you last looked";
+        if (why == null) return;
+        // Not too often (a problem is still reported, after a short pause).
+        if (now - job.lastUpdateAt < MIN_GAP_MS && job.updates > 0) return;
+        job.lastUpdateAt = now;
+        job.lastUpdateCalls = job.toolCalls;
+        job.updates++;
+        g.agent.teamUpdate(job, why);
+    }
+
+    /**
+     * The member asks the boss (unclear brief, a decision, a plan that will not work). The boss is
+     * told at once; the answer comes back through the member's inbox. Waits up to {@code waitMs}.
+     */
+    public static List<String> ask(AppGraph g, Job job, String question, long waitMs, CancellationToken cancel) throws InterruptedException {
+        job.lastUpdateAt = System.currentTimeMillis();
+        job.lastUpdateCalls = job.toolCalls;
+        job.updates++;
+        g.agent.teamUpdate(job, "it asks you: " + question);
+        long end = System.currentTimeMillis() + waitMs;
+        while (System.currentTimeMillis() < end && (cancel == null || !cancel.isCancelled()) && job.running()) {
+            List<String> got = job.takeInbox();
+            if (!got.isEmpty()) return got;
+            Thread.sleep(400);
+        }
+        return new ArrayList<>();
+    }
+
+    /** The text that tells the boss how a working member is doing. */
+    static String updateText(Job j, String why) {
+        StringBuilder sb = new StringBuilder(UPDATE_MARKER);
+        sb.append(" This message is from the app, not typed by the user. ").append(j.employee);
+        if (!j.role.isEmpty()) sb.append(" (").append(j.role).append(')');
+        long min = (System.currentTimeMillis() - j.startedAt) / 60_000;
+        sb.append(" is working on job #").append(j.id).append(" (").append(min).append(" min, ").append(j.toolCalls).append(" tool calls).\n");
+        sb.append("Why you are told: ").append(why).append('\n');
+        sb.append("Task: ").append(j.briefShort(400)).append('\n');
+        if (!j.progress.trim().isEmpty()) sb.append("Recent steps:\n").append(j.progress.trim()).append('\n');
+        sb.append("Look at it like a manager. On track: reply with exactly NOTHING. Going the wrong way, stuck, or wasting steps: "
+                + "delegate_task action=tell job=").append(j.id).append(" with a clear correction (what to do instead), or action=stop "
+                + "and assign it again with a better brief. It asked a question: answer it with action=tell job=").append(j.id)
+                .append(". Tell the user something only if they must know or decide.");
+        return sb.toString();
+    }
+
+    /** The member's name inside an update message (for the chat's short line), or "". */
+    public static String updateSender(String message) {
+        if (message == null || !message.startsWith(UPDATE_MARKER)) return "";
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("typed by the user\\. (.+?)(?: \\(| is working)").matcher(message);
+        return m.find() ? m.group(1) : "";
+    }
+
+    private static String shorten(String s, int n) {
+        if (s == null) return "";
+        s = s.replace('\n', ' ');
+        return s.length() <= n ? s : s.substring(0, n) + "…";
     }
 
     public static boolean stop(int id) {

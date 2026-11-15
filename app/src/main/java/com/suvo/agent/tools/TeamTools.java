@@ -42,6 +42,43 @@ public final class TeamTools {
 
     // ------------------------------------------------------------------------------------------
 
+    /** Boss task id → when it last asked for the team status. */
+    private static final java.util.concurrent.ConcurrentHashMap<String, Long> LAST_STATUS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** For team members: ask the boss and get its answer (the boss is told at once). */
+    public static final class AskBoss extends BaseTool {
+        public AskBoss(AppGraph g) {
+            super(g, ToolSpec.builder("ask_boss")
+                    .description("Team members only: ask the boss (who gave you this job) a short, specific question — the brief is "
+                            + "unclear, a choice changes the result a lot, or the plan cannot work. The boss answers within about two "
+                            + "minutes; the answer is this tool's result. If no answer comes, go on with your best judgement and say "
+                            + "so in your report. Do not ask about things you can find out with your tools.")
+                    .schema("{\"type\":\"object\",\"properties\":{"
+                            + "\"question\":{\"type\":\"string\",\"maxLength\":800}"
+                            + "},\"required\":[\"question\"],\"additionalProperties\":false}")
+                    .risk(RiskLevel.READ_ONLY).timeoutMs(180_000L).build());
+        }
+
+        @Override
+        public String describeCall(JSONObject args) {
+            return "Ask the boss: " + args.optString("question");
+        }
+
+        @Override
+        public ToolResult execute(ToolInvocation inv) throws Exception {
+            com.suvo.agent.agent.Team.Job job = com.suvo.agent.agent.Team.jobForTask(inv.taskId);
+            if (job == null) return ToolResult.fail("ask_boss is for team members; you are the boss — ask the user instead.");
+            String q = inv.str("question").trim();
+            if (q.isEmpty()) return ToolResult.of(ToolResult.Status.INVALID_ARGUMENTS, "question is required");
+            inv.progress.update("Waiting for the boss…");
+            List<String> answer = com.suvo.agent.agent.Team.ask(g, job, q, 150_000L, inv.cancel);
+            if (answer.isEmpty()) {
+                return ToolResult.ok("No answer from the boss yet. Go on with your best judgement and mention the open question in your report.");
+            }
+            return ToolResult.ok("The boss answered: " + String.join("\n", answer));
+        }
+    }
+
     public static final class DelegateTask extends BaseTool {
         public DelegateTask(AppGraph g) {
             super(g, ToolSpec.builder("delegate_task")
@@ -121,6 +158,15 @@ public final class TeamTools {
                 return ToolResult.ok(arr.length() + " employees", J.obj("team", arr));
             }
             if ("status".equals(action)) {
+                // Checking again and again is waiting in disguise: once a minute is plenty.
+                Long last = LAST_STATUS.get(inv.taskId);
+                long now = System.currentTimeMillis();
+                if (last != null && now - last < 60_000) {
+                    return ToolResult.fail("You checked " + (now - last) / 1000 + " s ago. Members tell you themselves when they "
+                            + "finish, get stuck, ask something, or at check-ins ([Team update]). End your turn or do other work.");
+                }
+                LAST_STATUS.put(inv.taskId, now);
+                if (LAST_STATUS.size() > 64) LAST_STATUS.clear();
                 int id = (int) inv.num("job", -1);
                 if (id >= 0) {
                     com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.get(id);
@@ -215,9 +261,12 @@ public final class TeamTools {
             if (invalid != null) return ToolResult.fail(e.name + "'s provider \"" + p.name + "\" is not usable: " + invalid);
             String brief = inv.str("task").trim();
             if (!inv.str("context").trim().isEmpty()) brief += "\n\nContext from the boss:\n" + inv.str("context").trim();
-            com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.assign(g, e, brief, g.agent.activeConversation());
+            // The job belongs to the chat that gave it: the report goes back there.
+            long conv = g.agent.conversationOfTask(inv.taskId);
+            com.suvo.agent.agent.Team.Job j = com.suvo.agent.agent.Team.assign(g, e, brief, conv >= 0 ? conv : g.agent.activeConversation());
             return ToolResult.ok(e.name + " started job #" + j.id + " and works in the background. The report will reach you as a "
-                    + "[Team report] message. Now tell the user in a sentence or two who is doing what, and end your turn.",
+                    + "[Team report] message; if it gets stuck, asks you something, or at check-ins, a [Team update] reaches you and "
+                    + "you can steer it with action=tell. Now tell the user in a sentence or two who is doing what, and end your turn.",
                     J.obj("job", j.id, "employee", e.name, "role", e.role, "status", "running"));
         }
     }

@@ -1459,6 +1459,10 @@ S = {
 "companion_mood_poked": "बार-बार मत छुओ! हम्फ़।",
 "companion_mood_dizzy": "उफ़… सब घूम रहा है…",
 "companion_mood_shaken": "अरे! मुझे ऐसे मत हिलाओ!",
+"log_message_added": "नया मैसेज — अगले स्टेप पर पढ़ा जाएगा",
+"log_message_read": "नया मैसेज पढ़ लिया",
+"agent_too_many": "%1$d चैट पहले से काम कर रही हैं। एक के ख़त्म होने का इंतज़ार करें, या एक को रोकें।",
+"chat_team_update": "बॉस ने %1$s का काम देखा",
 }
 
 P = {

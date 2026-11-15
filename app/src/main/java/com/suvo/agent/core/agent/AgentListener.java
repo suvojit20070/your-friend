@@ -40,4 +40,8 @@ public interface AgentListener {
 
     default void onFinished(TaskState task) {
     }
+
+    /** A message that arrived while the task ran was added to the conversation (the chat shows it). */
+    default void onIncoming(TaskState task, ChatMessage message) {
+    }
 }

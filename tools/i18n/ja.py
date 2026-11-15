@@ -1459,6 +1459,10 @@ S = {
 "companion_mood_poked": "つつかないで！ふん。",
 "companion_mood_dizzy": "うわぁ…目が回る…",
 "companion_mood_shaken": "ちょっと！そんなに揺らさないで！",
+"log_message_added": "新しいメッセージ — 次のステップで読みます",
+"log_message_read": "新しいメッセージを読みました",
+"agent_too_many": "すでに%1$d件のチャットが作業中です。どれかが終わるのを待つか、止めてください。",
+"chat_team_update": "ボスが%1$sの進み具合を確認しました",
 }
 
 P = {

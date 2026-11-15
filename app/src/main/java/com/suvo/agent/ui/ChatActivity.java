@@ -340,14 +340,22 @@ public final class ChatActivity extends BaseActivity {
     private final AgentListener agentListener = new AgentListener() {
         @Override
         public void onStatusChanged(TaskState task) {
+            // Other chats work side by side: only this chat's agent shows here.
+            if (task.conversationId != conversationId) return;
             updateRunState(statusText(task));
+        }
+
+        @Override
+        public void onIncoming(TaskState task, ChatMessage message) {
+            // A message written while it worked was read now: it moves into the conversation.
+            if (task.conversationId == conversationId) reloadSoon();
         }
 
         @Override
         public void onTextDelta(TaskState task, String delta) {
             if (task.conversationId != conversationId) return;
             ensureStreamItem();
-            if (streamFull.isEmpty() && g.agent.isRunning()) updateRunState(getString(R.string.status_writing));
+            if (streamFull.isEmpty() && g.agent.isRunningIn(conversationId)) updateRunState(getString(R.string.status_writing));
             streamFull += delta;
             startReveal();
         }
@@ -362,6 +370,7 @@ public final class ChatActivity extends BaseActivity {
 
         @Override
         public void onToolCallPreparing(TaskState task, String toolName) {
+            if (task.conversationId != conversationId) return;
             updateRunState(getString(R.string.status_using_tool, toolName));
         }
 
@@ -372,6 +381,7 @@ public final class ChatActivity extends BaseActivity {
 
         @Override
         public void onToolProgress(TaskState task, ToolCall call, String message) {
+            if (task.conversationId != conversationId) return;
             updateRunState(call.name + ": " + message);
         }
 
@@ -382,6 +392,7 @@ public final class ChatActivity extends BaseActivity {
 
         @Override
         public void onNotice(TaskState task, String notice) {
+            if (task.conversationId != conversationId) return;
             updateRunState(notice);
         }
 
@@ -463,6 +474,8 @@ public final class ChatActivity extends BaseActivity {
             pageIfNeeded(y, oy);
         });
         input = findViewById(R.id.chat_input);
+        // Stop while it works and nothing is written; Send as soon as something is (it goes in at the next step).
+        input.addTextChangedListener(new SimpleWatcher(this::updateSendIcon));
         send = findViewById(R.id.chat_send);
         adapter = new Adapter();
         speechInput = new SpeechInput(this);
@@ -497,8 +510,10 @@ public final class ChatActivity extends BaseActivity {
         updateModelTitle();
 
         send.setOnClickListener(v -> {
-            if (g.agent.isRunning()) {
-                g.agent.cancel();
+            // While it works: with nothing written the button stops this chat's agent; with a message
+            // it sends it — the agent reads it at its next step (it can change course).
+            if (g.agent.isRunningIn(conversationId) && input.getText().toString().trim().isEmpty() && pending.isEmpty()) {
+                g.agent.cancel(conversationId);
                 return;
             }
             // Let the button's press spring play first; the list rebuild follows a moment later.
@@ -1154,8 +1169,8 @@ public final class ChatActivity extends BaseActivity {
                 if (!isFinishing() && !isDestroyed()) reload();
             });
         });
-        TaskState t = g.agent.current();
-        updateRunState(g.agent.isRunning() && t != null ? statusText(t) : null);
+        TaskState t = g.agent.current(conversationId);
+        updateRunState(g.agent.isRunningIn(conversationId) && t != null ? statusText(t) : null);
     }
 
     @Override
@@ -1185,8 +1200,16 @@ public final class ChatActivity extends BaseActivity {
         }
     }
 
+    /** Stop (this chat's agent works and nothing is written) or Send. */
+    private void updateSendIcon() {
+        if (send == null || input == null) return;
+        boolean stop = g.agent.isRunningIn(conversationId) && input.getText().toString().trim().isEmpty() && pending.isEmpty();
+        send.setImageResource(stop ? R.drawable.ic_stop : R.drawable.ic_send);
+        send.setContentDescription(getString(stop ? R.string.action_stop : R.string.send));
+    }
+
     private void updateRunState(String text) {
-        boolean running = g.agent.isRunning();
+        boolean running = g.agent.isRunningIn(conversationId);
         View status = findViewById(R.id.chat_status);
         status.setVisibility(running || findViewById(R.id.chat_memory_chip).getVisibility() == View.VISIBLE ? View.VISIBLE : View.GONE);
         View progress = findViewById(R.id.chat_progress);
@@ -1221,8 +1244,7 @@ public final class ChatActivity extends BaseActivity {
                 st.setText(next);
             }
         }
-        send.setImageResource(running ? R.drawable.ic_stop : R.drawable.ic_send);
-        send.setContentDescription(getString(running ? R.string.action_stop : R.string.send));
+        updateSendIcon();
     }
 
     private void showMemoryChip() {
@@ -1362,8 +1384,9 @@ public final class ChatActivity extends BaseActivity {
                     String c0 = m.contentOrEmpty();
                     // A team member's report to the boss: one short line, not a message of yours.
                     boolean teamReport = c0.startsWith(com.suvo.agent.agent.Team.REPORT_MARKER);
-                    it.type = toolImage || appCheck || teamReport ? NOTICE : USER;
-                    it.text = teamReport ? getString(com.suvo.agent.agent.Team.reportFailed(c0) ? R.string.chat_team_report_failed
+                    boolean teamUpdate = c0.startsWith(com.suvo.agent.agent.Team.UPDATE_MARKER);
+                    it.type = toolImage || appCheck || teamReport || teamUpdate ? NOTICE : USER;
+                    it.text = teamUpdate ? getString(R.string.chat_team_update, com.suvo.agent.agent.Team.updateSender(c0)) : teamReport ? getString(com.suvo.agent.agent.Team.reportFailed(c0) ? R.string.chat_team_report_failed
                             : R.string.chat_team_report, com.suvo.agent.agent.Team.reportSender(c0)) : appCheck ? getString(c0.startsWith(com.suvo.agent.core.agent.FollowThrough.CHECK_FIRST.substring(0, 40))
                             ? R.string.chat_check_first : c0.startsWith(com.suvo.agent.core.agent.FollowThrough.REMINDER.substring(0, 40))
                             ? R.string.chat_follow_through : R.string.chat_completion_check) : toolImage ? getString(R.string.chat_tool_image, m.images.size())
@@ -1396,7 +1419,9 @@ public final class ChatActivity extends BaseActivity {
                     break;
                 }
                 case ASSISTANT: {
-                    if (!m.contentOrEmpty().trim().isEmpty() || (m.reasoning != null && !m.reasoning.trim().isEmpty())) {
+                    // "NOTHING": the boss looked at a member's progress (or a check-in) and all was well.
+                    boolean nothing = com.suvo.agent.agent.Scheduler.NOTHING.equals(m.contentOrEmpty().trim());
+                    if (!nothing && (!m.contentOrEmpty().trim().isEmpty() || (m.reasoning != null && !m.reasoning.trim().isEmpty()))) {
                         Item it = new Item();
                         it.type = ASSISTANT;
                         it.text = m.contentOrEmpty().trim();
@@ -1458,6 +1483,17 @@ public final class ChatActivity extends BaseActivity {
         }
         placedJobs.clear();
         groupTools();
+        // Written while the agent works: shown as waiting until it reads them at its next step.
+        int w = 0;
+        for (String text : g.agent.waitingMessages(conversationId)) {
+            Item it = new Item();
+            it.type = USER;
+            it.text = com.suvo.agent.core.util.Attachments.forDisplay(text, "%.0s", getString(R.string.chat_folder_attached));
+            it.time = System.currentTimeMillis();
+            it.dim = true;
+            it.key = "waiting:" + (w++);
+            items.add(it);
+        }
         if (lastError != null && lastErrorConversation == conversationId) {
             Item e = new Item();
             e.type = ERROR;
@@ -1799,11 +1835,7 @@ public final class ChatActivity extends BaseActivity {
         @Override
         public void sendMessage(String text) {
             if (text == null || text.trim().isEmpty()) return;
-            if (g.agent.isRunning()) {
-                Ui.toast(ChatActivity.this, R.string.block_busy);
-                return;
-            }
-            submit(text);
+            submit(text); // while it works, it is read at the next step
         }
 
         @Override
@@ -2007,9 +2039,8 @@ public final class ChatActivity extends BaseActivity {
      * is refused with a short note until the task finishes or is stopped.
      */
     private boolean switchLocked() {
-        if (!g.agent.isRunning()) return false;
-        Fx.pill(this, getString(R.string.chat_switch_locked), findViewById(R.id.chat_composer));
-        return true;
+        // Every chat has its own agent now: a task goes on in the background while another chat is open.
+        return false;
     }
 
     // ---- Pull up at the end of the chat: a new conversation ----------------------------------------
@@ -2036,7 +2067,7 @@ public final class ChatActivity extends BaseActivity {
                 int[] loc = new int[2];
                 list.getLocationOnScreen(loc);
                 boolean inside = e.getRawY() >= loc[1] && e.getRawY() <= loc[1] + list.getHeight();
-                boolean ok = inside && !items.isEmpty() && !list.canScrollVertically(1) && !g.agent.isRunning() && !Overlay.anyOpen(this);
+                boolean ok = inside && !items.isEmpty() && !list.canScrollVertically(1) && !g.agent.isRunningIn(conversationId) && !Overlay.anyOpen(this);
                 pullStartY = ok ? e.getRawY() : -1f;
                 pullArmed = false;
                 break;
@@ -2151,7 +2182,7 @@ public final class ChatActivity extends BaseActivity {
                     g.conversations.setPinned(c.id, !c.pinned);
                     load.run();
                 } else {
-                    if (c.id == conversationId && g.agent.isRunning()) {
+                    if (g.agent.isRunningIn(c.id)) {
                         Ui.toast(this, R.string.chat_switch_locked);
                         return;
                     }
@@ -2317,7 +2348,7 @@ public final class ChatActivity extends BaseActivity {
         if (autoListen != null) autoListen.cancel();
         autoListen = com.suvo.agent.voice.AutoListen.afterSpeech(g, () -> {
             // Only while this chat is in front, nothing is typed and the agent is not working again.
-            if (isFinishing() || !hasWindowFocus() || g.agent.isRunning() || speechInput.isListening()) return;
+            if (isFinishing() || !hasWindowFocus() || g.agent.isRunningIn(conversationId) || speechInput.isListening()) return;
             if (!input.getText().toString().trim().isEmpty()) return;
             listen(true);
         });

@@ -249,7 +249,7 @@ public final class HandsFreeService extends Service {
         if (!running || gate == null) return;
         AppGraph g = AppGraph.get();
         // A call has the microphone: hands-free waits until it ends.
-        boolean busy = assistOpen || waitingForAgent || g.agent.isRunning() || g.speech.isActive() || CallService.active();
+        boolean busy = assistOpen || waitingForAgent || g.agent.isRunningIn(handsFreeConversation) || g.speech.isActive() || CallService.active();
         if (gate.isRunning()) {
             gate.pause(busy);
             if (!busy) publish(getString(R.string.handsfree_listening));
