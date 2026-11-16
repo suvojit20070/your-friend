@@ -99,10 +99,12 @@ public final class HandsFreeService extends Service {
 
     public static void addListener(StateListener l) {
         listeners.addIfAbsent(l);
+        levelWantedChanged();
     }
 
     public static void removeListener(StateListener l) {
         listeners.remove(l);
+        levelWantedChanged();
     }
 
     /** True when hands-free may run: consent given and the microphone permission granted. */
@@ -147,6 +149,12 @@ public final class HandsFreeService extends Service {
 
     public static void stop(Context ctx) {
         ctx.stopService(new Intent(ctx, HandsFreeService.class));
+    }
+
+    /** The mic level is only measured out to the main thread while a screen shows it. */
+    private static void levelWantedChanged() {
+        HandsFreeService s = instance;
+        if (s != null && s.gate != null) s.gate.setLevelWanted(!listeners.isEmpty());
     }
 
     private void publish(String status) {
@@ -199,6 +207,7 @@ public final class HandsFreeService extends Service {
             running = true;
             instance = this;
             gate = new VoiceGate(this);
+            gate.setLevelWanted(!listeners.isEmpty());
             agentListener = new AgentListener() {
                 @Override
                 public void onFinished(TaskState task) {

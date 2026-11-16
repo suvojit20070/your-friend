@@ -80,6 +80,22 @@ public final class WakeDetector {
         return false;
     }
 
+    /**
+     * The sound fed since the last check is over (a pause, or it ran long): checks it for the wake
+     * word and lets go of it. The recognizer keeps everything it is fed until it decides a sentence
+     * ended — with steady background sound that never happens, and it grows (memory, and work on
+     * every frame) until the phone lags. Ending it ourselves keeps it small.
+     */
+    public boolean finish() {
+        try {
+            return matches(rec.getFinalResult());
+        } catch (RuntimeException ignored) {
+            return false;
+        } finally {
+            reset();
+        }
+    }
+
     /** Forgets what was heard so far (after a trigger, or after a pause). */
     public void reset() {
         try {

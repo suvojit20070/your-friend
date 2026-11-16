@@ -87,15 +87,43 @@ public final class VoiceGate {
     public void setWake(WakeDetector d) {
         WakeDetector old = wake;
         wake = d;
-        if (old != null && old != d) pendingClose = old;
+        if (old != null && old != d) {
+            // A loop that is not running any more would never close it: close it here.
+            if (thread == null || !running) old.close();
+            else pendingClose.add(old);
+        }
     }
 
     public boolean wakeMode() {
         return wake != null;
     }
 
-    /** Closed on the recording thread (it may be feeding the old one right now). */
-    private volatile WakeDetector pendingClose;
+    /** Closed on the recording thread (it may be feeding the old one right now). All of them, never only the last. */
+    private final java.util.concurrent.ConcurrentLinkedQueue<WakeDetector> pendingClose = new java.util.concurrent.ConcurrentLinkedQueue<>();
+
+    /** Mic level updates: at most this often, and only when someone shows them. */
+    private static final long LEVEL_EVERY_MS = 100;
+    private long lastLevelPost;
+    private volatile boolean levelWanted = true;
+
+    /** Whether anything shows the mic level now (no screen → no updates at all). */
+    public void setLevelWanted(boolean wanted) {
+        levelWanted = wanted;
+    }
+
+    private void postLevel(float level) {
+        if (!levelWanted) return;
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastLevelPost < LEVEL_EVERY_MS) return;
+        lastLevelPost = now;
+        main.post(() -> {
+            if (cb != null) cb.onLevel(level);
+        });
+    }
+
+    // Offline wake word: only sound is fed; a pause (or a long stretch) ends the piece.
+    private static final int WAKE_PAUSE_FRAMES = 30;      // 0.6 s of quiet ends a piece
+    private static final int WAKE_MAX_FRAMES = 300;       // 6 s at most per piece (the word takes 1–2 s)
     private Thread thread;
 
     // Utterance state (main thread).
@@ -172,11 +200,16 @@ public final class VoiceGate {
             int quiet = 0;
             int uttFrames = 0;
             boolean inSpeech = false;
+            // Offline wake word piece: frames fed, quiet frames since the last sound, and the
+            // room's level (only sound clearly above it is fed).
+            int wakeFed = 0, wakeQuiet = 0;
+            float wakeNoise = 250f;
+            ArrayDeque<short[]> wakePre = new ArrayDeque<>();
             while (running && !Thread.currentThread().isInterrupted()) {
-                WakeDetector closeMe = pendingClose;
-                if (closeMe != null) {
-                    pendingClose = null;
+                WakeDetector closeMe;
+                while ((closeMe = pendingClose.poll()) != null) {
                     closeMe.close();
+                    wakeFed = 0;
                 }
                 if (paused) {
                     // Paused (an answer is being spoken, the assistant card is listening…): let go
@@ -203,17 +236,44 @@ public final class VoiceGate {
                     recordingNow = true;
                     WakeDetector w = wake;
                     if (w != null) w.reset();
+                    wakeFed = 0;
+                    wakeQuiet = 0;
+                    wakePre.clear();
                 }
                 int n = rec.read(frame, 0, FRAME);
                 if (n <= 0) continue;
                 WakeDetector w = wake;
                 if (w != null) {
-                    final float lvl = Math.min(1f, rms(frame, n) / 6000f);
-                    main.post(() -> {
-                        if (cb != null) cb.onLevel(lvl);
-                    });
-                    if (w.feed(frame, n)) {
+                    float r = rms(frame, n);
+                    postLevel(Math.min(1f, r / 6000f));
+                    boolean sound = r > Math.max(wakeNoise * 2.2f, 300f);
+                    if (wakeFed == 0 && !sound) {
+                        // Quiet: nothing goes to the recognizer, only the room level is followed
+                        // and a short lead-in kept (so the first syllable is not lost).
+                        wakeNoise = wakeNoise * 0.97f + r * 0.03f;
+                        wakePre.addLast(frame.clone());
+                        if (wakePre.size() > 10) wakePre.removeFirst();
+                        continue;
+                    }
+                    boolean heard = false;
+                    if (wakeFed == 0) {
+                        for (short[] p : wakePre) heard |= w.feed(p, p.length);
+                        wakeFed += wakePre.size();
+                        wakePre.clear();
+                    }
+                    heard |= w.feed(frame, n);
+                    wakeFed++;
+                    wakeQuiet = sound ? 0 : wakeQuiet + 1;
+                    // The piece is over (a pause after the sound, or it ran long): check it and let it go.
+                    if (!heard && (wakeQuiet >= WAKE_PAUSE_FRAMES || wakeFed >= WAKE_MAX_FRAMES)) {
+                        heard = w.finish();
+                        wakeFed = 0;
+                        wakeQuiet = 0;
+                    }
+                    if (heard) {
                         w.reset();
+                        wakeFed = 0;
+                        wakeQuiet = 0;
                         paused = true;
                         main.post(() -> {
                             if (cb != null) cb.onWake();
@@ -222,10 +282,7 @@ public final class VoiceGate {
                     continue;
                 }
                 float rms = rms(frame, n);
-                final float level = Math.min(1f, rms / 6000f);
-                main.post(() -> {
-                    if (cb != null) cb.onLevel(level);
-                });
+                postLevel(Math.min(1f, rms / 6000f));
                 if (paused) {
                     inSpeech = false;
                     loud = 0;
@@ -285,9 +342,8 @@ public final class VoiceGate {
                 }
                 rec.release();
             }
-            WakeDetector pc = pendingClose;
-            pendingClose = null;
-            if (pc != null) pc.close();
+            WakeDetector pc;
+            while ((pc = pendingClose.poll()) != null) pc.close();
             // Stopped for good (not restarted): the detector goes too.
             if (!running) {
                 WakeDetector w = wake;
