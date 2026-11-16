@@ -260,6 +260,43 @@
                 android:value="true" />
         </service>
         <service
+            android:name=".launch.Tiles$HandsFree"
+            android:exported="true"
+            android:icon="@drawable/ic_mic"
+            android:label="@string/tile_hands_free"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+        <service
+            android:name=".launch.Tiles$NetGate"
+            android:exported="true"
+            android:icon="@drawable/ic_shield"
+            android:label="@string/netgate_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <!-- Net Gate: a VPN on the phone itself that decides which apps get internet. -->
+        <service
+            android:name=".netgate.NetGateService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VPN_SERVICE">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
+        <service
             android:name=".launch.Tiles$Companion"
             android:exported="true"
             android:icon="@drawable/ic_stat_companion"
@@ -332,6 +369,7 @@
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
         <activity android:name=".ui.AutoReplyActivity" android:exported="false" android:launchMode="singleTop" />
+        <activity android:name=".ui.NetGateActivity" android:exported="false" android:launchMode="singleTop" />
         <!-- Auto reply: reads chat notifications (after the user allows notification access) and answers
              through their inline reply box. -->
         <service

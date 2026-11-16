@@ -14,7 +14,6 @@
 secrets.properties
 *.jks.base64
 
-# Downloaded by CI (tools/editor/fetch_grammars.py)
-/app/src/main/assets/textmate/grammars/
-/app/src/main/assets/textmate/languages.json
+# Downloaded / built by CI (tools/stt/fetch_sherpa.sh, tools/netgate/build_hev.sh)
 /app/libs/sherpa-onnx.aar
+/app/src/main/jniLibs/*/libhev-socks5-tunnel.so

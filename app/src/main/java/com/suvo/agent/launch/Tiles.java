@@ -17,7 +17,8 @@ import com.suvo.agent.data.Settings;
  * Quick Settings tiles (pull down the notification shade → edit → drag in): "Ask" opens the
  * assistant card to type, "Talk" opens it listening, "Ask about screen" asks about what is on
  * screen right away, "Floating companion" switches the floating character on or off, "Replia"
- * switches chat auto reply on or off without opening the app.
+ * switches chat auto reply on or off without opening the app, "Hands-free" switches listening for
+ * the wake word on or off.
  */
 public final class Tiles {
 
@@ -119,6 +120,108 @@ public final class Tiles {
                 FloatingCompanionService.stop(this);
             }
             label(this, on ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        }
+    }
+
+    /**
+     * Toggle: hands-free (listening for the wake word). Switching on from here starts it at once when
+     * Android allows; otherwise (a microphone service may only start while the app is in front) the
+     * app opens for a moment and it starts there. Without consent or the microphone permission, the
+     * Voice settings open.
+     */
+    public static final class HandsFree extends TileService {
+        @Override
+        public void onStartListening() {
+            update(com.suvo.agent.voice.HandsFreeService.isRunning());
+        }
+
+        private void update(boolean on) {
+            Tile t = getQsTile();
+            if (t == null) return;
+            t.setState(on ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+            t.setIcon(Icon.createWithResource(this, R.drawable.ic_mic));
+            t.setLabel(getString(R.string.tile_hands_free));
+            t.updateTile();
+        }
+
+        @Override
+        public void onClick() {
+            AppGraph g = AppGraph.get();
+            boolean on = !com.suvo.agent.voice.HandsFreeService.isRunning();
+            if (!on) {
+                g.settings.put(Settings.HANDS_FREE, false);
+                com.suvo.agent.voice.HandsFreeService.stop(this);
+                update(false);
+                return;
+            }
+            if (!com.suvo.agent.voice.HandsFreeService.canRun(this)) {
+                // Consent or the microphone permission is missing: that is set up in Voice settings.
+                open(this, new Intent(this, com.suvo.agent.ui.VoiceActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 66);
+                return;
+            }
+            g.settings.put(Settings.HANDS_FREE, true);
+            if (com.suvo.agent.voice.HandsFreeService.start(this)) {
+                update(true);
+            } else {
+                // Not allowed from the background: the app starts it when it comes to the front.
+                open(this, new Intent(this, com.suvo.agent.ui.MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 67);
+            }
+        }
+    }
+
+    /** Asks Android to redraw the Net Gate tile (it was switched in the app, or the VPN stopped). */
+    public static void refreshNetGate(android.content.Context ctx) {
+        try {
+            TileService.requestListeningState(ctx, new android.content.ComponentName(ctx, NetGate.class));
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    /**
+     * Toggle: Net Gate (which apps get internet). The first time Android must approve the VPN, and
+     * with nothing set up yet, the Net Gate screen opens instead.
+     */
+    public static final class NetGate extends TileService {
+        @Override
+        public void onStartListening() {
+            update();
+        }
+
+        private void update() {
+            Tile t = getQsTile();
+            if (t == null) return;
+            boolean on = com.suvo.agent.netgate.NetGateService.isRunning();
+            t.setState(on ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+            t.setIcon(Icon.createWithResource(this, R.drawable.ic_shield));
+            t.setLabel(getString(R.string.netgate_name));
+            t.updateTile();
+        }
+
+        @Override
+        public void onClick() {
+            if (com.suvo.agent.netgate.NetGateService.isRunning()) {
+                com.suvo.agent.netgate.NetGateService.stop(this);
+                update();
+                return;
+            }
+            com.suvo.agent.netgate.NetGateStore st = new com.suvo.agent.netgate.NetGateStore(this);
+            boolean nothingToDo = com.suvo.agent.netgate.NetGateStore.BLOCK.equals(st.mode()) && st.apps().isEmpty() && !st.useProxy();
+            Intent consent = null;
+            boolean started = false;
+            if (!nothingToDo) {
+                try {
+                    consent = com.suvo.agent.netgate.NetGateService.start(this);
+                    started = consent == null;
+                } catch (RuntimeException e) {
+                    started = false;
+                }
+            }
+            if (!started) {
+                // VPN approval, or nothing chosen yet: that is done on the Net Gate screen.
+                open(this, new Intent(this, com.suvo.agent.ui.NetGateActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), 68);
+                return;
+            }
+            update();
         }
     }
 

@@ -5,8 +5,8 @@ import android.content.Intent;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.EditText;
@@ -17,48 +17,31 @@ import android.widget.TextView;
 import com.suvo.agent.R;
 import com.suvo.agent.files.FileAccess;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
-
-import io.github.rosemoe.sora.event.ContentChangeEvent;
-import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme;
-import io.github.rosemoe.sora.langs.textmate.TextMateLanguage;
-import io.github.rosemoe.sora.langs.textmate.registry.FileProviderRegistry;
-import io.github.rosemoe.sora.langs.textmate.registry.GrammarRegistry;
-import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry;
-import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel;
-import io.github.rosemoe.sora.langs.textmate.registry.provider.AssetsFileResolver;
-import io.github.rosemoe.sora.widget.CodeEditor;
-import io.github.rosemoe.sora.widget.EditorSearcher;
-import io.github.rosemoe.sora.widget.schemes.EditorColorScheme;
-
-import org.eclipse.tm4e.core.registry.IThemeSource;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Your Friend — Original project by Suvo.
  *
- * The file editor (Sora Editor): line numbers, undo / redo, find & replace (with case and regex),
- * word wrap, and code colours from TextMate grammars when CI fetched them (else plain text, still
- * fully editable). Opens any path the Files screen can reach: workspace, picked folders, Shizuku.
+ * The file editor: a plain text field (monospace) with undo / redo, find & replace (with case and
+ * regex), and word wrap. Opens any path the Files screen can reach: workspace, picked folders,
+ * Shizuku.
  */
 public final class EditorActivity extends BaseActivity {
 
     public static final String EXTRA_PATH = "path";
-    private static final String TAG = "YF.Editor";
-    private static final int MAX_BYTES = 8 * 1024 * 1024;
+    /** A plain text field gets slow with very big files: larger ones are not opened. */
+    private static final int MAX_BYTES = 2 * 1024 * 1024;
     private static final String WRAP = "editor_word_wrap";
-
-    private static boolean textMateReady;
 
     private String path;
     private FileAccess fa;
-    private CodeEditor editor;
+    private EditText editor;
     private boolean dirty;
     private boolean loading = true;
     private EditText findInput, replaceInput;
@@ -82,17 +65,22 @@ public final class EditorActivity extends BaseActivity {
         setTopBar(nameOf(path));
         Palette p = Palette.of(this);
 
-        editor = new CodeEditor(this);
-        editor.setTypefaceText(Typeface.MONOSPACE);
+        editor = new EditText(this);
+        editor.setTypeface(Typeface.MONOSPACE);
         editor.setTextSize(14f);
-        editor.setWordwrap(g.settings.bool(WRAP, false));
-        editor.setEditable(false);
-        ((android.widget.FrameLayout) findViewById(R.id.editor_box)).addView(editor,
-                new android.widget.FrameLayout.LayoutParams(-1, -1));
-        applyColors(p);
-        editor.subscribeEvent(ContentChangeEvent.class, (event, unsubscribe) -> {
-            if (!loading) dirty = true;
-        });
+        editor.setTextColor(p.onSurface);
+        editor.setHighlightColor(Palette.alpha(p.primary, 0.28f));
+        editor.setBackground(null);
+        editor.setGravity(Gravity.TOP | Gravity.START);
+        editor.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        editor.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI);
+        editor.setVerticalScrollBarEnabled(true);
+        editor.setEnabled(false);
+        applyWrap(g.settings.bool(WRAP, false));
+        android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(-1, -1);
+        lp.setMargins(Ui.dp(this, 12), Ui.dp(this, 4), Ui.dp(this, 12), Ui.dp(this, 8));
+        ((android.widget.FrameLayout) findViewById(R.id.editor_box)).addView(editor, lp);
+        editor.addTextChangedListener(history);
 
         tools();
         findBar(p);
@@ -105,122 +93,67 @@ public final class EditorActivity extends BaseActivity {
         return s >= 0 ? t.substring(s + 1) : t;
     }
 
-    // ---- Colours ---------------------------------------------------------------------------------
-
-    private void applyColors(Palette p) {
-        String scope = scopeFor(path);
-        if (scope != null && prepareTextMate(p)) {
-            try {
-                editor.setColorScheme(TextMateColorScheme.create(ThemeRegistry.getInstance()));
-                editor.setEditorLanguage(TextMateLanguage.create(scope, true));
-            } catch (Throwable t) {
-                Log.w(TAG, "TextMate language failed: " + t);
-            }
-        }
-        // The page colours always follow the app's palette.
-        EditorColorScheme cs = editor.getColorScheme();
-        cs.setColor(EditorColorScheme.WHOLE_BACKGROUND, p.background);
-        cs.setColor(EditorColorScheme.LINE_NUMBER_BACKGROUND, p.background);
-        cs.setColor(EditorColorScheme.LINE_NUMBER, Palette.alpha(p.onSurfaceVariant, 0.6f));
-        cs.setColor(EditorColorScheme.LINE_NUMBER_CURRENT, p.primary);
-        cs.setColor(EditorColorScheme.CURRENT_LINE, Palette.alpha(p.primary, 0.07f));
-        cs.setColor(EditorColorScheme.SELECTION_INSERT, p.primary);
-        cs.setColor(EditorColorScheme.SELECTION_HANDLE, p.primary);
-        cs.setColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND, Palette.alpha(p.primary, 0.28f));
-        cs.setColor(EditorColorScheme.LINE_DIVIDER, Palette.alpha(p.outlineVariant, 0.5f));
-        if (scope == null || !textMateReady) cs.setColor(EditorColorScheme.TEXT_NORMAL, p.onSurface);
-        editor.invalidate();
+    private void applyWrap(boolean on) {
+        editor.setHorizontallyScrolling(!on);
+        editor.setHorizontalScrollBarEnabled(!on);
     }
 
-    /** The grammar's scope for this file's extension, from assets/textmate/languages.json. */
-    private String scopeFor(String p) {
-        String name = nameOf(p).toLowerCase(Locale.ROOT);
-        int dot = name.lastIndexOf('.');
-        if (dot < 0) return null;
-        String ext = name.substring(dot + 1);
-        try (InputStream in = getAssets().open("textmate/languages.json")) {
-            JSONObject o = new JSONObject(new String(com.suvo.agent.device.ImageUtil.readAll(in, 1 << 20), StandardCharsets.UTF_8));
-            JSONArray langs = o.getJSONArray("languages");
-            for (int i = 0; i < langs.length(); i++) {
-                JSONObject l = langs.getJSONObject(i);
-                JSONArray exts = l.optJSONArray("extensions");
-                if (exts == null) continue;
-                for (int j = 0; j < exts.length(); j++) if (ext.equals(exts.getString(j))) return l.getString("scopeName");
-            }
-        } catch (Exception ignored) {
-            // No grammars in this build.
+    // ---- Undo / redo ------------------------------------------------------------------------------
+
+    /** One edit: at {@code at}, {@code before} was replaced by {@code after}. */
+    private static final class Edit {
+        final int at;
+        final CharSequence before, after;
+
+        Edit(int at, CharSequence before, CharSequence after) {
+            this.at = at;
+            this.before = before;
+            this.after = after;
         }
-        return null;
     }
 
-    /** Loads the grammars once, and a colour theme made from the app's palette. */
-    private boolean prepareTextMate(Palette p) {
+    private static final int MAX_UNDO = 300;
+    private final ArrayDeque<Edit> undo = new ArrayDeque<>(), redo = new ArrayDeque<>();
+    private boolean applyingHistory;
+
+    private final TextWatcher history = new TextWatcher() {
+        private CharSequence before;
+
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            if (loading || applyingHistory) return;
+            before = s.subSequence(start, start + count).toString();
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before0, int count) {
+            if (loading || applyingHistory) return;
+            undo.push(new Edit(start, before == null ? "" : before, s.subSequence(start, start + count).toString()));
+            while (undo.size() > MAX_UNDO) undo.removeLast();
+            redo.clear();
+        }
+
+        @Override
+        public void afterTextChanged(Editable s) {
+            if (!loading) dirty = true;
+        }
+    };
+
+    private void undoRedo(boolean isUndo) {
+        Edit e = (isUndo ? undo : redo).poll();
+        if (e == null) return;
+        Editable t = editor.getText();
+        CharSequence remove = isUndo ? e.after : e.before, put = isUndo ? e.before : e.after;
+        int end = Math.min(t.length(), e.at + remove.length());
+        applyingHistory = true;
         try {
-            if (!textMateReady) {
-                FileProviderRegistry.getInstance().addFileProvider(new AssetsFileResolver(getApplicationContext().getAssets()));
-                GrammarRegistry.getInstance().loadGrammars("textmate/languages.json");
-                textMateReady = true;
-            }
-            String name = "yf_" + Integer.toHexString(p.primary) + "_" + (p.dark ? "d" : "l");
-            File theme = new File(getCacheDir(), name + ".json");
-            if (!theme.isFile()) {
-                try (FileOutputStream out = new FileOutputStream(theme)) {
-                    out.write(themeJson(p).getBytes(StandardCharsets.UTF_8));
-                }
-            }
-            ThemeRegistry reg = ThemeRegistry.getInstance();
-            try (InputStream in = new java.io.FileInputStream(theme)) {
-                ThemeModel model = new ThemeModel(IThemeSource.fromInputStream(in, theme.getName(), null), name);
-                model.setDark(p.dark);
-                reg.loadTheme(model);
-            }
-            reg.setTheme(name);
-            return true;
-        } catch (Throwable t) {
-            Log.w(TAG, "TextMate unavailable: " + t);
-            return false;
+            t.replace(Math.min(e.at, t.length()), end, put);
+        } finally {
+            applyingHistory = false;
         }
-    }
-
-    /** A VS Code-style colour theme built from the app's palette (keywords in the accent colour). */
-    private static String themeJson(Palette p) throws org.json.JSONException {
-        boolean dark = p.dark;
-        String fg = hex(p.onSurface), bg = hex(p.background), accent = hex(p.primary), tertiary = hex(p.tertiary);
-        String string = dark ? "#9CCC8C" : "#2E7D32", number = dark ? "#E6A96B" : "#B5651D";
-        String comment = hex(Palette.alpha(p.onSurfaceVariant, 0.75f)), type = dark ? "#7FC8E8" : "#0B6E99";
-        JSONObject o = new JSONObject();
-        o.put("name", "Your Friend");
-        o.put("type", dark ? "dark" : "light");
-        o.put("colors", new JSONObject().put("editor.background", bg).put("editor.foreground", fg));
-        JSONArray tc = new JSONArray();
-        tc.put(rule(null, fg, null).put("settings", new JSONObject().put("foreground", fg).put("background", bg)));
-        tc.put(rule("comment, punctuation.definition.comment", comment, "italic"));
-        tc.put(rule("string, string.quoted, punctuation.definition.string", string, null));
-        tc.put(rule("constant.numeric, constant.language, constant.character", number, null));
-        tc.put(rule("keyword, storage, storage.type, storage.modifier, keyword.control, keyword.operator.new", accent, null));
-        tc.put(rule("entity.name.type, entity.name.class, support.type, support.class", type, null));
-        tc.put(rule("entity.name.function, support.function, meta.function-call", tertiary, null));
-        tc.put(rule("entity.name.tag, meta.tag", accent, null));
-        tc.put(rule("entity.other.attribute-name", type, null));
-        tc.put(rule("variable.parameter, variable.other.readwrite", fg, null));
-        tc.put(rule("markup.heading, markup.bold", accent, "bold"));
-        tc.put(rule("markup.italic", fg, "italic"));
-        tc.put(rule("invalid", "#E05555", null));
-        o.put("tokenColors", tc);
-        return o.toString();
-    }
-
-    private static JSONObject rule(String scope, String fg, String style) throws org.json.JSONException {
-        JSONObject r = new JSONObject();
-        if (scope != null) r.put("scope", scope);
-        JSONObject s = new JSONObject().put("foreground", fg);
-        if (style != null) s.put("fontStyle", style);
-        r.put("settings", s);
-        return r;
-    }
-
-    private static String hex(int c) {
-        return String.format(Locale.ROOT, "#%06X", c & 0xFFFFFF);
+        (isUndo ? redo : undo).push(e);
+        editor.setSelection(Math.min(t.length(), e.at + put.length()));
+        dirty = true;
     }
 
     // ---- Load / save -----------------------------------------------------------------------------
@@ -236,9 +169,12 @@ public final class EditorActivity extends BaseActivity {
                     if (isFinishing()) return;
                     loading = true;
                     editor.setText(text);
-                    editor.setEditable(true);
+                    editor.setEnabled(true);
+                    editor.setSelection(0);
                     loading = false;
                     dirty = false;
+                    undo.clear();
+                    redo.clear();
                 });
             } catch (Exception ex) {
                 runOnUiThread(() -> {
@@ -288,20 +224,19 @@ public final class EditorActivity extends BaseActivity {
 
     private void tools() {
         LinearLayout row = findViewById(R.id.editor_tools);
-        tool(row, R.drawable.ic_undo, R.string.editor_undo, v -> {
-            if (editor.canUndo()) editor.undo();
-        });
-        tool(row, R.drawable.ic_redo, R.string.editor_redo, v -> {
-            if (editor.canRedo()) editor.redo();
-        });
+        tool(row, R.drawable.ic_undo, R.string.editor_undo, v -> undoRedo(true));
+        tool(row, R.drawable.ic_redo, R.string.editor_redo, v -> undoRedo(false));
         tool(row, R.drawable.ic_search, R.string.editor_find, v -> openFind(false));
         tool(row, R.drawable.ic_replace, R.string.editor_replace, v -> openFind(true));
         tool(row, R.drawable.ic_wrap, R.string.editor_wrap, v -> {
             boolean on = !g.settings.bool(WRAP, false);
             g.settings.put(WRAP, on);
-            editor.setWordwrap(on);
+            applyWrap(on);
         });
-        tool(row, R.drawable.ic_select_all, R.string.files_select_all, v -> editor.selectAll());
+        tool(row, R.drawable.ic_select_all, R.string.files_select_all, v -> {
+            editor.requestFocus();
+            editor.selectAll();
+        });
         tool(row, R.drawable.ic_copy, R.string.files_copy_path, v -> {
             Ui.copy(this, path);
             Ui.toast(this, R.string.copied);
@@ -456,9 +391,9 @@ public final class EditorActivity extends BaseActivity {
         findViewById(R.id.find_bar).setVisibility(View.VISIBLE);
         replaceRow.setVisibility(withReplace ? View.VISIBLE : View.GONE);
         // Start with the selected text, if any.
-        if (editor.getCursor().isSelected()) {
-            int a = editor.getCursor().getLeft(), b = editor.getCursor().getRight();
-            String sel = editor.getText().subSequence(a, b).toString();
+        int a = editor.getSelectionStart(), b = editor.getSelectionEnd();
+        if (a >= 0 && b > a) {
+            String sel = editor.getText().subSequence(Math.min(a, b), Math.max(a, b)).toString();
             if (!sel.contains("\n")) findInput.setText(sel);
         }
         findInput.requestFocus();
@@ -469,65 +404,120 @@ public final class EditorActivity extends BaseActivity {
 
     private void closeFind() {
         findViewById(R.id.find_bar).setVisibility(View.GONE);
-        try {
-            editor.getSearcher().stopSearch();
-        } catch (RuntimeException ignored) {
-        }
         keyboard(findInput, false);
         editor.requestFocus();
     }
 
-    private void search() {
-        EditorSearcher s = editor.getSearcher();
+    /** The search as a pattern (null: nothing to find, or a half-typed regular expression). */
+    private Pattern pattern() {
         String q = findInput.getText().toString();
-        if (q.isEmpty()) {
-            s.stopSearch();
+        if (q.isEmpty()) return null;
+        int flags = matchCase ? 0 : Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
+        try {
+            return regex ? Pattern.compile(q, flags | Pattern.MULTILINE) : Pattern.compile(Pattern.quote(q), flags);
+        } catch (PatternSyntaxException e) {
+            return null;
+        }
+    }
+
+    /** Every match: {start, end}. */
+    private List<int[]> matches(Pattern pt) {
+        List<int[]> out = new ArrayList<>();
+        Matcher m = pt.matcher(editor.getText());
+        while (m.find() && out.size() < 100_000) {
+            if (m.end() == m.start()) { // an empty match (e.g. "^"): step on
+                if (m.end() >= editor.length()) break;
+                continue;
+            }
+            out.add(new int[]{m.start(), m.end()});
+        }
+        return out;
+    }
+
+    private void search() {
+        if (findInput.getText().length() == 0) {
             findCount.setText("");
             return;
         }
-        try {
-            s.search(q, new EditorSearcher.SearchOptions(regex ? EditorSearcher.SearchOptions.TYPE_REGULAR_EXPRESSION
-                    : EditorSearcher.SearchOptions.TYPE_NORMAL, !matchCase));
-            findCount.post(this::updateCount);
-        } catch (RuntimeException e) {
-            // A half-typed regular expression.
+        Pattern pt = pattern();
+        if (pt == null) {
             findCount.setText("!");
+            return;
         }
+        int n = matches(pt).size();
+        findCount.setText(n == 0 ? getString(R.string.editor_no_match) : String.valueOf(n));
     }
 
-    private void updateCount() {
-        try {
-            int n = editor.getSearcher().getMatchedPositionCount();
-            findCount.setText(n == 0 ? getString(R.string.editor_no_match) : String.valueOf(n));
-        } catch (RuntimeException e) {
-            findCount.setText("");
-        }
-    }
-
+    /** Selects the next (or previous) match after the cursor, wrapping around. */
     private void step(boolean next) {
-        EditorSearcher s = editor.getSearcher();
-        if (!s.hasQuery()) search();
-        try {
-            if (next) s.gotoNext();
-            else s.gotoPrevious();
-        } catch (RuntimeException ignored) {
+        Pattern pt = pattern();
+        if (pt == null) return;
+        List<int[]> all = matches(pt);
+        if (all.isEmpty()) {
+            findCount.setText(getString(R.string.editor_no_match));
+            return;
         }
+        int from = next ? Math.max(editor.getSelectionStart(), editor.getSelectionEnd()) : Math.min(editor.getSelectionStart(), editor.getSelectionEnd());
+        int[] pick = null;
+        int index = 0;
+        if (next) {
+            for (int i = 0; i < all.size(); i++) if (all.get(i)[0] >= from) {
+                pick = all.get(i);
+                index = i;
+                break;
+            }
+            if (pick == null) pick = all.get(0);
+        } else {
+            for (int i = all.size() - 1; i >= 0; i--) if (all.get(i)[1] <= from) {
+                pick = all.get(i);
+                index = i;
+                break;
+            }
+            if (pick == null) {
+                index = all.size() - 1;
+                pick = all.get(index);
+            }
+        }
+        editor.requestFocus();
+        editor.setSelection(pick[0], pick[1]);
+        findCount.setText((index + 1) + "/" + all.size());
     }
 
     private void replace(boolean all) {
-        EditorSearcher s = editor.getSearcher();
-        if (!s.hasQuery()) search();
+        Pattern pt = pattern();
+        if (pt == null) return;
         String with = replaceInput.getText().toString();
+        Editable t = editor.getText();
         try {
-            if (all) s.replaceAll(with);
-            else {
-                if (!editor.getCursor().isSelected()) s.gotoNext();
-                s.replaceCurrentMatch(with);
+            if (all) {
+                Matcher m = pt.matcher(t);
+                String result = regex ? m.replaceAll(with) : m.replaceAll(Matcher.quoteReplacement(with));
+                if (!result.contentEquals(t)) t.replace(0, t.length(), result); // one step to undo
+            } else {
+                int a = Math.min(editor.getSelectionStart(), editor.getSelectionEnd());
+                int b = Math.max(editor.getSelectionStart(), editor.getSelectionEnd());
+                Matcher m = pt.matcher(t);
+                // The selection is a match: replace it; else go to the next match first.
+                if (a >= 0 && b > a && m.find(a) && m.start() == a && m.end() == b) {
+                    String rep = regex ? expand(m, with) : with;
+                    t.replace(a, b, rep);
+                    editor.setSelection(a + rep.length());
+                }
+                step(true);
             }
         } catch (RuntimeException e) {
             Ui.toast(this, getString(R.string.error_prefix, e.getMessage()));
         }
-        findCount.postDelayed(this::updateCount, 150);
+        search();
+    }
+
+    /** "$1"-style groups in a regex replacement, for one match. */
+    private static String expand(Matcher m, String with) {
+        StringBuffer sb = new StringBuffer();
+        Matcher one = m.pattern().matcher(m.group());
+        if (!one.matches()) return with;
+        one.appendReplacement(sb, with);
+        return sb.toString();
     }
 
     private android.graphics.drawable.Drawable ripple() {
@@ -544,9 +534,4 @@ public final class EditorActivity extends BaseActivity {
         else imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
     }
 
-    @Override
-    protected void onDestroy() {
-        if (editor != null) editor.release();
-        super.onDestroy();
-    }
 }

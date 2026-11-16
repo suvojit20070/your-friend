@@ -741,6 +741,40 @@
     <string name="mic">音声入力</string>
     <string name="mic_permission_denied">マイクの権限が拒否されました</string>
     <string name="more">その他</string>
+    <string name="netgate_add_proxy">プロキシを追加</string>
+    <string name="netgate_apps">選んだアプリ</string>
+    <string name="netgate_apps_none">まだありません</string>
+    <string name="netgate_edit_proxy">プロキシ</string>
+    <string name="netgate_intro">Net Gate はこの端末内だけで動く VPN です（どこにも送信しません）。どのアプリがインターネットを使えるかを決めます。Your Friend は常に接続できます。Android は同時に1つの VPN しか動かせないため、Net Gate がオンの間は他の VPN アプリは止まります — 代わりに下でプロキシを追加してください。</string>
+    <string name="netgate_mode">モード</string>
+    <string name="netgate_mode_allow">選んだアプリだけ接続できる</string>
+    <string name="netgate_mode_block">選んだアプリは接続できない</string>
+    <string name="netgate_name">Net Gate</string>
+    <string name="netgate_no_apps">先にアプリを1つ以上選んでください</string>
+    <string name="netgate_no_consent">Android が VPN を許可しませんでした</string>
+    <string name="netgate_proxy">プロキシ</string>
+    <string name="netgate_proxy_desc">接続できるアプリはすべてプロキシ（SOCKS5 または HTTP）経由になります。UDP（通話や一部のゲーム）はプロキシを通らないため、アプリは TCP を使います。</string>
+    <string name="netgate_proxy_host">ホスト（または user:pass@host:port）</string>
+    <string name="netgate_proxy_invalid">ホストとポート（1–65535）を入力してください</string>
+    <string name="netgate_proxy_missing">このビルドにはプロキシエンジンがありません（CI でビルドされます）。アプリのブロックは使えます。</string>
+    <string name="netgate_proxy_old_android">プロキシには Android 10 以降が必要です。アプリのブロックはこの端末でも使えます。</string>
+    <string name="netgate_proxy_pass">パスワード（任意）</string>
+    <string name="netgate_proxy_port">ポート</string>
+    <string name="netgate_proxy_switch">自分のプロキシを使う</string>
+    <string name="netgate_proxy_type">種類: %1$s（タップで切替）</string>
+    <string name="netgate_proxy_user">ユーザー名（任意）</string>
+    <string name="netgate_rotate">プロキシをローテーション</string>
+    <string name="netgate_rotate_desc">新しい接続ごとに次のプロキシを使います。失敗したものは飛ばします</string>
+    <string name="netgate_self_note">Your Friend はこの一覧にありません。常に接続でき、ここでは止められません。</string>
+    <string name="netgate_settings_desc">インターネットを使えるアプリを選びます（プロキシ経由も可）</string>
+    <string name="netgate_status_off">オフ</string>
+    <string name="netgate_status_on">オン · %1$s · %2$d 個のアプリ</string>
+    <string name="netgate_status_proxy">%1$d 個のプロキシ経由</string>
+    <string name="netgate_switch">Net Gate オン</string>
+    <string name="netgate_test">テスト</string>
+    <string name="netgate_test_failed">プロキシが動作しません: %1$s</string>
+    <string name="netgate_test_ok">プロキシは動作しています</string>
+    <string name="netgate_testing">プロキシをテスト中…</string>
     <string name="next">次へ</string>
     <string name="no_speech_recognizer">この端末には音声認識がインストールされていません</string>
     <string name="not_set">未設定</string>
@@ -1257,6 +1291,7 @@
     <string name="tile_auto_reply">Replia</string>
     <string name="tile_auto_reply_no_access">アクセスを許可</string>
     <string name="tile_companion">フローティングコンパニオン</string>
+    <string name="tile_hands_free">ハンズフリー</string>
     <string name="tile_screen">画面について聞く</string>
     <string name="tile_talk">話す</string>
     <string name="tone_custom">カスタム音</string>
@@ -1505,6 +1540,9 @@
     </plurals>
     <plurals name="messages_count">
         <item quantity="other">%d 件のメッセージ</item>
+    </plurals>
+    <plurals name="netgate_apps_count">
+        <item quantity="other">%d 個のアプリ</item>
     </plurals>
     <plurals name="office_steps">
         <item quantity="other">%d ステップ</item>
