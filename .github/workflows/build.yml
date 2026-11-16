@@ -56,7 +56,8 @@ jobs:
 
       - name: Build hev-socks5-tunnel (Net Gate proxy engine)
         # Not fatal: without it the app still builds; only Net Gate's proxy option is unavailable.
-        run: bash tools/netgate/build_hev.sh || echo "::warning::hev-socks5-tunnel build failed: Net Gate proxy will be unavailable"
+        run: |
+          bash tools/netgate/build_hev.sh || echo "::warning::hev-socks5-tunnel build failed, Net Gate proxy will be unavailable"
 
       - name: Build debug APK
         run: ./gradlew --stacktrace assembleDebug
@@ -146,7 +147,8 @@ jobs:
       - name: Build hev-socks5-tunnel (Net Gate proxy engine)
         if: steps.secrets.outputs.present == 'true'
         # Not fatal: without it the app still builds; only Net Gate's proxy option is unavailable.
-        run: bash tools/netgate/build_hev.sh || echo "::warning::hev-socks5-tunnel build failed: Net Gate proxy will be unavailable"
+        run: |
+          bash tools/netgate/build_hev.sh || echo "::warning::hev-socks5-tunnel build failed, Net Gate proxy will be unavailable"
 
       - name: Build signed release APK
         if: steps.secrets.outputs.present == 'true'
